@@ -5,7 +5,7 @@
  *      Author: Mateusz
  */
 #include "I-BUS.hpp"
-#include "Configuration.h"
+#include "..\Configuration.h"
 
 #ifndef EMERGENCY_STOP_AXIS
 #define EMERGENCY_STOP_AXIS 4
@@ -35,14 +35,14 @@ IBus::IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void))
  */
 void IBus::ProcessRxDataCB(uint8_t *pRxData)
 {
-	uint16_t Checksum = (pData[31] << 8) | pData[30];
+	uint16_t Checksum = (pRxData[31] << 8) | pRxData[30];
 	//Confirm data correct
 	for(uint8_t u8Iter = 0; u8Iter < 30; u8Iter++)
 	{
-		Checksum = Checksum + pData[u8Iter];
+		Checksum = Checksum + pRxData[u8Iter];
 	}
 	//update connection tick
-	if(Checksum == 0xFFFF && (pData[1] - pData[0] == 0x20))
+	if(Checksum == 0xFFFF && (pRxData[1] - pRxData[0] == 0x20))
 	{
 		__IsConnected_tick = HAL_GetTick();
 	}
@@ -51,15 +51,17 @@ void IBus::ProcessRxDataCB(uint8_t *pRxData)
 		return;
 	}
 	//swap bytes and add to axesData
-	pData += 2;
-	for(uint8_t u8Iter = 0; u8Iter < 30; u8Iter = u8Iter + 2)
+	pRxData += 2;
+	for(uint8_t u8Iter = 0; u8Iter < 14; u8Iter++)
 	{
-		__axesData[u8Iter >> 1] =  (pData[u8Iter]) | (pData[u8Iter + 1] << 8);
-		__axesData[u8Iter >> 1] -= 1000;
+		//Move bytes into place and copy values to __axesData
+		__AxesData[u8Iter] =  ((uint16_t*)pData)[u8Iter];
+		//Substract 1000 from values to get range from 0 to 1000
+		__AxesData[u8Iter] -= 1000;
 	}
 	//call emergency stop if enabled
 #ifdef EMERGENCY_STOP_AXIS
-	if(axesData[EMERGENCY_STOP_AXIS] > 500)
+	if(__AxesData[EMERGENCY_STOP_AXIS] > 500)
 	{
 		__CallEmergencyStop();
 	}
@@ -71,20 +73,19 @@ void IBus::ProcessRxDataCB(uint8_t *pRxData)
  */
 HAL_StatusTypeDef IBus::GetConnectionStatus(void)
 {
-#ifdef EMERGENCY_STOP_AT_CONNECTION_LOSS
+
 	if((HAL_GetTick() - __IsConnected_tick) > EMERGENCY_STOP_TIME_TRESHOLD_TICK)
 	{
+#ifdef EMERGENCY_STOP_AT_CONNECTION_LOSS
 		__CallEmergencyStop();
+#endif
 		return HAL_ERROR;
 	}
 	else
 	{
 		return HAL_OK;
 	}
-#else
 
-	return ((HAL_GetTick() - __IsConnected_tick) < EMERGENCY_STOP_TIME_TRESHOLD_TICK);
-#endif
 }
 /*
  * @briefReturns axis value
