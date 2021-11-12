@@ -35,7 +35,7 @@ IBus::IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void))
  */
 void IBus::ProcessRxDataCB(uint8_t *pRxData)
 {
-	uint16_t Checksum = (pRxData[31] << 8) | pRxData[30];
+	uint16_t Checksum = ((uint16_t*)pRxData)[15];
 	//Confirm data correct
 	for(uint8_t u8Iter = 0; u8Iter < 30; u8Iter++)
 	{
@@ -55,7 +55,7 @@ void IBus::ProcessRxDataCB(uint8_t *pRxData)
 	for(uint8_t u8Iter = 0; u8Iter < 14; u8Iter++)
 	{
 		//Move bytes into place and copy values to __axesData
-		__AxesData[u8Iter] =  ((uint16_t*)pData)[u8Iter];
+		__AxesData[u8Iter] =  ((uint16_t*)pRxData)[u8Iter];
 		//Substract 1000 from values to get range from 0 to 1000
 		__AxesData[u8Iter] -= 1000;
 	}
