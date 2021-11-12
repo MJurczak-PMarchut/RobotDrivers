@@ -15,7 +15,12 @@
 #define EMERGENCY_STOP_TIME_TRESHOLD_TICK 30
 #endif
 
-
+/*
+ * @brief I-BUS class constructor
+ * @note Requires CallEmergencyStop function to be passed as argument for security
+ * @param ibus_huart uart handle, not used right now
+ * @param CallEmergencyStop needs to be a function that stops robot movement
+ */
 IBus::IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void))
 {
 	__ibus_huart = ibus_huart;
@@ -23,6 +28,11 @@ IBus::IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void))
 	__CallEmergencyStop = CallEmergencyStop;
 }
 
+/*
+ * @brief Processes Rx Data received through Uart, should be called in uart callback
+ * @param pRxData pointer to uart rx data buffer
+ * @retval None
+ */
 void IBus::ProcessRxDataCB(uint8_t *pRxData)
 {
 	uint16_t Checksum = (pData[31] << 8) | pData[30];
@@ -31,6 +41,7 @@ void IBus::ProcessRxDataCB(uint8_t *pRxData)
 	{
 		Checksum = Checksum + pData[u8Iter];
 	}
+	//update connection tick
 	if(Checksum == 0xFFFF && (pData[1] - pData[0] == 0x20))
 	{
 		__IsConnected_tick = HAL_GetTick();
@@ -46,12 +57,18 @@ void IBus::ProcessRxDataCB(uint8_t *pRxData)
 		__axesData[u8Iter >> 1] =  (pData[u8Iter]) | (pData[u8Iter + 1] << 8);
 		__axesData[u8Iter >> 1] -= 1000;
 	}
+	//call emergency stop if enabled
+#ifdef EMERGENCY_STOP_AXIS
 	if(axesData[EMERGENCY_STOP_AXIS] > 500)
 	{
 		__CallEmergencyStop();
 	}
+#endif
 }
-
+/*
+ * @brief Should be called periodically if EMERGENCY_STOP_AT_CONNECTION_LOSS is enabled
+ * @retval HAL_StatusTypeDef
+ */
 HAL_StatusTypeDef IBus::GetConnectionStatus(void)
 {
 #ifdef EMERGENCY_STOP_AT_CONNECTION_LOSS
@@ -69,7 +86,11 @@ HAL_StatusTypeDef IBus::GetConnectionStatus(void)
 	return ((HAL_GetTick() - __IsConnected_tick) < EMERGENCY_STOP_TIME_TRESHOLD_TICK);
 #endif
 }
-
+/*
+ * @briefReturns axis value
+ * @param Axis Axis number to return value of
+ * @retval Axis value
+ */
 uint16_t IBus::GetAxisValue(uint8_t Axis)
 {
 	return __AxesData[Axis];
