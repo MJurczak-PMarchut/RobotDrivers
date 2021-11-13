@@ -16,6 +16,7 @@
 #endif
 
 #include "vector"
+#include "queue"
 
 //TODO that is the dumbest way to do it possible, I don't like it, I should probably fix this in the future
 typedef union {
@@ -23,6 +24,7 @@ typedef union {
 	SPI_HandleTypeDef *hspi;
 	I2C_HandleTypeDef *hi2c;
 }CommIntUnionTypeDef;
+
 
 typedef enum {
 	COMM_INT_SPI_TXRX, COMM_INT_SPI_RX, COMM_INT_UART_TXRX, COMM_INT_UART_RX, COMM_INT_I2C_TXRX, COMM_INT_I2C_RX
@@ -44,6 +46,12 @@ struct MessageInfoTypeDef{
 	void (*pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 };
 
+template <typename T>
+struct CommQueue{
+	T handle;
+	std::queue<MessageInfoTypeDef*> MsgInfo;
+};
+
 class CommManager
 {
 	public:
@@ -57,9 +65,10 @@ class CommManager
 		HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *hi2c);
 	private:
 		HAL_StatusTypeDef __CheckIfCommIntIsAttached(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
-		std::vector<UART_HandleTypeDef*> __huartVect;
-		std::vector<SPI_HandleTypeDef*> __hspiVect;
-		std::vector<I2C_HandleTypeDef*> __hi2cVect;
+		HAL_StatusTypeDef __CheckIfCommQueueHasFreeSpace(MessageInfoTypeDef *MsgInfo);
+		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
+		std::vector<CommQueue<SPI_HandleTypeDef*>> __hspiQueueVect;
+		std::vector<CommQueue<I2C_HandleTypeDef*>> __hi2cQueueVect;
 };
 
 
