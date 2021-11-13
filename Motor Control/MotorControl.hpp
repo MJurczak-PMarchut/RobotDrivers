@@ -6,7 +6,14 @@
  */
 #ifndef SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
 #define SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
+#include "../Configuration.h"
+
+#ifdef MCU_STM32F4
 #include "stm32f4xx_hal.h"
+#elif MCU_STM32H7
+#include "stm32h7xx_hal.h"
+#endif
+
 #include <queue>
 
 typedef enum {MOTOR_LEFT, MOTOR_RIGHT} MotorSideTypeDef;
@@ -22,7 +29,7 @@ typedef struct {
 
 class MCInterface{
 	public:
-		MCInterface(MotorSideTypeDef side, UART_HandleTypeDef *huart, );
+		MCInterface(MotorSideTypeDef side, UART_HandleTypeDef *huart );
 		MCInterface(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, uint16_t CS_Pin, GPIO_TypeDef *GPIOx);
 		virtual HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM) = 0;
 		virtual HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir) = 0;

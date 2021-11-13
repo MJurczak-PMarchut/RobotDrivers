@@ -22,7 +22,7 @@ MCInterface::MCInterface(MotorSideTypeDef side, UART_HandleTypeDef *huart)
 	this->__CheckIfControllerAvailable(side, 0xAA);
 }
 
-MCInterface::MCInterface(MotorSideTypeDef side, SPI_HandleTypeDef *hspi)
+MCInterface::MCInterface(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, uint16_t CS_Pin, GPIO_TypeDef *GPIOx)
 {
 	this->__CheckIfControllerAvailable(side, 0xBB);
 }
