@@ -7,8 +7,13 @@
 
 #ifndef SUMODRIVERS_I_BUS_I_BUS_HPP_
 #define SUMODRIVERS_I_BUS_I_BUS_HPP_
+#include "../Configuration.h"
 
+#ifdef MCU_STM32F4
 #include "stm32f4xx_hal.h"
+#elif MCU_STM32H7
+#include "stm32h7xx_hal.h"
+#endif
 
 #ifdef __cplusplus
 class IBus{
