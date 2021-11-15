@@ -64,8 +64,7 @@ class CommManager
 		HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *hspi);
 		HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *hi2c);
 	private:
-		HAL_StatusTypeDef __CheckIfCommIntIsAttached(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
-		HAL_StatusTypeDef __CheckIfCommQueueHasFreeSpace(MessageInfoTypeDef *MsgInfo);
+		HAL_StatusTypeDef __CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
 		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
 		std::vector<CommQueue<SPI_HandleTypeDef*>> __hspiQueueVect;
 		std::vector<CommQueue<I2C_HandleTypeDef*>> __hi2cQueueVect;

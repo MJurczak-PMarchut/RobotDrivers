@@ -7,6 +7,10 @@
 #include "CommManager.hpp"
 #include "vector"
 
+#ifndef MAX_MESSAGE_NO_IN_QUEUE
+#define MAX_MESSAGE_NO_IN_QUEUE 5
+#endif
+
 CommManager::CommManager()
 {
 
@@ -59,7 +63,7 @@ HAL_StatusTypeDef CommManager::AttachCommInt(UART_HandleTypeDef *huart)
 
 HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo)
 {
-	if(this->__CheckIfCommIntIsAttached(&MsgInfo->uCommInt, MsgInfo->eCommType) != HAL_OK)
+	if(this->__CheckIfCommIntIsAttachedAndHasFreeSpace(&MsgInfo->uCommInt, MsgInfo->eCommType) != HAL_OK)
 	{
 		return HAL_ERROR;
 	}
@@ -72,7 +76,7 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 #ifdef SPI_USES_DMA
 				if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
 				{
-//TODO Check if queue has free space for a message
+					HAL_SPI_TransmitReceive_DMA(MsgInfo->uCommInt.hspi, pTxData, pRxData, Size)
 				}
 #elif defined SPI_USES_IT
 
@@ -113,7 +117,7 @@ HAL_StatusTypeDef CommManager::__CheckIfCommIntIsAttached(CommIntUnionTypeDef *u
 		{
 			for(CommQueue<SPI_HandleTypeDef*> hspiptr : this->__hspiQueueVect)
 			{
-				if(uCommInt->hspi == hspiptr.handle)
+				if((uCommInt->hspi->Instance == hspiptr.handle->Instance) && (hspiptr.MsgInfo.size() < MAX_MESSAGE_NO_IN_QUEUE))
 				{
 					return HAL_OK;
 				}
@@ -125,7 +129,7 @@ HAL_StatusTypeDef CommManager::__CheckIfCommIntIsAttached(CommIntUnionTypeDef *u
 		{
 			for(CommQueue<I2C_HandleTypeDef*> hi2cptr : this->__hi2cQueueVect)
 			{
-				if(uCommInt->hi2c == hi2cptr.handle)
+				if((uCommInt->hi2c->Instance == hi2cptr.handle->Instance) && (hi2cptr.MsgInfo.size() < MAX_MESSAGE_NO_IN_QUEUE))
 				{
 					return HAL_OK;
 				}
@@ -137,7 +141,7 @@ HAL_StatusTypeDef CommManager::__CheckIfCommIntIsAttached(CommIntUnionTypeDef *u
 		{
 			for(CommQueue<UART_HandleTypeDef*> huartptr : this->__huartQueueVect)
 			{
-				if(uCommInt->huart == huartptr.handle)
+				if((uCommInt->huart->Instance == huartptr.handle->Instance) && (huartptr.MsgInfo.size() < MAX_MESSAGE_NO_IN_QUEUE))
 				{
 					return HAL_OK;
 				}
