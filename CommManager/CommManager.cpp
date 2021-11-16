@@ -6,7 +6,7 @@
  */
 #include "CommManager.hpp"
 #include "vector"
-
+#ifndef NO_COMMUNICATION_INTERFACE_DEFINED
 #ifndef MAX_MESSAGE_NO_IN_QUEUE
 #define MAX_MESSAGE_NO_IN_QUEUE 5
 #endif
@@ -19,7 +19,7 @@ CommManager::CommManager()
 }
 
 
-
+#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 #ifdef I2C_USES_DMA
 HAL_StatusTypeDef CommManager::AttachCommInt(I2C_HandleTypeDef *hi2c, DMA_HandleTypeDef *hdma)
 #else
@@ -41,9 +41,11 @@ HAL_StatusTypeDef CommManager::AttachCommInt(I2C_HandleTypeDef *hi2c)
 	this->__hi2cQueueVect.push_back(Init);
 	return HAL_OK;
 }
+#endif
 
 
 
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 #ifdef SPI_USES_DMA
 HAL_StatusTypeDef CommManager::AttachCommInt(SPI_HandleTypeDef *hspi, DMA_HandleTypeDef *hdma)
 #else
@@ -65,6 +67,9 @@ HAL_StatusTypeDef CommManager::AttachCommInt(SPI_HandleTypeDef *hspi)
 	this->__hspiQueueVect.push_back(Init);
 	return HAL_OK;
 }
+#endif
+
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 #ifdef UART_USES_DMA
 HAL_StatusTypeDef CommManager::AttachCommInt(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma)
 #else
@@ -86,7 +91,7 @@ HAL_StatusTypeDef CommManager::AttachCommInt(UART_HandleTypeDef *huart)
 	this->__huartQueueVect.push_back(Init);
 	return HAL_OK;
 }
-
+#endif
 
 
 HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo)
@@ -104,39 +109,55 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 			case COMM_INT_SPI_TXRX:
 			case COMM_INT_SPI_RX:
 			{
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
 				{
 					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
 				}
 				return this->__CheckIfFreeAndSendRecv(MsgInfo, VectorIndex);
+#else
+				return HAL_ERROR;
+#endif
 			}
 				break;
 			case COMM_INT_I2C_TX:
 			case COMM_INT_I2C_RX:
 			{
+#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 				if(this->__hi2cQueueVect[VectorIndex].MsgInfo.size() > 0)
 				{
 					this->__hi2cQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
 				}
 				return this->__CheckIfFreeAndSendRecv(MsgInfo, VectorIndex);
+#else
+				return HAL_ERROR;
+#endif
 			}
 				break;
 			case COMM_INT_UART_TX:
 			{
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 				if(this->__huartQueueVect[VectorIndex].MsgInfo.size() > 0)
 				{
 					this->__huartQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
 				}
 				return this->__CheckIfFreeAndSendRecv(MsgInfo, VectorIndex);
+#else
+				return HAL_ERROR;
+#endif
 			}
 				break;
 			case COMM_INT_UART_RX:
 			{
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 				if(this->__huartQueueVect[VectorIndex].MsgRx.size() > 0)
 				{
 					this->__huartQueueVect[VectorIndex].MsgRx.push(*MsgInfo); //Queue not empty, push message back
 				}
 				return this->__CheckIfFreeAndSendRecv(MsgInfo, VectorIndex);
+#else
+				return HAL_ERROR;
+#endif
 			}
 				break;
 			default:
@@ -159,6 +180,7 @@ uint8_t CommManager::__CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeD
 		case COMM_INT_SPI_TXRX:
 		case COMM_INT_SPI_RX:
 		{
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 			for(u8Iter = 0; u8Iter < this->__hspiQueueVect.size(); u8Iter++)
 			{
 				if((uCommInt->hspi->Instance == __hspiQueueVect[u8Iter].handle->Instance) && (__hspiQueueVect[u8Iter].MsgInfo.size() < MAX_MESSAGE_NO_IN_QUEUE))
@@ -166,12 +188,14 @@ uint8_t CommManager::__CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeD
 					return u8Iter;
 				}
 			}
+#endif
 			return VECTOR_NOT_FOUND;
 		}
 			break;
 		case COMM_INT_I2C_TX:
 		case COMM_INT_I2C_RX:
 		{
+#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 			for(u8Iter = 0; u8Iter < this->__hi2cQueueVect.size(); u8Iter++)
 			{
 				if((uCommInt->hi2c->Instance == __hi2cQueueVect[u8Iter].handle->Instance) && (__hi2cQueueVect[u8Iter].MsgInfo.size() < MAX_MESSAGE_NO_IN_QUEUE))
@@ -179,11 +203,13 @@ uint8_t CommManager::__CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeD
 					return u8Iter;
 				}
 			}
+#endif
 			return VECTOR_NOT_FOUND;
 		}
 			break;
 		case COMM_INT_UART_TX:
 		{
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 			for(u8Iter = 0; u8Iter < this->__huartQueueVect.size(); u8Iter++)
 			{
 				if((uCommInt->huart->Instance == __huartQueueVect[u8Iter].handle->Instance) && (__huartQueueVect[u8Iter].MsgInfo.size() < MAX_MESSAGE_NO_IN_QUEUE))
@@ -191,10 +217,12 @@ uint8_t CommManager::__CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeD
 					return u8Iter;
 				}
 			}
+#endif
 			return VECTOR_NOT_FOUND;
 		}
 		case COMM_INT_UART_RX:
 		{
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 			for(u8Iter = 0; u8Iter < this->__huartQueueVect.size(); u8Iter++)
 			{
 				if((uCommInt->huart->Instance == __huartQueueVect[u8Iter].handle->Instance) && (__huartQueueVect[u8Iter].MsgRx.size() < MAX_MESSAGE_NO_IN_QUEUE))
@@ -202,6 +230,7 @@ uint8_t CommManager::__CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeD
 					return u8Iter;
 				}
 			}
+#endif
 			return VECTOR_NOT_FOUND;
 		}
 			break;
@@ -214,12 +243,12 @@ uint8_t CommManager::__CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeD
 }
 
 
-
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart)
 {
 	uint8_t u8Iter;
 	MessageInfoTypeDef Msg;
-	for(u8Iter = 0; u8Iter < this->__hspiQueueVect.size(); u8Iter++)
+	for(u8Iter = 0; u8Iter < this->__huartQueueVect.size(); u8Iter++)
 	{
 		if(huart->Instance == __huartQueueVect[u8Iter].handle->Instance)
 		{
@@ -246,9 +275,11 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart)
 	}
 	return HAL_ERROR;
 }
+#endif
 
 
 
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 HAL_StatusTypeDef CommManager::MsgReceivedCB(SPI_HandleTypeDef *hspi)
 {
 	uint8_t u8Iter;
@@ -282,9 +313,10 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(SPI_HandleTypeDef *hspi)
 	}
 	return HAL_ERROR;
 }
+#endif
 
 
-
+#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 HAL_StatusTypeDef CommManager::MsgReceivedCB(I2C_HandleTypeDef *hi2c)
 {
 	//Find message
@@ -319,9 +351,10 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(I2C_HandleTypeDef *hi2c)
 	}
 	return HAL_ERROR;
 }
+#endif
 
 
-
+#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c)
 {
 	uint8_t VectorIndex;
@@ -346,7 +379,11 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(I2C_HandleTypeD
 	}
 	return HAL_ERROR;
 }
+#endif
 
+
+
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(SPI_HandleTypeDef *hspi)
 {
 	uint8_t VectorIndex;
@@ -371,7 +408,10 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(SPI_HandleTypeD
 	}
 	return HAL_ERROR;
 }
+#endif
 
+
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(UART_HandleTypeDef *huart)
 {
 	uint8_t VectorIndex;
@@ -396,7 +436,7 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(UART_HandleType
 	}
 	return HAL_ERROR;
 }
-
+#endif
 
 HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex)
 {
@@ -482,6 +522,8 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 				//Queue empty and peripheral ready, send message
 				return HAL_SPI_TransmitReceive(MsgInfo->uCommInt.hspi, MsgInfo->pTxData, MsgInfo->pRxData, MsgInfo->len, COMMUNICATION_TIMEOUT);
 			}
+#else
+			return HAL_ERROR;
 #endif
 		}
 			break;
@@ -507,6 +549,8 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 				//Queue empty and peripheral ready, send message
 				return HAL_SPI_Receive_IT(MsgInfo->uCommInt.hspi, MsgInfo->pRxData, MsgInfo->len, COMMUNICATION_TIMEOUT);
 			}
+#else
+			return HAL_ERROR;
 #endif
 		}
 			break;
@@ -575,6 +619,7 @@ HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, 
 		case COMM_INT_SPI_TXRX:
 		case COMM_INT_SPI_RX:
 		{
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 			//Check if pin is already set
 			if((this->__hspiQueueVect[VectorIndex].GPIO_PIN == MsgInfo->GPIO_PIN) && (this->__hspiQueueVect[VectorIndex].GPIOx == MsgInfo->GPIOx))
 			{
@@ -588,11 +633,15 @@ HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, 
 				HAL_GPIO_WritePin(MsgInfo->GPIOx, MsgInfo->GPIO_PIN, CSn_ACTIVE_PIN_STATE);
 				return HAL_OK;
 			}
+#else
+			return HAL_ERROR;
+#endif
 		}
 			break;
 		case COMM_INT_I2C_TX:
 		case COMM_INT_I2C_RX:
 		{
+#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 			//Check if pin is already set
 			if((this->__hi2cQueueVect[VectorIndex].GPIO_PIN == MsgInfo->GPIO_PIN) && (this->__hi2cQueueVect[VectorIndex].GPIOx == MsgInfo->GPIOx))
 			{
@@ -606,11 +655,15 @@ HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, 
 				HAL_GPIO_WritePin(MsgInfo->GPIOx, MsgInfo->GPIO_PIN, CSn_ACTIVE_PIN_STATE);
 				return HAL_OK;
 			}
+#else
+			return HAL_ERROR;
+#endif
 		}
 			break;
 		case COMM_INT_UART_TX:
 		case COMM_INT_UART_RX:
 		{
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 			//Check if pin is already set
 			if((this->__huartQueueVect[VectorIndex].GPIO_PIN == MsgInfo->GPIO_PIN) && (this->__huartQueueVect[VectorIndex].GPIOx == MsgInfo->GPIOx))
 			{
@@ -624,6 +677,9 @@ HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, 
 				HAL_GPIO_WritePin(MsgInfo->GPIOx, MsgInfo->GPIO_PIN, CSn_ACTIVE_PIN_STATE);
 				return HAL_OK;
 			}
+#else
+			return HAL_ERROR;
+#endif
 		}
 			break;
 
@@ -634,3 +690,5 @@ HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, 
 	}
 	return HAL_ERROR;
 }
+
+#endif
