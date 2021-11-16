@@ -36,4 +36,11 @@
 	#define COMMUNICATION_TIMEOUT HAL_MAX_DELAY
 #endif
 
+
+#ifdef MCU_STM32F4
+#include "stm32f4xx_hal.h"
+#elif defined(MCU_STM32H7)
+#include "stm32h7xx_hal.h"
+#endif
+
 #endif /* CONFIGURATION_H_ */

@@ -8,11 +8,6 @@
 #define SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
 #include "../Configuration.h"
 
-#ifdef MCU_STM32F4
-#include "stm32f4xx_hal.h"
-#elif MCU_STM32H7
-#include "stm32h7xx_hal.h"
-#endif
 
 #include <queue>
 
