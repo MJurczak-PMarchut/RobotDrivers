@@ -8,7 +8,7 @@
 #ifndef SUMODRIVERS_I_BUS_I_BUS_HPP_
 #define SUMODRIVERS_I_BUS_I_BUS_HPP_
 #include "../Configuration.h"
-
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 
 #ifdef __cplusplus
 class IBus{
@@ -31,5 +31,5 @@ class IBus{
 	HAL_StatusTypeDef GetConnectionStatus(void);
 
 #endif
-
+#endif
 #endif /* SUMODRIVERS_I_BUS_I_BUS_HPP_ */

@@ -6,7 +6,7 @@
  */
 #include "I-BUS.hpp"
 #include "..\Configuration.h"
-
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 #ifndef EMERGENCY_STOP_AXIS
 #define EMERGENCY_STOP_AXIS 4
 #endif
@@ -96,4 +96,5 @@ uint16_t IBus::GetAxisValue(uint8_t Axis)
 {
 	return __AxesData[Axis];
 }
+#endif
 
