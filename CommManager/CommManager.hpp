@@ -37,8 +37,7 @@ struct MessageInfoTypeDef{
 	CommIntTypeDef eCommType;
 	uint16_t GPIO_PIN;
 	GPIO_TypeDef *GPIOx;
-	uint8_t lenRx;
-	uint8_t lenTx;
+	uint8_t len;
 	uint8_t *pRxData;
 	uint8_t *pTxData;
 	uint8_t context;
@@ -49,7 +48,10 @@ struct MessageInfoTypeDef{
 template <typename T>
 struct CommQueue{
 	T handle;
-	std::queue<MessageInfoTypeDef*> MsgInfo;
+#if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
+	DMA_HandleTypeDef *hdma;
+#endif
+	std::queue<MessageInfoTypeDef> MsgInfo;
 };
 
 class CommManager
@@ -59,15 +61,30 @@ class CommManager
 		HAL_StatusTypeDef GetContext(MessageInfoTypeDef *MsgInfo);
 		HAL_StatusTypeDef PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo);
 		HAL_StatusTypeDef GetNextCommRequest(MessageInfoTypeDef *MsgInfo);
-
+#ifdef UART_USES_DMA //Force user to provide DMA handle
+		HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma);
+#else
 		HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *huart);
+#endif
+#ifdef SPI_USES_DMA
+		HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *hspi, DMA_HandleTypeDef *hdma);
+#else
 		HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *hspi);
+#endif
+#ifdef I2C_USES_DMA
+		HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *hi2c, DMA_HandleTypeDef *hdma);
+#else
 		HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *hi2c);
+#endif
 	private:
-		HAL_StatusTypeDef __CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
+		uint8_t __CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
 		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
 		std::vector<CommQueue<SPI_HandleTypeDef*>> __hspiQueueVect;
 		std::vector<CommQueue<I2C_HandleTypeDef*>> __hi2cQueueVect;
+#if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
+		std::vector<DMA_HandleTypeDef*> __hdmaVect;
+#endif
+
 };
 
 

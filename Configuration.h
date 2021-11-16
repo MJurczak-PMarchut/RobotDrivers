@@ -31,4 +31,9 @@
 //#define I2C_USES_IT
 //#define I2C_USES_WAIT
 
+
+#if defined(SPI_USES_WAIT) or defined(I2C_USES_WAIT) or defined(UART_USES_WAIT)
+	#define COMMUNICATION_TIMEOUT HAL_MAX_DELAY
+#endif
+
 #endif /* CONFIGURATION_H_ */
