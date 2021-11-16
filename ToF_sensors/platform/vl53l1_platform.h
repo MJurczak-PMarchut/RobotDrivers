@@ -7,6 +7,8 @@
 #define _VL53L1_PLATFORM_H_
 
 #include "vl53l1_types.h"
+#include "../../Configuration.h"
+#include "../../CommManager/CommManager.hpp"
 
 #ifdef __cplusplus
 extern "C"
