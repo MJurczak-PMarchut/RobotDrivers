@@ -98,11 +98,11 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 		{
 			case COMM_INT_SPI_TXRX:
 			{
-#ifdef SPI_USES_DMA
 				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
 				{
 					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
 				}
+#ifdef SPI_USES_DMA
 				if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
 				{
 					//Queue empty and peripheral ready, send message
@@ -112,10 +112,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				}
 				return HAL_OK;
 #elif defined SPI_USES_IT
-				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
-				{
-					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
-				}
 				if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
 				{
 					//Queue empty and peripheral ready, send message
@@ -123,10 +119,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				}
 				return HAL_OK;
 #elif defined SPI_USES_WAIT
-				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
-				{
-					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
-				}
 				if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
 				{
 					//Queue empty and peripheral ready, send message
@@ -138,11 +130,11 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				break;
 			case COMM_INT_SPI_RX:
 			{
-#ifdef SPI_USES_DMA
 				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
 				{
 					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
 				}
+#ifdef SPI_USES_DMA
 				if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
 				{
 					//Queue empty and peripheral ready, send message
@@ -152,10 +144,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				}
 				return HAL_OK;
 #elif defined SPI_USES_IT
-				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
-				{
-					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
-				}
 				if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
 				{
 					//Queue empty and peripheral ready, send message
@@ -163,10 +151,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				}
 				return HAL_OK;
 #elif defined SPI_USES_WAIT
-				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
-				{
-					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
-				}
 				if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
 				{
 					//Queue empty and peripheral ready, send message
