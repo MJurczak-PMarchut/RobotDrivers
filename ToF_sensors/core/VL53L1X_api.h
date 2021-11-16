@@ -68,14 +68,14 @@
 #ifndef _API_H_
 #define _API_H_
 
-#include "vl53l1_platform.h"
+#include "../platform/vl53l1_platform.h"
 
 #define VL53L1X_IMPLEMENTATION_VER_MAJOR       3
 #define VL53L1X_IMPLEMENTATION_VER_MINOR       5
 #define VL53L1X_IMPLEMENTATION_VER_SUB         1
 #define VL53L1X_IMPLEMENTATION_VER_REVISION  0000
 
-typedef int8_t VL53L1X_ERROR;
+typedef uint8_t VL53L1X_ERROR;
 
 #define SOFT_RESET											0x0000
 #define VL53L1_I2C_SLAVE__DEVICE_ADDRESS					0x0001
