@@ -7,7 +7,7 @@
 #ifndef SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
 #define SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
 #include "../Configuration.h"
-
+#if (defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)) or (defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT))
 
 #include <queue>
 
@@ -24,8 +24,12 @@ typedef struct {
 
 class MCInterface{
 	public:
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 		MCInterface(MotorSideTypeDef side, UART_HandleTypeDef *huart );
+#endif
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 		MCInterface(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, uint16_t CS_Pin, GPIO_TypeDef *GPIOx);
+#endif
 		virtual HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM) = 0;
 		virtual HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir) = 0;
 		virtual HAL_StatusTypeDef SetMaxCurrent(uint32_t MaxCurrent_mA) = 0;
@@ -37,6 +41,6 @@ class MCInterface{
 		uint8_t index;
 };
 
-
+#endif
 
 #endif /* SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_ */

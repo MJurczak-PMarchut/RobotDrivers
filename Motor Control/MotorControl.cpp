@@ -5,6 +5,8 @@
  *      Author: Mateusz
  */
 #include "MotorControl.hpp"
+#if (defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)) or (defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT))
+
 
 typedef struct {
 	uint8_t used_flag;
@@ -17,15 +19,19 @@ typedef struct {
 //Maximum of 2 active motor controllers of the same type
 ActiveMotorControllersTypeDef __ActiveMotorControllers[2];
 
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 MCInterface::MCInterface(MotorSideTypeDef side, UART_HandleTypeDef *huart)
 {
 	this->__CheckIfControllerAvailable(side, 0xAA);
 }
+#endif
 
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 MCInterface::MCInterface(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, uint16_t CS_Pin, GPIO_TypeDef *GPIOx)
 {
 	this->__CheckIfControllerAvailable(side, 0xBB);
 }
+#endif
 
 HAL_StatusTypeDef MCInterface::__CheckIfControllerAvailable(MotorSideTypeDef side, uint8_t used_comm_interface)
 {
@@ -63,3 +69,5 @@ HAL_StatusTypeDef MCInterface::CheckIfControllerAttachedOk(void)
 {
 	return (__ActiveMotorControllers[this->index].mcint == 0)? HAL_ERROR : HAL_OK ;
 }
+
+#endif

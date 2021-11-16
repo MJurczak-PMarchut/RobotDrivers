@@ -39,7 +39,7 @@ struct MessageInfoTypeDef{
 	CommIntTypeDef eCommType;
 	uint16_t GPIO_PIN;
 	GPIO_TypeDef *GPIOx;
-	uint8_t len;
+	uint16_t len;
 	uint8_t *pRxData;
 	uint8_t *pTxData;
 	uint8_t context;
@@ -52,7 +52,8 @@ template <typename T>
 struct CommQueue{
 	T handle;
 #if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
-	DMA_HandleTypeDef *hdma;
+	DMA_HandleTypeDef *hdmaRx;
+	DMA_HandleTypeDef *hdmaTx;
 #endif
 	std::queue<MessageInfoTypeDef> MsgInfo;
 	std::queue<MessageInfoTypeDef> MsgRx;
@@ -67,7 +68,8 @@ class CommManager
 		CommManager();
 		HAL_StatusTypeDef PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo);
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
-		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart);
+		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, CommIntTypeDef eCommType, uint16_t len);
+		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, CommIntTypeDef eCommType);
 #endif
 #if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 		HAL_StatusTypeDef MsgReceivedCB(SPI_HandleTypeDef *hspi);
@@ -76,7 +78,7 @@ class CommManager
 		HAL_StatusTypeDef MsgReceivedCB(I2C_HandleTypeDef *hi2c);
 #endif
 #ifdef UART_USES_DMA //Force user to provide DMA handle
-		HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma);
+		HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx);
 #elif defined(UART_USES_IT) or defined(UART_USES_WAIT)
 		HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *huart);
 #endif
