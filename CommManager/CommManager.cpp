@@ -102,14 +102,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 		switch(MsgInfo->eCommType)
 		{
 			case COMM_INT_SPI_TXRX:
-			{
-				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
-				{
-					this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
-				}
-				return this->__CheckIfFreeAndSendRecv(MsgInfo, VectorIndex);
-			}
-				break;
 			case COMM_INT_SPI_RX:
 			{
 				if(this->__hspiQueueVect[VectorIndex].MsgInfo.size() > 0)
@@ -120,14 +112,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 			}
 				break;
 			case COMM_INT_I2C_TX:
-			{
-				if(this->__hi2cQueueVect[VectorIndex].MsgInfo.size() > 0)
-				{
-					this->__hi2cQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
-				}
-				return this->__CheckIfFreeAndSendRecv(MsgInfo, VectorIndex);
-			}
-				break;
 			case COMM_INT_I2C_RX:
 			{
 				if(this->__hi2cQueueVect[VectorIndex].MsgInfo.size() > 0)
@@ -136,7 +120,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				}
 				return this->__CheckIfFreeAndSendRecv(MsgInfo, VectorIndex);
 			}
-
 				break;
 			case COMM_INT_UART_TX:
 			{
@@ -258,7 +241,7 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart)
 				}
 				this->__huartQueueVect[u8Iter].MsgRx.pop();
 			}
-			 return HAL_OK;
+			 return __CheckForNextCommRequestAndStart(huart);
 		}
 	}
 	return HAL_ERROR;
@@ -294,7 +277,7 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(SPI_HandleTypeDef *hspi)
 				}
 			}
 			 this->__hspiQueueVect[u8Iter].MsgInfo.pop();
-			 return HAL_OK;
+			 return __CheckForNextCommRequestAndStart(hspi);
 		}
 	}
 	return HAL_ERROR;
@@ -328,9 +311,10 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(I2C_HandleTypeDef *hi2c)
 					Msg.pRxCompletedCB(&Msg);
 				}
 			}
+
 			//remove item from queue
 			 this->__hi2cQueueVect[u8Iter].MsgInfo.pop();
-			 return HAL_OK;
+			 return __CheckForNextCommRequestAndStart(hi2c);
 		}
 	}
 	return HAL_ERROR;
@@ -338,7 +322,7 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(I2C_HandleTypeDef *hi2c)
 
 
 
-HAL_StatusTypeDef CommManager::CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c)
+HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c)
 {
 	uint8_t VectorIndex;
 	MessageInfoTypeDef MsgInfo;
@@ -355,10 +339,63 @@ HAL_StatusTypeDef CommManager::CheckForNextCommRequestAndStart(I2C_HandleTypeDef
 				return this->__CheckIfFreeAndSendRecv(&MsgInfo, VectorIndex);
 			}
 		}
+		else
+		{
+			HAL_GPIO_WritePin(__hi2cQueueVect[VectorIndex].GPIOx, __hi2cQueueVect[VectorIndex].GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+		}
 	}
 	return HAL_ERROR;
 }
 
+HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(SPI_HandleTypeDef *hspi)
+{
+	uint8_t VectorIndex;
+	MessageInfoTypeDef MsgInfo;
+	//Find peripheral
+	for(VectorIndex = 0; VectorIndex < this->__hspiQueueVect.size(); VectorIndex++)
+	{
+		if(hspi->Instance == __hspiQueueVect[VectorIndex].handle->Instance)
+		{
+			//Check if there are messages in queue
+			if(__hspiQueueVect[VectorIndex].MsgInfo.size() > 1)
+			{
+				MsgInfo = __hspiQueueVect[VectorIndex].MsgInfo.front();
+				//send message
+				return this->__CheckIfFreeAndSendRecv(&MsgInfo, VectorIndex);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(__hspiQueueVect[VectorIndex].GPIOx, __hspiQueueVect[VectorIndex].GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+			}
+		}
+	}
+	return HAL_ERROR;
+}
+
+HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(UART_HandleTypeDef *huart)
+{
+	uint8_t VectorIndex;
+	MessageInfoTypeDef MsgInfo;
+	//Find peripheral
+	for(VectorIndex = 0; VectorIndex < this->__huartQueueVect.size(); VectorIndex++)
+	{
+		if(huart->Instance == __huartQueueVect[VectorIndex].handle->Instance)
+		{
+			//Check if there are messages in queue
+			if(__huartQueueVect[VectorIndex].MsgInfo.size() > 1)
+			{
+				MsgInfo = __huartQueueVect[VectorIndex].MsgInfo.front();
+				//send message
+				return this->__CheckIfFreeAndSendRecv(&MsgInfo, VectorIndex);
+			}
+			else
+			{
+				HAL_GPIO_WritePin(__huartQueueVect[VectorIndex].GPIOx, __huartQueueVect[VectorIndex].GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+			}
+		}
+	}
+	return HAL_ERROR;
+}
 
 
 HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex)
@@ -366,6 +403,11 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 #if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
 	HAL_StatusTypeDef ret;
 #endif
+	// Set Pins
+	if(__CheckAndSetCSPins(MsgInfo, VectorIndex) != HAL_OK)
+	{
+		return HAL_ERROR;
+	}
 	switch(MsgInfo->eCommType)
 	{
 		case COMM_INT_I2C_RX:
@@ -526,3 +568,69 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 	return HAL_OK;
 }
 
+HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex)
+{
+	switch(MsgInfo->eCommType)
+	{
+		case COMM_INT_SPI_TXRX:
+		case COMM_INT_SPI_RX:
+		{
+			//Check if pin is already set
+			if((this->__hspiQueueVect[VectorIndex].GPIO_PIN == MsgInfo->GPIO_PIN) && (this->__hspiQueueVect[VectorIndex].GPIOx == MsgInfo->GPIOx))
+			{
+				//if so return
+				return HAL_OK;
+			}
+			else
+			{
+				//if not reset pin states and set new ones
+				HAL_GPIO_WritePin(this->__hspiQueueVect[VectorIndex].GPIOx, this->__hspiQueueVect[VectorIndex].GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+				HAL_GPIO_WritePin(MsgInfo->GPIOx, MsgInfo->GPIO_PIN, CSn_ACTIVE_PIN_STATE);
+				return HAL_OK;
+			}
+		}
+			break;
+		case COMM_INT_I2C_TX:
+		case COMM_INT_I2C_RX:
+		{
+			//Check if pin is already set
+			if((this->__hi2cQueueVect[VectorIndex].GPIO_PIN == MsgInfo->GPIO_PIN) && (this->__hi2cQueueVect[VectorIndex].GPIOx == MsgInfo->GPIOx))
+			{
+				//if so return
+				return HAL_OK;
+			}
+			else
+			{
+				//if not reset pin states and set new ones
+				HAL_GPIO_WritePin(this->__hi2cQueueVect[VectorIndex].GPIOx, this->__hi2cQueueVect[VectorIndex].GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+				HAL_GPIO_WritePin(MsgInfo->GPIOx, MsgInfo->GPIO_PIN, CSn_ACTIVE_PIN_STATE);
+				return HAL_OK;
+			}
+		}
+			break;
+		case COMM_INT_UART_TX:
+		case COMM_INT_UART_RX:
+		{
+			//Check if pin is already set
+			if((this->__huartQueueVect[VectorIndex].GPIO_PIN == MsgInfo->GPIO_PIN) && (this->__huartQueueVect[VectorIndex].GPIOx == MsgInfo->GPIOx))
+			{
+				//if so return
+				return HAL_OK;
+			}
+			else
+			{
+				//if not reset pin states and set new ones
+				HAL_GPIO_WritePin(this->__huartQueueVect[VectorIndex].GPIOx, this->__huartQueueVect[VectorIndex].GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+				HAL_GPIO_WritePin(MsgInfo->GPIOx, MsgInfo->GPIO_PIN, CSn_ACTIVE_PIN_STATE);
+				return HAL_OK;
+			}
+		}
+			break;
+
+		default:
+		{
+			return HAL_ERROR;
+		}
+	}
+	return HAL_ERROR;
+}

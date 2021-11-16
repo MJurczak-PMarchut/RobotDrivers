@@ -49,6 +49,8 @@ struct CommQueue{
 #endif
 	std::queue<MessageInfoTypeDef> MsgInfo;
 	std::queue<MessageInfoTypeDef> MsgRx;
+	uint16_t GPIO_PIN;
+	GPIO_TypeDef *GPIOx;
 };
 
 class CommManager
@@ -56,7 +58,6 @@ class CommManager
 	public:
 		CommManager();
 		HAL_StatusTypeDef PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo);
-		HAL_StatusTypeDef CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c);
 		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart);
 		HAL_StatusTypeDef MsgReceivedCB(SPI_HandleTypeDef *hspi);
 		HAL_StatusTypeDef MsgReceivedCB(I2C_HandleTypeDef *hi2c);
@@ -76,11 +77,15 @@ class CommManager
 		HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *hi2c);
 #endif
 	private:
+		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c);
+		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(SPI_HandleTypeDef *hspi);
+		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(UART_HandleTypeDef *huart);
 		uint8_t __CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
+		HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex);
+		HAL_StatusTypeDef __CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex);
 		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
 		std::vector<CommQueue<SPI_HandleTypeDef*>> __hspiQueueVect;
 		std::vector<CommQueue<I2C_HandleTypeDef*>> __hi2cQueueVect;
-		HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex);
 #if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
 		std::vector<DMA_HandleTypeDef*> __hdmaVect;
 #endif

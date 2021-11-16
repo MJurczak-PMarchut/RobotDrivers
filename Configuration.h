@@ -31,6 +31,7 @@
 //#define I2C_USES_IT
 //#define I2C_USES_WAIT
 
+#define CSn_ACTIVE_PIN_STATE GPIO_PIN_RESET
 
 #if defined(SPI_USES_WAIT) or defined(I2C_USES_WAIT) or defined(UART_USES_WAIT)
 	#define COMMUNICATION_TIMEOUT HAL_MAX_DELAY
@@ -41,6 +42,12 @@
 #include "stm32f4xx_hal.h"
 #elif defined(MCU_STM32H7)
 #include "stm32h7xx_hal.h"
+#endif
+
+#if CSn_ACTIVE_PIN_STATE == GPIO_PIN_RESET
+#define CSn_INACTIVE_PIN_STATE GPIO_PIN_SET
+#else
+#define CSn_INACTIVE_PIN_STATE GPIO_PIN_RESET
 #endif
 
 #endif /* CONFIGURATION_H_ */
