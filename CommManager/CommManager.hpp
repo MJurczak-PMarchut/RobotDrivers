@@ -67,54 +67,86 @@ class CommManager
 	public:
 		CommManager();
 		HAL_StatusTypeDef PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo);
+
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
+
 		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, CommIntTypeDef eCommType, uint16_t len);
 		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, CommIntTypeDef eCommType);
 #endif
 #if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
+
 		HAL_StatusTypeDef MsgReceivedCB(SPI_HandleTypeDef *hspi);
 #endif
+
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
+
 		HAL_StatusTypeDef MsgReceivedCB(I2C_HandleTypeDef *hi2c);
 #endif
+
 #ifdef UART_USES_DMA //Force user to provide DMA handle
+
 		HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx);
+
 #elif defined(UART_USES_IT) or defined(UART_USES_WAIT)
+
 		HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *huart);
 #endif
+
 #ifdef SPI_USES_DMA
+
 		HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *hspi, DMA_HandleTypeDef *hdma);
+
 #elif defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
+
 		HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *hspi);
 #endif
+
 #ifdef I2C_USES_DMA
+
 		HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *hi2c, DMA_HandleTypeDef *hdma);
 #elif defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
+
 		HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *hi2c);
 #endif
+
 	private:
-#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
-		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c);
-#endif
-#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
-		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(SPI_HandleTypeDef *hspi);
-#endif
-#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
-		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(UART_HandleTypeDef *huart);
-#endif
+
 		uint8_t __CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
 		HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex);
 		HAL_StatusTypeDef __CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex);
+
+#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
+
+		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c);
+#endif
+
+#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
+
+		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(SPI_HandleTypeDef *hspi);
+#endif
+
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
+
+		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(UART_HandleTypeDef *huart);
+#endif
+
+#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
+
 		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
 #endif
+
 #if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
+
 		std::vector<CommQueue<SPI_HandleTypeDef*>> __hspiQueueVect;
 #endif
+
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
+
 		std::vector<CommQueue<I2C_HandleTypeDef*>> __hi2cQueueVect;
 #endif
+
 #if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
+
 		std::vector<DMA_HandleTypeDef*> __hdmaVect;
 #endif
 
