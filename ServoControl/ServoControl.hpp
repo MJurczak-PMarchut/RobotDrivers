@@ -13,7 +13,7 @@
 #define UNABLE_TO_ATTACH_SERVO 0xFF
 
 typedef struct{
-	GPIO_TypeDef GPIOx;
+	GPIO_TypeDef *GPIOx;
 	uint16_t GPIO_PIN;
 	uint16_t ServoAngle;
 } ServoControlVectTypeDef;
@@ -23,7 +23,7 @@ class ServoControl
 	public:
 		ServoControl(TIM_HandleTypeDef *htim);
 		HAL_StatusTypeDef SetServoValue(uint8_t ServoNo, uint16_t ServoAngle);
-		uint8_t AttachServo(GPIO_TypeDef GPIOx, uint16_t GPIO_PIN);
+		uint8_t AttachServo(GPIO_TypeDef *GPIOx, uint16_t GPIO_PIN);
 		HAL_StatusTypeDef ServoControlCBHalfPulse(void);
 		HAL_StatusTypeDef ServoControlCBUpdate(void);
 		HAL_StatusTypeDef StartServos(void);

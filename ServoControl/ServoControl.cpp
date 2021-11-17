@@ -64,7 +64,7 @@ HAL_StatusTypeDef ServoControl::__InitTim(void)
 }
 
 
-uint8_t ServoControl::AttachServo(GPIO_TypeDef GPIOx, uint16_t GPIO_PIN)
+uint8_t ServoControl::AttachServo(GPIO_TypeDef *GPIOx, uint16_t GPIO_PIN)
 {
 	ServoControlVectTypeDef Srv_control;
 
@@ -148,7 +148,7 @@ HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 	//Check what caused the Interrupt
 	uint8_t Sched;
 	Sched = (this->__CurrentServoSched >= 9)? 0: this->__CurrentServoSched + 1;
-	switch(this->htim->Channel)
+	switch(this->__htim->Channel)
 	{
 		case HAL_TIM_ACTIVE_CHANNEL_1:
 			HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
@@ -176,11 +176,13 @@ HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 			return HAL_ERROR;
 			break;
 	}
+	return HAL_OK;
 }
 
-HAL_StatusTypeDef ServoControl::ServoControlCBPulse(void)
+HAL_StatusTypeDef ServoControl::ServoControlCBUpdate(void)
 {
 	this->__CurrentServoSched = (this->__CurrentServoSched < 9)? this->__CurrentServoSched + 1 : 0;
 	HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
+	return HAL_OK;
 }
