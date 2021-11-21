@@ -16,8 +16,8 @@
 #define MAX_MESSAGE_NO_IN_QUEUE 5
 
 
-#define MCU_STM32F4
-//#define MCU_STM32H7
+//#define MCU_STM32F4
+#define MCU_STM32H7
 
 //#define SPI_USES_DMA
 //#define SPI_USES_IT
