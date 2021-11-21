@@ -95,7 +95,7 @@ uint8_t ServoControl::AttachServo(GPIO_TypeDef *GPIOx, uint16_t GPIO_PIN)
 
 HAL_StatusTypeDef ServoControl::SetServoValue(uint8_t ServoNo, uint16_t ServoAngle)
 {
-	if(ServoAngle < 1000)
+	if(ServoAngle < 2000)
 	{
 		if(ServoNo < 10)
 		{
@@ -121,7 +121,7 @@ HAL_StatusTypeDef ServoControl::StartServos(void)
 	//Set First PWM Values
 	if(this->__NoOfServosAttached > 0)
 	{
-		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[0].ServoAngle + 1000);
+		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[0].ServoAngle + 500);
 		//Start PWM
 		ret = HAL_TIM_PWM_Start(this->__htim, TIM_CHANNEL_1);
 		if(ret == HAL_ERROR)
@@ -129,9 +129,9 @@ HAL_StatusTypeDef ServoControl::StartServos(void)
 			return ret;
 		}
 	}
-	if(this->__NoOfServosAttached >= 10)
+	if(this->__NoOfServosAttached >= 8)
 	{
-		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[0].ServoAngle + 1000);
+		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[0].ServoAngle + 500);
 		//Start PWM
 		ret = HAL_TIM_PWM_Start(this->__htim, TIM_CHANNEL_2);
 		if(ret == HAL_ERROR)
@@ -147,14 +147,17 @@ HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 {
 	//Check what caused the Interrupt
 	uint8_t Sched;
-	Sched = (this->__CurrentServoSched >= 9)? 0: this->__CurrentServoSched + 1;
+	Sched = (this->__CurrentServoSched >= 7)? 0: this->__CurrentServoSched + 1;
 	switch(this->__htim->Channel)
 	{
 		case HAL_TIM_ACTIVE_CHANNEL_1:
-			HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
 			if(this->__CurrentServoSched < this->__ServoControlVect1.size())
 			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[Sched].ServoAngle + 1000);
+				HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
+			}
+			if(Sched < this->__ServoControlVect1.size())
+			{
+				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[Sched].ServoAngle + 500);
 			}
 			else
 			{
@@ -162,10 +165,13 @@ HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 			}
 			break;
 		case HAL_TIM_ACTIVE_CHANNEL_2:
-			HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
 			if(this->__CurrentServoSched < this->__ServoControlVect2.size())
 			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[Sched].ServoAngle + 1000);
+				HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect2[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
+			}
+			if(Sched < this->__ServoControlVect2.size())
+			{
+				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[Sched].ServoAngle + 500);
 			}
 			else
 			{
@@ -182,7 +188,12 @@ HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 HAL_StatusTypeDef ServoControl::ServoControlCBUpdate(void)
 {
 	this->__CurrentServoSched = (this->__CurrentServoSched < 9)? this->__CurrentServoSched + 1 : 0;
-	HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
+	if(this->__CurrentServoSched < this->__ServoControlVect1.size())
+	{
+		HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
+	}
+	if(this->__CurrentServoSched < this->__ServoControlVect2.size()){
+		HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect2[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
+	}
 	return HAL_OK;
 }

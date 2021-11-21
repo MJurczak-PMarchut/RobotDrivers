@@ -18,6 +18,7 @@ typedef struct{
 	uint16_t ServoAngle;
 } ServoControlVectTypeDef;
 
+
 class ServoControl
 {
 	public:
@@ -33,6 +34,7 @@ class ServoControl
 		HAL_StatusTypeDef __InitTim(void);
 		std::vector<ServoControlVectTypeDef> __ServoControlVect1;
 		std::vector<ServoControlVectTypeDef> __ServoControlVect2;
+		std::vector<ServoControlVectTypeDef> __ServoControlVect3;
 		uint8_t __NoOfServosAttached;
 		uint8_t __CurrentServoSched;
 
