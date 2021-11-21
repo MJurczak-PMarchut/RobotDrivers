@@ -28,6 +28,7 @@ class ServoControl
 		HAL_StatusTypeDef ServoControlCBHalfPulse(void);
 		HAL_StatusTypeDef ServoControlCBUpdate(void);
 		HAL_StatusTypeDef StartServos(void);
+		uint8_t GetNoOfAttchedServos(void);
 	private:
 
 		TIM_HandleTypeDef *__htim;

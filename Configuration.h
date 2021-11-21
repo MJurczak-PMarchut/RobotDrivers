@@ -33,7 +33,7 @@
 
 #define CSn_ACTIVE_PIN_STATE GPIO_PIN_RESET
 
-#if defined(SPI_USES_WAIT) or defined(I2C_USES_WAIT) or defined(UART_USES_WAIT)
+#if defined(SPI_USES_WAIT) || defined(I2C_USES_WAIT) || defined(UART_USES_WAIT)
 	#define COMMUNICATION_TIMEOUT HAL_MAX_DELAY
 #endif
 
@@ -50,8 +50,11 @@
 #define CSn_INACTIVE_PIN_STATE GPIO_PIN_RESET
 #endif
 
-#if !defined(I2C_USES_DMA) and !defined(I2C_USES_IT) and !defined(I2C_USES_WAIT) and !defined(SPI_USES_DMA) and !defined(SPI_USES_IT) and !defined(SPI_USES_WAIT) and !defined(UART_USES_DMA) and !defined(UART_USES_IT) and !defined(UART_USES_WAIT)
+#if !defined(I2C_USES_DMA) && !defined(I2C_USES_IT) && !defined(I2C_USES_WAIT) && !defined(SPI_USES_DMA) && !defined(SPI_USES_IT) && !defined(SPI_USES_WAIT) && !defined(UART_USES_DMA) && !defined(UART_USES_IT) && !defined(UART_USES_WAIT)
 #define NO_COMMUNICATION_INTERFACE_DEFINED
 #endif
+
+#define ROBOT_IS_FIDOL
+
 
 #endif /* CONFIGURATION_H_ */

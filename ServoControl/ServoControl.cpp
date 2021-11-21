@@ -68,7 +68,7 @@ uint8_t ServoControl::AttachServo(GPIO_TypeDef *GPIOx, uint16_t GPIO_PIN)
 {
 	ServoControlVectTypeDef Srv_control;
 
-	if(this->__NoOfServosAttached < 10) //Max number of servos per channel
+	if(this->__NoOfServosAttached < 8) //Max number of servos per channel
 	{
 		Srv_control.GPIO_PIN = GPIO_PIN;
 		Srv_control.GPIOx = GPIOx;
@@ -77,7 +77,16 @@ uint8_t ServoControl::AttachServo(GPIO_TypeDef *GPIOx, uint16_t GPIO_PIN)
 		this->__ServoControlVect1.push_back(Srv_control);
 		return this->__ServoControlVect1.size() - 1;
 	}
-	else if (this->__NoOfServosAttached < 20)
+	else if (this->__NoOfServosAttached < 16)
+	{
+		Srv_control.GPIO_PIN = GPIO_PIN;
+		Srv_control.GPIOx = GPIOx;
+		Srv_control.ServoAngle = 0;
+		this->__ServoControlVect2.push_back(Srv_control);
+		this->__NoOfServosAttached++;
+		return this->__ServoControlVect1.size() + 9; // - 1 + 10
+	}
+	else if (this->__NoOfServosAttached < 24)
 	{
 		Srv_control.GPIO_PIN = GPIO_PIN;
 		Srv_control.GPIOx = GPIOx;
@@ -95,13 +104,17 @@ uint8_t ServoControl::AttachServo(GPIO_TypeDef *GPIOx, uint16_t GPIO_PIN)
 
 HAL_StatusTypeDef ServoControl::SetServoValue(uint8_t ServoNo, uint16_t ServoAngle)
 {
-	if(ServoAngle < 2000)
+	if((ServoAngle < 2000) && (ServoNo < __NoOfServosAttached))
 	{
-		if(ServoNo < 10)
+		if(ServoNo < 8)
 		{
 			this->__ServoControlVect1[ServoNo].ServoAngle = ServoAngle;
 		}
-		else if(ServoNo < 20)
+		else if(ServoNo < 16)
+		{
+			this->__ServoControlVect2[ServoNo].ServoAngle = ServoAngle;
+		}
+		else if(ServoNo < 24)
 		{
 			this->__ServoControlVect2[ServoNo].ServoAngle = ServoAngle;
 		}
@@ -119,11 +132,12 @@ HAL_StatusTypeDef ServoControl::StartServos(void)
 {
 	HAL_StatusTypeDef ret;
 	//Set First PWM Values
+	HAL_TIM_Base_Start_IT(this->__htim);
 	if(this->__NoOfServosAttached > 0)
 	{
-		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[0].ServoAngle + 500);
+		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[0].ServoAngle + 510);
 		//Start PWM
-		ret = HAL_TIM_PWM_Start(this->__htim, TIM_CHANNEL_1);
+		ret = HAL_TIM_PWM_Start_IT(this->__htim, TIM_CHANNEL_1);
 		if(ret == HAL_ERROR)
 		{
 			return ret;
@@ -131,9 +145,19 @@ HAL_StatusTypeDef ServoControl::StartServos(void)
 	}
 	if(this->__NoOfServosAttached >= 8)
 	{
-		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[0].ServoAngle + 500);
+		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[0].ServoAngle + 510);
 		//Start PWM
-		ret = HAL_TIM_PWM_Start(this->__htim, TIM_CHANNEL_2);
+		ret = HAL_TIM_PWM_Start_IT(this->__htim, TIM_CHANNEL_2);
+		if(ret == HAL_ERROR)
+		{
+			return ret;
+		}
+	}
+	if(this->__NoOfServosAttached >= 16)
+	{
+		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, this->__ServoControlVect2[0].ServoAngle + 510);
+		//Start PWM
+		ret = HAL_TIM_PWM_Start_IT(this->__htim, TIM_CHANNEL_3);
 		if(ret == HAL_ERROR)
 		{
 			return ret;
@@ -142,6 +166,10 @@ HAL_StatusTypeDef ServoControl::StartServos(void)
 	return HAL_OK;
 }
 
+uint8_t ServoControl::GetNoOfAttchedServos(void)
+{
+	return this->__NoOfServosAttached;
+}
 
 HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 {
@@ -178,6 +206,20 @@ HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, 500);
 			}
 			break;
+		case HAL_TIM_ACTIVE_CHANNEL_3:
+			if(this->__CurrentServoSched < this->__ServoControlVect3.size())
+			{
+				HAL_GPIO_WritePin(this->__ServoControlVect3[this->__CurrentServoSched].GPIOx, this->__ServoControlVect3[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
+			}
+			if(Sched < this->__ServoControlVect3.size())
+			{
+				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, this->__ServoControlVect3[Sched].ServoAngle + 500);
+			}
+			else
+			{
+				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, 500);
+			}
+			break;
 		default:
 			return HAL_ERROR;
 			break;
@@ -192,8 +234,13 @@ HAL_StatusTypeDef ServoControl::ServoControlCBUpdate(void)
 	{
 		HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
 	}
-	if(this->__CurrentServoSched < this->__ServoControlVect2.size()){
+	if(this->__CurrentServoSched < this->__ServoControlVect2.size())
+	{
 		HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect2[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
+	}
+	if(this->__CurrentServoSched < this->__ServoControlVect3.size())
+	{
+		HAL_GPIO_WritePin(this->__ServoControlVect3[this->__CurrentServoSched].GPIOx, this->__ServoControlVect3[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
 	}
 	return HAL_OK;
 }
