@@ -33,10 +33,10 @@
 * 
 */
 
-#include "vl53l1_platform.h"
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <platform/vl53l1_platform.hpp>
 
 int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t count) {
 	return 0; // to be implemented
