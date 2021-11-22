@@ -8,7 +8,7 @@
 #ifndef TOF_SENSORS_CORE_VL53L1X_H_
 #define TOF_SENSORS_CORE_VL53L1X_H_
 
-#include "VL53L1X_api.h"
+#include <core/VL53L1X_api.hpp>
 #include "../../Configuration.h"
 #include "../../CommManager/CommManager.hpp"
 
@@ -54,7 +54,7 @@ class VL53L1X
 	private:
 		void SetSensorAddress(uint8_t sensor);
 		MessageInfoTypeDef _MessageInfo;
-		VL53L1X_Device _Devices[MAX_TOF_NUMBER];
+//		VL53L1X_Device _Devices[MAX_TOF_NUMBER];
 };
 
 

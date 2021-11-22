@@ -63,8 +63,9 @@
  * @file  vl53l1x_calibration.c
  * @brief Calibration functions implementation
  */
-#include "VL53L1X_api.h"
-#include "VL53L1X_calibration.h"
+#include <core/VL53L1X_calibration.hpp>
+
+#include "VL53L1X_api.hpp"
 
 #define ALGO__PART_TO_PART_RANGE_OFFSET_MM	0x001E
 #define MM_CONFIG__INNER_OFFSET_MM			0x0020

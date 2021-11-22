@@ -5,11 +5,11 @@
  *      Author: paulina
  */
 
-#include "vl53l1x.h"
+#include "vl53l1x.hpp"
 
 VL53L1X::VL53L1X(I2C_HandleTypeDef *hi2c)
 {
-	_MessageInfo.uCommInt = hi2c;
+//	_MessageInfo.uCommInt = hi2c;
 }
 
 VL53L1X_ERROR VL53L1X::InitSensor(uint8_t sensor)
