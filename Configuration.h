@@ -20,7 +20,7 @@
 #define MCU_STM32H7
 
 //#define SPI_USES_DMA
-//#define SPI_USES_IT
+#define SPI_USES_IT
 //#define SPI_USES_WAIT
 
 #define UART_USES_DMA
