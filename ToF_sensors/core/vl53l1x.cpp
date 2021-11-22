@@ -23,7 +23,7 @@ VL53L1X_ERROR VL53L1X::InitSensor(uint8_t sensor)
 VL53L1X_ERROR VL53L1X::InitAllSensors(void)
 {
 	VL53L1X_ERROR status = 0;
-#if define(TOF0) or define(TOF1) or define(TOF2) or define(TOF3) or define(TOF4) or define(TOF5)
+#if defined(TOF0) or defined(TOF1) or defined(TOF2) or defined(TOF3) or defined(TOF4) or defined(TOF5)
 #ifdef TOF0
 	status |= (this->InitSensor(TOF0));
 #endif

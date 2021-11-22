@@ -10,6 +10,7 @@
 
 #include "VL53L1X_api.h"
 #include "../../Configuration.h"
+#include "../../CommManager/CommManager.hpp"
 
 #define TOF_DEFAULT_ADDRESS 0x52
 
@@ -21,6 +22,14 @@
 #define TOF3_Addr                0x5A
 #define TOF4_Addr                0x5C
 #define TOF5_Addr                0x5E
+
+#define TOF0				     0U
+#define TOF1				     1U
+#define TOF2				     2U
+#define TOF3				     3U
+#define TOF4				     4U
+#define TOF5				     5U
+
 
 typedef struct VL53L1X_Device
 {
