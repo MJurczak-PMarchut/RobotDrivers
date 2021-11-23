@@ -155,7 +155,7 @@ HAL_StatusTypeDef ServoControl::StartServos(void)
 	}
 	if(this->__NoOfServosAttached >= 16)
 	{
-		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, this->__ServoControlVect2[0].ServoAngle + 510);
+		__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, this->__ServoControlVect3[0].ServoAngle + 510);
 		//Start PWM
 		ret = HAL_TIM_PWM_Start_IT(this->__htim, TIM_CHANNEL_3);
 		if(ret == HAL_ERROR)
