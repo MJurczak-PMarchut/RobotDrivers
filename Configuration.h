@@ -28,7 +28,7 @@
 //#define UART_USES_WAIT
 
 //#define I2C_USES_DMA
-//#define I2C_USES_IT
+#define I2C_USES_IT
 //#define I2C_USES_WAIT
 
 #define CSn_ACTIVE_PIN_STATE GPIO_PIN_RESET
