@@ -6,7 +6,7 @@
 #ifndef _VL53L1_PLATFORM_H_
 #define _VL53L1_PLATFORM_H_
 
-#include "vl53l1_types.h"
+#include <platform/vl53l1_types.hpp>
 #include "../../Configuration.h"
 #include "../../CommManager/CommManager.hpp"
 

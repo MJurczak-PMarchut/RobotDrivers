@@ -7,7 +7,7 @@
 
 #ifndef SUMODRIVERS_COMMMANAGER_COMMMANAGER_HPP_
 #define SUMODRIVERS_COMMMANAGER_COMMMANAGER_HPP_
-#include "../Configuration.h"
+#include "Configuration.h"
 
 #ifndef NO_COMMUNICATION_INTERFACE_DEFINED
 #include "vector"

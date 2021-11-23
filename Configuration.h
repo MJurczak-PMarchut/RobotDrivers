@@ -8,6 +8,8 @@
 #ifndef CONFIGURATION_H_
 #define CONFIGURATION_H_
 
+#include "main.h"
+
 #define EMERGENCY_STOP_AXIS 4
 #define EMERGENCY_STOP_TIME_TRESHOLD_TICK 30
 #define EMERGENCY_STOP_AT_CONNECTION_LOSS
@@ -20,7 +22,7 @@
 #define MCU_STM32H7
 
 //#define SPI_USES_DMA
-//#define SPI_USES_IT
+#define SPI_USES_IT
 //#define SPI_USES_WAIT
 
 #define UART_USES_DMA
