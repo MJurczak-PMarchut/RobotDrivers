@@ -16,16 +16,6 @@ typedef enum {MOTOR_LEFT = 0, MOTOR_RIGHT = 1} MotorSideTypeDef;
 typedef enum {VESC_CONTROLLER, l9960T_CONTROLLER} ControllerTypeTypeDef;
 typedef enum {MOTOR_DIR_FORWARD, MOTOR_DIR_BACKWARD} MotorDirectionTypeDef;
 
-//typedef struct {
-//	uint8_t used_flag;
-//	uint8_t used_comm_interface;
-//	MotorSideTypeDef used_motor_side;
-//	MCInterface *mcint;
-//}ActiveMotorControllersTypeDef;
-
-
-//Maximum of 2 active motor controllers of the same type
-//ActiveMotorControllersTypeDef __ActiveMotorControllers[2];
 
 typedef struct {
 	uint8_t used_flag;
@@ -44,7 +34,6 @@ class MCInterface{
 	private:
 	protected:
 		static uint8_t __Instantiated_sides;
-//		static ActiveMotorControllersTypeDef ActiveMotorControllers[2];
 };
 
 
