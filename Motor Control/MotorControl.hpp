@@ -14,7 +14,7 @@
 
 typedef enum {MOTOR_LEFT = 0, MOTOR_RIGHT = 1} MotorSideTypeDef;
 typedef enum {VESC_CONTROLLER, l9960T_CONTROLLER} ControllerTypeTypeDef;
-typedef enum {MOTOR_DIR_FORWARD, MOTOR_DIR_BACKWARD} MotorDirectionTypeDef;
+typedef enum {MOTOR_DIR_FORWARD = 0, MOTOR_DIR_BACKWARD} MotorDirectionTypeDef;
 
 
 typedef struct {

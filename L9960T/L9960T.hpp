@@ -29,7 +29,7 @@ class L9960T : protected MCInterface{
 		GPIO_TypeDef __CS_Port;
 		GPIO_TypeDef *__IN1_PWM_PORT;
 		GPIO_TypeDef *__IN2_DIR_PORT;
-		CommManager *__CommunicationManager;
+		GPIO_PinState __Direction;
 		TIM_HandleTypeDef *__htim;
 		uint32_t __Channel;
 

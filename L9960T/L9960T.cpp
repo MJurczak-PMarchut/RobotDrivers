@@ -24,6 +24,11 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,  uint16_t CS_Pin,
 		this->__IN1_PWM_PORT = MD_IN1_PWM_A_GPIO_Port;
 		this->__IN2_DIR_PORT = MD_IN2_DIR_A_GPIO_Port;
 		this->__Instantiated_sides |= (1 << MOTOR_LEFT);
+#ifdef LEFT_MOTOR_INVERT_DIRECTION
+		this->__Direction = GPIO_PIN_RESET;
+#else
+		this->__Direction = GPIO_PIN_SET;
+#endif
 	}
 	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << MOTOR_RIGHT)) == 0))
 	{
@@ -32,6 +37,11 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,  uint16_t CS_Pin,
 		this->__IN1_PWM_PORT = MD_IN1_PWM_B_GPIO_Port;
 		this->__IN2_DIR_PORT = MD_IN2_DIR_B_GPIO_Port;
 		this->__Instantiated_sides |= (1 << MOTOR_RIGHT);
+#ifdef RIGHT_MOTOR_INVERT_DIRECTION
+		this->__Direction = GPIO_PIN_RESET;
+#else
+		this->__Direction = GPIO_PIN_SET;
+#endif
 	}
 }
 
@@ -57,16 +67,15 @@ HAL_StatusTypeDef L9960T::SetMotorDirection(MotorDirectionTypeDef Dir)
 {
 
 	//TODO Check in what mode we are, and change direction
-	if(Dir == MOTOR_DIR_FORWARD)
+	//(Nah, in the future, probably best to focus on most basic configuration for now, 3 days till deadline)
+	GPIO_PinState Pin_STATE;
+	if((Dir == MOTOR_DIR_FORWARD) || (Dir == MOTOR_DIR_BACKWARD))
 	{
-
-		return HAL_OK;
-	}
-	else if(Dir == MOTOR_DIR_BACKWARD)
-	{
-
+		Pin_STATE = (Dir ^ __Direction) & 0x01; //Do xor and take last bit
+		HAL_GPIO_WritePin(__IN2_DIR_PORT, __IN2_DIR_PIN, GPIO_PIN_SET);
 		return HAL_OK;
 	}
 	return HAL_ERROR;
+
 }
 
