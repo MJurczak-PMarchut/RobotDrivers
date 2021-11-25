@@ -8,7 +8,7 @@
 #include "L9960T.hpp"
 
 
-L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,  uint16_t CS_Pin, GPIO_TypeDef CS_Port, CommManager *CommunicationManager)
+L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,  uint16_t CS_Pin, GPIO_TypeDef *CS_Port, CommManager *CommunicationManager)
 {
 
 	this->__CommunicationManager = CommunicationManager;
@@ -16,6 +16,43 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,  uint16_t CS_Pin,
 	this->__side = side;
 	this->__CS_Pin = CS_Pin;
 	this->__CS_Port = CS_Port;
+
+	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
+	{
+		this->__IN1_PWM_PIN = MD_IN1_PWM_A_Pin;
+		this->__IN2_DIR_PIN = MD_IN2_DIR_A_Pin;
+		this->__IN1_PWM_PORT = MD_IN1_PWM_A_GPIO_Port;
+		this->__IN2_DIR_PORT = MD_IN2_DIR_A_GPIO_Port;
+		this->__Instantiated_sides |= (1 << MOTOR_LEFT);
+#ifdef LEFT_MOTOR_INVERT_DIRECTION
+		this->__Direction = GPIO_PIN_RESET;
+#else
+		this->__Direction = GPIO_PIN_SET;
+#endif
+	}
+	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << MOTOR_RIGHT)) == 0))
+	{
+		this->__IN1_PWM_PIN = MD_IN1_PWM_B_Pin;
+		this->__IN2_DIR_PIN = MD_IN2_DIR_B_Pin;
+		this->__IN1_PWM_PORT = MD_IN1_PWM_B_GPIO_Port;
+		this->__IN2_DIR_PORT = MD_IN2_DIR_B_GPIO_Port;
+		this->__Instantiated_sides |= (1 << MOTOR_RIGHT);
+#ifdef RIGHT_MOTOR_INVERT_DIRECTION
+		this->__Direction = GPIO_PIN_RESET;
+#else
+		this->__Direction = GPIO_PIN_SET;
+#endif
+	}
+}
+
+L9960T::L9960T(MotorSideTypeDef side)
+{
+
+	this->__CommunicationManager = 0;
+	this->__hspi = 0;
+	this->__side = side;
+	this->__CS_Pin = 0;
+	this->__CS_Port = NULL;
 
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
 	{
@@ -71,11 +108,23 @@ HAL_StatusTypeDef L9960T::SetMotorDirection(MotorDirectionTypeDef Dir)
 	GPIO_PinState Pin_STATE;
 	if((Dir == MOTOR_DIR_FORWARD) || (Dir == MOTOR_DIR_BACKWARD))
 	{
-		Pin_STATE = (Dir ^ __Direction) & 0x01; //Do xor and take last bit
-		HAL_GPIO_WritePin(__IN2_DIR_PORT, __IN2_DIR_PIN, GPIO_PIN_SET);
+		Pin_STATE = (GPIO_PinState)((Dir ^ __Direction) & 0x01); //Do xor and take last bit
+		HAL_GPIO_WritePin(__IN2_DIR_PORT, __IN2_DIR_PIN, Pin_STATE);
 		return HAL_OK;
 	}
 	return HAL_ERROR;
 
+}
+
+HAL_StatusTypeDef L9960T::EmergencyStop(void)
+{
+	__HAL_TIM_SET_COMPARE(this->__htim, this->__Channel, 0);
+	this->Disable();
+}
+
+HAL_StatusTypeDef L9960T::Disable()
+{
+	//TODO Disable Motor
+	return HAL_OK;
 }
 
