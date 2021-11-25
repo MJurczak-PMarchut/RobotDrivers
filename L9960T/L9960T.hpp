@@ -10,6 +10,29 @@
 #include "MotorControl.hpp"
 #include "CommManager.hpp"
 
+#define overcurrent_monitoring 0x001
+#define restart_trigger 0x002
+#define configuration_1 0x003
+#define configuration_2 0x004
+#define configuration_3 0x005
+#define configuration_4 0x006
+#define configuration_request_1 0x07a
+#define configuration_request_2 0x07b
+#define configuration_request_3 0x07c
+#define configuration_request_4 0x07d
+#define configuration_request_5 0x07e
+#define states_request_1 0x08a
+#define states_request_2 0x08b
+#define states_request_3 0x08c
+#define OFF_STATE_diagnosis 0x009
+#define component_traceability_number_request_1 0x13a
+#define component_traceability_number_request_2 0x13b
+#define electronic_id_request 0x15a
+#define silicon_version_request 0x15b
+#define Logic_HW_version_request 0x15c
+
+
+
 struct L9960TWrite {
 	//restart trigger
 	bool SWreset_bit1;
@@ -48,9 +71,20 @@ struct L9960TWrite {
 	//configuration 4
 	bool TDSR;
 	bool OL_ON;
+	//OFF STATE diagnosis
+	bool TRIG;
 };
 
 struct L9960TRead {
+	//overcurrent monitoring
+	bool OCH1_bit1;
+	bool OCH1_bit0;
+	bool OCH0_bit1;
+	bool OCH0_bit0;
+	bool OCL1_bit1;
+	bool OCL1_bit0;
+	bool OCL0_bit1;
+	bool OCL0_bit0;
 	//Configuration request 1
 	bool CL_echo_bit1;
 	bool CL_echo_bit0;
@@ -120,6 +154,7 @@ struct L9960TRead {
 	bool Error_count_bit2;
 	bool Error_count_bit1;
 	bool Error_count_bit0;
+
 	//OFF STATE diagnosis
 	bool DIAG_OFF_bit2;
 	bool DIAG_OFF_bit1;
@@ -130,13 +165,13 @@ struct L9960TRead {
 	bool ASIC_name[10];
 	bool ASSP;
 	//siicon version request
-	bool Silicon_request[4];
+	bool Silicon_version[4];
 	//Logic HW version request
 	bool code_version[8];
 };
 
 extern uint16_t Compose16BitNumber(bool tab[]);
-extern void Decompose16BitNumber(bool *tab[], uint16_t number);
+extern void Decompose16BitNumber(bool *tab, uint16_t number);
 
 typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CURRENT_RANGE_3 = 3} L9960T_CurrentRange;
 
@@ -154,11 +189,13 @@ class L9960T : protected MCInterface{
 
 		uint16_t SPI_RX;
 		uint16_t SPI_TX;
-		L9960TWrite RrgisterWrite;
+		uint8_t LastCommand;
+		L9960TWrite RegisterWrite;
 		L9960TRead RegisterRead;
+		MessageInfoTypeDef SPIMess;
 
-		HAL_StatusTypeDef ComposeSPIMess(uint16_t *mess, string name);
-		HAL_StatusTypeDef AnalizeSPIMess(uint16_t *mess);
+		HAL_StatusTypeDef ComposeSPIMess(uint8_t command);
+		HAL_StatusTypeDef AnalizeSPIMess();
 		HAL_StatusTypeDef SPISendReceive();
 	private:
 		CommManager *__CommunicationManager;

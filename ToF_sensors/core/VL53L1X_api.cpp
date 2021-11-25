@@ -234,7 +234,7 @@ VL53L1X_ERROR VL53L1X_SensorInit(uint16_t dev)
 //	tmp  = 0;
 //	while(tmp==0){
 //			status |= VL53L1X_CheckForDataReady(dev, &tmp);
-	}
+//	}
 //	status |= VL53L1X_ClearInterrupt(dev);
 //	status |= VL53L1X_StopRanging(dev);
 //	status |= VL53L1_WrByte(dev, VL53L1_VHV_CONFIG__TIMEOUT_MACROP_LOOP_BOUND, 0x09); /* two bounds VHV */
