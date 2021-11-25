@@ -31,30 +31,31 @@
 #define TOF5				     5U
 
 
-typedef struct VL53L1X_Device
+typedef struct
 {
+	bool Active;
 	uint8_t Address;
 	uint16_t GPIO_PIN;
 	GPIO_TypeDef *GPIO_GPIOx;
 	uint16_t XSHUT_PIN;
 	GPIO_TypeDef *XSHUT_GPIOx;
-};
+}VL53L1X_Device;
 
 class VL53L1X
 {
 	public:
 		VL53L1X(I2C_HandleTypeDef *hi2c);
-		VL53L1X_ERROR SetSensor(uint8_t sensor, uint16_t GPIO_PIN, GPIO_TypeDef *GPIO_GPIOx, uint16_t XSHUT_PIN, GPIO_TypeDef *XSHUT_GPIOx);
+		~VL53L1X(void);
+		VL53L1X_ERROR SetSensorPins(uint8_t sensor, uint16_t GPIO_PIN, GPIO_TypeDef *GPIO_GPIOx, uint16_t XSHUT_PIN, GPIO_TypeDef *XSHUT_GPIOx);
 		VL53L1X_ERROR InitAllSensors(void);
 		VL53L1X_ERROR InitSensor(uint8_t sensor);
-		void StartAllSensors(void);
-		void StartSensor(uint8_t sensor);
-		void SetDistanceMode(void);
-		void SetI2CAddress(uint16_t dev, uint8_t new_address);
+		VL53L1X_ERROR StartAllSensors(void);
+		VL53L1X_ERROR StartSensor(uint8_t sensor);
+		VL53L1X_ERROR SetDistanceMode(void);
 	private:
-		void SetSensorAddress(uint8_t sensor);
+		VL53L1X_ERROR SetSensorAddress(uint8_t sensor);
 		MessageInfoTypeDef _MessageInfo;
-//		VL53L1X_Device _Devices[MAX_TOF_NUMBER];
+		VL53L1X_Device _Devices[MAX_TOF_NUMBER];
 };
 
 

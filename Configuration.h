@@ -30,7 +30,7 @@
 //#define UART_USES_WAIT
 
 //#define I2C_USES_DMA
-//#define I2C_USES_IT
+#define I2C_USES_IT
 //#define I2C_USES_WAIT
 
 #define CSn_ACTIVE_PIN_STATE GPIO_PIN_RESET
@@ -58,5 +58,8 @@
 
 #define ROBOT_IS_FIDOL
 
+
+#define LEFT_MOTOR_INVERT_DIRECTION
+#define RIGHT_MOTOR_INVERT_DIRECTION
 
 #endif /* CONFIGURATION_H_ */
