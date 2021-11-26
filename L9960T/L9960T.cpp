@@ -9,7 +9,7 @@
 
 uint16_t Compose16BitNumber(bool tab[]){
 	uint16_t number = 0;
-	for(int i = 0; i < sizeof(tab); i++){
+	for(int i = 0; i < 16; i++){
 		number += tab[i] * 2^i;
 	}
 	return number;
@@ -144,7 +144,7 @@ HAL_StatusTypeDef L9960T::Disable()
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef L9960T::ComposeSPIMess(uint8_t command){
+HAL_StatusTypeDef L9960T::ComposeSPIMess(int command){
 	bool tab[16] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
 
 	switch(command){
@@ -289,15 +289,19 @@ HAL_StatusTypeDef L9960T::ComposeSPIMess(uint8_t command){
 			tab[12] = true;
 			tab[2] = true;
 	}
-	this->LastCommand = command;
+	this->__LastCmdQueue.push(command);
 	this->SPI_TX = Compose16BitNumber(tab);
+
+	return HAL_OK;
 }
 
-HAL_StatusTypeDef L9960T::AnalizeSPIMess(){
+void L9960T::AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo){
 
 	bool tab[16];
 	uint8_t address;
 	Decompose16BitNumber(tab, this->SPI_RX);
+	int LastCommand = this->__LastCmdQueue.front();
+	this->__LastCmdQueue.pop();
 
 	address = tab[15]*8 + tab[14]*4 + tab[13]*2 + tab[12]*1;
 
@@ -313,7 +317,7 @@ HAL_StatusTypeDef L9960T::AnalizeSPIMess(){
 			this->RegisterRead.OCL0_bit1 = tab[1];
 			this->RegisterRead.OCL0_bit0 = tab[0];
 		case 7:
-			switch(this->LastCommand){
+			switch(LastCommand){
 				case configuration_request_1:
 					this->RegisterRead.CL_echo_bit1 = tab[11];
 					this->RegisterRead.CL_echo_bit0 = tab[10];
@@ -356,7 +360,7 @@ HAL_StatusTypeDef L9960T::AnalizeSPIMess(){
 					this->RegisterRead.CC_latch_state = tab[9];
 			}
 		case 8:
-			switch(this->LastCommand){
+			switch(LastCommand){
 				case states_request_1:
 					this->RegisterRead.NDIS_status = tab[11];
 					this->RegisterRead.DIS_status = tab[10];
@@ -398,7 +402,7 @@ HAL_StatusTypeDef L9960T::AnalizeSPIMess(){
 			this->RegisterRead.DIAG_OFF_bit0 = tab[0];
 
 		case 13:
-			switch(this->LastCommand){
+			switch(LastCommand){
 				case component_traceability_number_request_1:
 					this->RegisterRead.I[11] = tab[11];
 					this->RegisterRead.I[10] = tab[10];
@@ -428,7 +432,7 @@ HAL_StatusTypeDef L9960T::AnalizeSPIMess(){
 					this->RegisterRead.I[12] = tab[12];
 			}
 		case 15:
-			switch(this->LastCommand){
+			switch(LastCommand){
 				case electronic_id_request:
 					this->RegisterRead.ASIC_name[9] = tab[11];
 					this->RegisterRead.ASIC_name[8] = tab[10];
@@ -459,6 +463,23 @@ HAL_StatusTypeDef L9960T::AnalizeSPIMess(){
 					this->RegisterRead.code_version[0] = tab[0];
 			}
 	}
-
 }
 
+HAL_StatusTypeDef L9960T::SPISendReceive(){
+
+	uint16_t *pSPI_RX = &this->SPI_RX;
+	uint16_t *pSPI_TX = &this->SPI_TX;
+
+	this->SPIMess.uCommInt.hspi = __hspi;
+	this->SPIMess.eCommType = COMM_INT_SPI_TXRX;
+	this->SPIMess.GPIO_PIN = __CS_Pin;
+	this->SPIMess.GPIOx = __CS_Port;
+	this->SPIMess.len = 2;
+	this->SPIMess.pRxData = (uint8_t*) pSPI_RX;
+	this->SPIMess.pTxData = (uint8_t*) pSPI_TX;
+	this->SPIMess.pRxCompletedCB = &AnalizeSPIMess(&SPIMess);
+
+	this->__CommunicationManager.PushCommRequestIntoQueue(&SPIMess);
+
+	return HAL_OK;
+}

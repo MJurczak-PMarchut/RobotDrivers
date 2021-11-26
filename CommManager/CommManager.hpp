@@ -10,8 +10,8 @@
 #include "Configuration.h"
 
 #ifndef NO_COMMUNICATION_INTERFACE_DEFINED
-#include "vector"
-#include "queue"
+#include <vector>
+#include <queue>
 
 //TODO that is the dumbest way to do it possible, I don't like it, I should probably fix this in the future
 

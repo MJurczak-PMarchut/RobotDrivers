@@ -189,13 +189,12 @@ class L9960T : protected MCInterface{
 
 		uint16_t SPI_RX;
 		uint16_t SPI_TX;
-		uint8_t LastCommand;
 		L9960TWrite RegisterWrite;
 		L9960TRead RegisterRead;
 		MessageInfoTypeDef SPIMess;
 
-		HAL_StatusTypeDef ComposeSPIMess(uint8_t command);
-		HAL_StatusTypeDef AnalizeSPIMess();
+		HAL_StatusTypeDef ComposeSPIMess(int command);
+		void AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo);
 		HAL_StatusTypeDef SPISendReceive();
 	private:
 		CommManager *__CommunicationManager;
@@ -210,6 +209,7 @@ class L9960T : protected MCInterface{
 		GPIO_PinState __Direction;
 		TIM_HandleTypeDef *__htim;
 		uint32_t __Channel;
+		std::queue <int> __LastCmdQueue;
 
 };
 
