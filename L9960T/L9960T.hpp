@@ -191,7 +191,8 @@ class L9960T : protected MCInterface{
 		uint16_t SPI_TX;
 		L9960TWrite RegisterWrite;
 		L9960TRead RegisterRead;
-		MessageInfoTypeDef SPIMess;
+		struct MessageInfoTypeDef SPIMess;
+		uint16_t __CS_Pin;
 
 		HAL_StatusTypeDef ComposeSPIMess(int command);
 		void AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo);
@@ -200,7 +201,6 @@ class L9960T : protected MCInterface{
 		CommManager *__CommunicationManager;
 		MotorSideTypeDef __side;
 		SPI_HandleTypeDef *__hspi;
-		uint16_t __CS_Pin;
 		uint16_t __IN1_PWM_PIN;
 		uint16_t __IN2_DIR_PIN;
 		GPIO_TypeDef *__CS_Port;
