@@ -23,176 +23,180 @@ void Decompose16BitNumber(bool *tab, uint16_t number){
 	}
 }
 
-void L9960T::AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo){
+void AnalizeMess(struct MessageInfoTypeDef* MsgInfo){
 
 	bool tab[16];
 	uint8_t address;
-	Decompose16BitNumber(tab, this->SPI_RX);
-	int LastCommand = this->__LastCmdQueue.front();
-	this->__LastCmdQueue.pop();
+	Decompose16BitNumber(tab, *MsgInfo->pRxData);
+	int LastCommand = *MsgInfo->pTxData;
+	L9960T* pL9960T;
+
+	if(*MsgInfo->GPIO_PIN == ControllerLeft.__CS_Pin)
+		pL9960T = &ControllerLeft;
+	else if(*MsgInfo->GPIO_PIN == ControllerRight.__CS_Pin)
+		pL9960T = &ControllerRight;
 
 	address = tab[15]*8 + tab[14]*4 + tab[13]*2 + tab[12]*1;
 
 	switch(address){
 
 		case 1:
-			this->RegisterRead.OCH1_bit1 = tab[10];
-			this->RegisterRead.OCH1_bit0 = tab[9];
-			this->RegisterRead.OCH0_bit1 = tab[7];
-			this->RegisterRead.OCH0_bit0 = tab[6];
-			this->RegisterRead.OCL1_bit1 = tab[4];
-			this->RegisterRead.OCL1_bit0 = tab[3];
-			this->RegisterRead.OCL0_bit1 = tab[1];
-			this->RegisterRead.OCL0_bit0 = tab[0];
+			pL9960T->RegisterRead.OCH1_bit1 = tab[10];
+			pL9960T->RegisterRead.OCH1_bit0 = tab[9];
+			pL9960T->RegisterRead.OCH0_bit1 = tab[7];
+			pL9960T->RegisterRead.OCH0_bit0 = tab[6];
+			pL9960T->RegisterRead.OCL1_bit1 = tab[4];
+			pL9960T->RegisterRead.OCL1_bit0 = tab[3];
+			pL9960T->RegisterRead.OCL0_bit1 = tab[1];
+			pL9960T->RegisterRead.OCL0_bit0 = tab[0];
 		case 7:
 			switch(LastCommand){
-				case configuration_request_1:
-					this->RegisterRead.CL_echo_bit1 = tab[11];
-					this->RegisterRead.CL_echo_bit0 = tab[10];
-					this->RegisterRead.NOSR_echo = tab[9];
-					this->RegisterRead.ISR_echo = tab[8];
-					this->RegisterRead.VSR_echo = tab[7];
-					this->RegisterRead.TDIAG1_echo_bit2 = tab[6];
-					this->RegisterRead.TDIAG1_echo_bit1 = tab[5];
-					this->RegisterRead.TDIAG1_echo_bit0 = tab[4];
-					this->RegisterRead.TSW_low_current_echo = tab[3];
-					this->RegisterRead.DIAG_CLR_EN = tab[1];
+				case 0x7003:
+					pL9960T->RegisterRead.CL_echo_bit1 = tab[11];
+					pL9960T->RegisterRead.CL_echo_bit0 = tab[10];
+					pL9960T->RegisterRead.NOSR_echo = tab[9];
+					pL9960T->RegisterRead.ISR_echo = tab[8];
+					pL9960T->RegisterRead.VSR_echo = tab[7];
+					pL9960T->RegisterRead.TDIAG1_echo_bit2 = tab[6];
+					pL9960T->RegisterRead.TDIAG1_echo_bit1 = tab[5];
+					pL9960T->RegisterRead.TDIAG1_echo_bit0 = tab[4];
+					pL9960T->RegisterRead.TSW_low_current_echo = tab[3];
+					pL9960T->RegisterRead.DIAG_CLR_EN = tab[1];
 
-				case configuration_request_2:
-					this->RegisterRead.in1_in2_if_echo = tab[11];
-					this->RegisterRead.in1_in2_if_latch = tab[10];
-					this->RegisterRead.OT_sd_thr_var_echo_bit2 = tab[9];
-					this->RegisterRead.OT_sd_thr_var_echo_bit1 = tab[8];
-					this->RegisterRead.OT_sd_thr_var_echo_bit0 = tab[7];
-					this->RegisterRead.OTwarn_thr_var_echo_bit2 = tab[6];
-					this->RegisterRead.OTwarn_thr_var_echo_bit1 = tab[5];
-					this->RegisterRead.OTwarn_thr_var_echo_bit0 = tab[4];
-					this->RegisterRead.UV_PROT_EN_echo = tab[3];
-					this->RegisterRead.NSPREAD_echo = tab[2];
-					this->RegisterRead.UV_WIN_echo = tab[0];
+				case 0x7005:
+					pL9960T->RegisterRead.in1_in2_if_echo = tab[11];
+					pL9960T->RegisterRead.in1_in2_if_latch = tab[10];
+					pL9960T->RegisterRead.OT_sd_thr_var_echo_bit2 = tab[9];
+					pL9960T->RegisterRead.OT_sd_thr_var_echo_bit1 = tab[8];
+					pL9960T->RegisterRead.OT_sd_thr_var_echo_bit0 = tab[7];
+					pL9960T->RegisterRead.OTwarn_thr_var_echo_bit2 = tab[6];
+					pL9960T->RegisterRead.OTwarn_thr_var_echo_bit1 = tab[5];
+					pL9960T->RegisterRead.OTwarn_thr_var_echo_bit0 = tab[4];
+					pL9960T->RegisterRead.UV_PROT_EN_echo = tab[3];
+					pL9960T->RegisterRead.NSPREAD_echo = tab[2];
+					pL9960T->RegisterRead.UV_WIN_echo = tab[0];
 
-				case configuration_request_3:
-					this->RegisterRead.WLMODE_echo = tab[11];
-					this->RegisterRead.TVVL_echo_bit3 = tab[10];
-					this->RegisterRead.TVVL_echo_bit2 = tab[9];
-					this->RegisterRead.TVVL_echo_bit1 = tab[8];
-					this->RegisterRead.TVVL_echo_bit0 = tab[7];
-					this->RegisterRead.OTWARN_TSEC_EN_echo = tab[0];
+				case 0x7009:
+					pL9960T->RegisterRead.WLMODE_echo = tab[11];
+					pL9960T->RegisterRead.TVVL_echo_bit3 = tab[10];
+					pL9960T->RegisterRead.TVVL_echo_bit2 = tab[9];
+					pL9960T->RegisterRead.TVVL_echo_bit1 = tab[8];
+					pL9960T->RegisterRead.TVVL_echo_bit0 = tab[7];
+					pL9960T->RegisterRead.OTWARN_TSEC_EN_echo = tab[0];
 
-				case configuration_request_4:
-					this->RegisterRead.TDSR_echo = tab[11];
+				case 0x7011:
+					pL9960T->RegisterRead.TDSR_echo = tab[11];
 
-				case configuration_request_5:
-					this->RegisterRead.POR_status= tab[11];
-					this->RegisterRead.config_CC_status_echo = tab[10];
-					this->RegisterRead.CC_latch_state = tab[9];
+				case 0x7021:
+					pL9960T->RegisterRead.POR_status= tab[11];
+					pL9960T->RegisterRead.config_CC_status_echo = tab[10];
+					pL9960T->RegisterRead.CC_latch_state = tab[9];
 			}
 		case 8:
 			switch(LastCommand){
-				case states_request_1:
-					this->RegisterRead.NDIS_status = tab[11];
-					this->RegisterRead.DIS_status = tab[10];
-					this->RegisterRead.BRIDGE_EN = tab[9];
-					this->RegisterRead.HWSC_LBIST_status_bit2 = tab[8];
-					this->RegisterRead.HWSC_LBIST_status_bit1 = tab[7];
-					this->RegisterRead.HWSC_LBIST_status_bit0 = tab[6];
-					this->RegisterRead.VPS_UV_REG = tab[5];
-					this->RegisterRead.NGFAIL = tab[4];
-					this->RegisterRead.ILIM_REG = tab[3];
-					this->RegisterRead.VDO_OV_REG = tab[2];
-					this->RegisterRead.VDO_UV_REG = tab[1];
-					this->RegisterRead.VPS_UV = tab[0];
+				case 0x8000:
+					pL9960T->RegisterRead.NDIS_status = tab[11];
+					pL9960T->RegisterRead.DIS_status = tab[10];
+					pL9960T->RegisterRead.BRIDGE_EN = tab[9];
+					pL9960T->RegisterRead.HWSC_LBIST_status_bit2 = tab[8];
+					pL9960T->RegisterRead.HWSC_LBIST_status_bit1 = tab[7];
+					pL9960T->RegisterRead.HWSC_LBIST_status_bit0 = tab[6];
+					pL9960T->RegisterRead.VPS_UV_REG = tab[5];
+					pL9960T->RegisterRead.NGFAIL = tab[4];
+					pL9960T->RegisterRead.ILIM_REG = tab[3];
+					pL9960T->RegisterRead.VDO_OV_REG = tab[2];
+					pL9960T->RegisterRead.VDO_UV_REG = tab[1];
+					pL9960T->RegisterRead.VPS_UV = tab[0];
 
-				case states_request_2:
-					this->RegisterRead.OTSDcnt_bit5 = tab[11];
-					this->RegisterRead.OTSDcnt_bit4 = tab[10];
-					this->RegisterRead.OTSDcnt_bit3 = tab[9];
-					this->RegisterRead.OTSDcnt_bit2 = tab[8];
-					this->RegisterRead.OTSDcnt_bit1 = tab[7];
-					this->RegisterRead.OTSDcnt_bit0 = tab[6];
-					this->RegisterRead.OTWARN = tab[5];
-					this->RegisterRead.OTWARN_REG = tab[4];
-					this->RegisterRead.NOTSD = tab[3];
-					this->RegisterRead.NOTSD_REG = tab[2];
-					this->RegisterRead.OL_ON_STATUS_bit1 = tab[1];
-					this->RegisterRead.OL_ON_STATUS_bit0 = tab[0];
+				case 0x8003:
+					pL9960T->RegisterRead.OTSDcnt_bit5 = tab[11];
+					pL9960T->RegisterRead.OTSDcnt_bit4 = tab[10];
+					pL9960T->RegisterRead.OTSDcnt_bit3 = tab[9];
+					pL9960T->RegisterRead.OTSDcnt_bit2 = tab[8];
+					pL9960T->RegisterRead.OTSDcnt_bit1 = tab[7];
+					pL9960T->RegisterRead.OTSDcnt_bit0 = tab[6];
+					pL9960T->RegisterRead.OTWARN = tab[5];
+					pL9960T->RegisterRead.OTWARN_REG = tab[4];
+					pL9960T->RegisterRead.NOTSD = tab[3];
+					pL9960T->RegisterRead.NOTSD_REG = tab[2];
+					pL9960T->RegisterRead.OL_ON_STATUS_bit1 = tab[1];
+					pL9960T->RegisterRead.OL_ON_STATUS_bit0 = tab[0];
 
-				case states_request_3:
-					this->RegisterRead.UV_CNT_REACHED = tab[5];
-					this->RegisterRead.Error_count_bit3 = tab[4];
-					this->RegisterRead.Error_count_bit2 = tab[3];
-					this->RegisterRead.Error_count_bit1 = tab[2];
-					this->RegisterRead.Error_count_bit0 = tab[1];
+				case 0x8005:
+					pL9960T->RegisterRead.UV_CNT_REACHED = tab[5];
+					pL9960T->RegisterRead.Error_count_bit3 = tab[4];
+					pL9960T->RegisterRead.Error_count_bit2 = tab[3];
+					pL9960T->RegisterRead.Error_count_bit1 = tab[2];
+					pL9960T->RegisterRead.Error_count_bit0 = tab[1];
 			}
 		case 9:
-			this->RegisterRead.DIAG_OFF_bit2 = tab[2];
-			this->RegisterRead.DIAG_OFF_bit1 = tab[1];
-			this->RegisterRead.DIAG_OFF_bit0 = tab[0];
+			pL9960T->RegisterRead.DIAG_OFF_bit2 = tab[2];
+			pL9960T->RegisterRead.DIAG_OFF_bit1 = tab[1];
+			pL9960T->RegisterRead.DIAG_OFF_bit0 = tab[0];
 
 		case 13:
 			switch(LastCommand){
-				case component_traceability_number_request_1:
-					this->RegisterRead.I[11] = tab[11];
-					this->RegisterRead.I[10] = tab[10];
-					this->RegisterRead.I[9] = tab[9];
-					this->RegisterRead.I[8] = tab[8];
-					this->RegisterRead.I[7] = tab[7];
-					this->RegisterRead.I[6] = tab[6];
-					this->RegisterRead.I[5] = tab[5];
-					this->RegisterRead.I[4] = tab[4];
-					this->RegisterRead.I[3] = tab[3];
-					this->RegisterRead.I[2] = tab[2];
-					this->RegisterRead.I[1] = tab[1];
-					this->RegisterRead.I[0] = tab[0];
+				case 0xd000:
+					pL9960T->RegisterRead.I[11] = tab[11];
+					pL9960T->RegisterRead.I[10] = tab[10];
+					pL9960T->RegisterRead.I[9] = tab[9];
+					pL9960T->RegisterRead.I[8] = tab[8];
+					pL9960T->RegisterRead.I[7] = tab[7];
+					pL9960T->RegisterRead.I[6] = tab[6];
+					pL9960T->RegisterRead.I[5] = tab[5];
+					pL9960T->RegisterRead.I[4] = tab[4];
+					pL9960T->RegisterRead.I[3] = tab[3];
+					pL9960T->RegisterRead.I[2] = tab[2];
+					pL9960T->RegisterRead.I[1] = tab[1];
+					pL9960T->RegisterRead.I[0] = tab[0];
 
-				case component_traceability_number_request_2:
-					this->RegisterRead.I[23] = tab[23];
-					this->RegisterRead.I[22] = tab[22];
-					this->RegisterRead.I[21] = tab[21];
-					this->RegisterRead.I[20] = tab[20];
-					this->RegisterRead.I[19] = tab[19];
-					this->RegisterRead.I[18] = tab[18];
-					this->RegisterRead.I[17] = tab[17];
-					this->RegisterRead.I[16] = tab[16];
-					this->RegisterRead.I[15] = tab[15];
-					this->RegisterRead.I[14] = tab[14];
-					this->RegisterRead.I[13] = tab[13];
-					this->RegisterRead.I[12] = tab[12];
+				case 0xd003:
+					pL9960T->RegisterRead.I[23] = tab[23];
+					pL9960T->RegisterRead.I[22] = tab[22];
+					pL9960T->RegisterRead.I[21] = tab[21];
+					pL9960T->RegisterRead.I[20] = tab[20];
+					pL9960T->RegisterRead.I[19] = tab[19];
+					pL9960T->RegisterRead.I[18] = tab[18];
+					pL9960T->RegisterRead.I[17] = tab[17];
+					pL9960T->RegisterRead.I[16] = tab[16];
+					pL9960T->RegisterRead.I[15] = tab[15];
+					pL9960T->RegisterRead.I[14] = tab[14];
+					pL9960T->RegisterRead.I[13] = tab[13];
+					pL9960T->RegisterRead.I[12] = tab[12];
 			}
 		case 15:
 			switch(LastCommand){
-				case electronic_id_request:
-					this->RegisterRead.ASIC_name[9] = tab[11];
-					this->RegisterRead.ASIC_name[8] = tab[10];
-					this->RegisterRead.ASIC_name[7] = tab[9];
-					this->RegisterRead.ASIC_name[6] = tab[8];
-					this->RegisterRead.ASIC_name[5] = tab[7];
-					this->RegisterRead.ASIC_name[4] = tab[6];
-					this->RegisterRead.ASIC_name[3] = tab[5];
-					this->RegisterRead.ASIC_name[2] = tab[4];
-					this->RegisterRead.ASIC_name[1] = tab[3];
-					this->RegisterRead.ASIC_name[0] = tab[2];
-					this->RegisterRead.ASSP = tab[0];
+				case 0xf001:
+					pL9960T->RegisterRead.ASIC_name[9] = tab[11];
+					pL9960T->RegisterRead.ASIC_name[8] = tab[10];
+					pL9960T->RegisterRead.ASIC_name[7] = tab[9];
+					pL9960T->RegisterRead.ASIC_name[6] = tab[8];
+					pL9960T->RegisterRead.ASIC_name[5] = tab[7];
+					pL9960T->RegisterRead.ASIC_name[4] = tab[6];
+					pL9960T->RegisterRead.ASIC_name[3] = tab[5];
+					pL9960T->RegisterRead.ASIC_name[2] = tab[4];
+					pL9960T->RegisterRead.ASIC_name[1] = tab[3];
+					pL9960T->RegisterRead.ASIC_name[0] = tab[2];
+					pL9960T->RegisterRead.ASSP = tab[0];
 
-				case silicon_version_request:
-					this->RegisterRead.Silicon_version[3] = tab[9];
-					this->RegisterRead.Silicon_version[2] = tab[8];
-					this->RegisterRead.Silicon_version[1] = tab[7];
-					this->RegisterRead.Silicon_version[0] = tab[6];
+				case 0xf002:
+					pL9960T->RegisterRead.Silicon_version[3] = tab[9];
+					pL9960T->RegisterRead.Silicon_version[2] = tab[8];
+					pL9960T->RegisterRead.Silicon_version[1] = tab[7];
+					pL9960T->RegisterRead.Silicon_version[0] = tab[6];
 
-				case Logic_HW_version_request:
-					this->RegisterRead.code_version[7] = tab[7];
-					this->RegisterRead.code_version[6] = tab[6];
-					this->RegisterRead.code_version[5] = tab[5];
-					this->RegisterRead.code_version[4] = tab[4];
-					this->RegisterRead.code_version[3] = tab[3];
-					this->RegisterRead.code_version[2] = tab[2];
-					this->RegisterRead.code_version[1] = tab[1];
-					this->RegisterRead.code_version[0] = tab[0];
+				case 0xf004:
+					pL9960T->RegisterRead.code_version[7] = tab[7];
+					pL9960T->RegisterRead.code_version[6] = tab[6];
+					pL9960T->RegisterRead.code_version[5] = tab[5];
+					pL9960T->RegisterRead.code_version[4] = tab[4];
+					pL9960T->RegisterRead.code_version[3] = tab[3];
+					pL9960T->RegisterRead.code_version[2] = tab[2];
+					pL9960T->RegisterRead.code_version[1] = tab[1];
+					pL9960T->RegisterRead.code_version[0] = tab[0];
 			}
 	}
 }
-
 
 L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,  uint16_t CS_Pin, GPIO_TypeDef *CS_Port, CommManager *CommunicationManager)
 {
@@ -467,172 +471,172 @@ HAL_StatusTypeDef L9960T::ComposeSPIMess(int command){
 	return HAL_OK;
 }
 
-void AnalizeMess(struct MessageInfoTypeDef* MsgInfo){
+void L9960T::AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo){
 
 	bool tab[16];
 	uint8_t address;
-	Decompose16BitNumber(tab, *MsgInfo->pRxData);
-	int LastCommand = *MsgInfo->pTxData;
-	L9960T* pL9960T;
+	Decompose16BitNumber(tab, this->SPI_RX);
+	int LastCommand = this->__LastCmdQueue.front();
+	this->__LastCmdQueue.pop();
 
 	address = tab[15]*8 + tab[14]*4 + tab[13]*2 + tab[12]*1;
 
 	switch(address){
 
 		case 1:
-			pL9960T->RegisterRead.OCH1_bit1 = tab[10];
-			pL9960T->RegisterRead.OCH1_bit0 = tab[9];
-			pL9960T->RegisterRead.OCH0_bit1 = tab[7];
-			pL9960T->RegisterRead.OCH0_bit0 = tab[6];
-			pL9960T->RegisterRead.OCL1_bit1 = tab[4];
-			pL9960T->RegisterRead.OCL1_bit0 = tab[3];
-			pL9960T->RegisterRead.OCL0_bit1 = tab[1];
-			pL9960T->RegisterRead.OCL0_bit0 = tab[0];
+			this->RegisterRead.OCH1_bit1 = tab[10];
+			this->RegisterRead.OCH1_bit0 = tab[9];
+			this->RegisterRead.OCH0_bit1 = tab[7];
+			this->RegisterRead.OCH0_bit0 = tab[6];
+			this->RegisterRead.OCL1_bit1 = tab[4];
+			this->RegisterRead.OCL1_bit0 = tab[3];
+			this->RegisterRead.OCL0_bit1 = tab[1];
+			this->RegisterRead.OCL0_bit0 = tab[0];
 		case 7:
 			switch(LastCommand){
-				case 0x7003:
-					pL9960T->RegisterRead.CL_echo_bit1 = tab[11];
-					pL9960T->RegisterRead.CL_echo_bit0 = tab[10];
-					pL9960T->RegisterRead.NOSR_echo = tab[9];
-					pL9960T->RegisterRead.ISR_echo = tab[8];
-					pL9960T->RegisterRead.VSR_echo = tab[7];
-					pL9960T->RegisterRead.TDIAG1_echo_bit2 = tab[6];
-					pL9960T->RegisterRead.TDIAG1_echo_bit1 = tab[5];
-					pL9960T->RegisterRead.TDIAG1_echo_bit0 = tab[4];
-					pL9960T->RegisterRead.TSW_low_current_echo = tab[3];
-					pL9960T->RegisterRead.DIAG_CLR_EN = tab[1];
+				case configuration_request_1:
+					this->RegisterRead.CL_echo_bit1 = tab[11];
+					this->RegisterRead.CL_echo_bit0 = tab[10];
+					this->RegisterRead.NOSR_echo = tab[9];
+					this->RegisterRead.ISR_echo = tab[8];
+					this->RegisterRead.VSR_echo = tab[7];
+					this->RegisterRead.TDIAG1_echo_bit2 = tab[6];
+					this->RegisterRead.TDIAG1_echo_bit1 = tab[5];
+					this->RegisterRead.TDIAG1_echo_bit0 = tab[4];
+					this->RegisterRead.TSW_low_current_echo = tab[3];
+					this->RegisterRead.DIAG_CLR_EN = tab[1];
 
-				case 0x7005:
-					pL9960T->RegisterRead.in1_in2_if_echo = tab[11];
-					pL9960T->RegisterRead.in1_in2_if_latch = tab[10];
-					pL9960T->RegisterRead.OT_sd_thr_var_echo_bit2 = tab[9];
-					pL9960T->RegisterRead.OT_sd_thr_var_echo_bit1 = tab[8];
-					pL9960T->RegisterRead.OT_sd_thr_var_echo_bit0 = tab[7];
-					pL9960T->RegisterRead.OTwarn_thr_var_echo_bit2 = tab[6];
-					pL9960T->RegisterRead.OTwarn_thr_var_echo_bit1 = tab[5];
-					pL9960T->RegisterRead.OTwarn_thr_var_echo_bit0 = tab[4];
-					pL9960T->RegisterRead.UV_PROT_EN_echo = tab[3];
-					pL9960T->RegisterRead.NSPREAD_echo = tab[2];
-					pL9960T->RegisterRead.UV_WIN_echo = tab[0];
+				case configuration_request_2:
+					this->RegisterRead.in1_in2_if_echo = tab[11];
+					this->RegisterRead.in1_in2_if_latch = tab[10];
+					this->RegisterRead.OT_sd_thr_var_echo_bit2 = tab[9];
+					this->RegisterRead.OT_sd_thr_var_echo_bit1 = tab[8];
+					this->RegisterRead.OT_sd_thr_var_echo_bit0 = tab[7];
+					this->RegisterRead.OTwarn_thr_var_echo_bit2 = tab[6];
+					this->RegisterRead.OTwarn_thr_var_echo_bit1 = tab[5];
+					this->RegisterRead.OTwarn_thr_var_echo_bit0 = tab[4];
+					this->RegisterRead.UV_PROT_EN_echo = tab[3];
+					this->RegisterRead.NSPREAD_echo = tab[2];
+					this->RegisterRead.UV_WIN_echo = tab[0];
 
-				case 0x7009:
-					pL9960T->RegisterRead.WLMODE_echo = tab[11];
-					pL9960T->RegisterRead.TVVL_echo_bit3 = tab[10];
-					pL9960T->RegisterRead.TVVL_echo_bit2 = tab[9];
-					pL9960T->RegisterRead.TVVL_echo_bit1 = tab[8];
-					pL9960T->RegisterRead.TVVL_echo_bit0 = tab[7];
-					pL9960T->RegisterRead.OTWARN_TSEC_EN_echo = tab[0];
+				case configuration_request_3:
+					this->RegisterRead.WLMODE_echo = tab[11];
+					this->RegisterRead.TVVL_echo_bit3 = tab[10];
+					this->RegisterRead.TVVL_echo_bit2 = tab[9];
+					this->RegisterRead.TVVL_echo_bit1 = tab[8];
+					this->RegisterRead.TVVL_echo_bit0 = tab[7];
+					this->RegisterRead.OTWARN_TSEC_EN_echo = tab[0];
 
-				case 0x7011:
-					pL9960T->RegisterRead.TDSR_echo = tab[11];
+				case configuration_request_4:
+					this->RegisterRead.TDSR_echo = tab[11];
 
-				case 0x7021:
-					pL9960T->RegisterRead.POR_status= tab[11];
-					pL9960T->RegisterRead.config_CC_status_echo = tab[10];
-					pL9960T->RegisterRead.CC_latch_state = tab[9];
+				case configuration_request_5:
+					this->RegisterRead.POR_status= tab[11];
+					this->RegisterRead.config_CC_status_echo = tab[10];
+					this->RegisterRead.CC_latch_state = tab[9];
 			}
 		case 8:
 			switch(LastCommand){
-				case 0x8000:
-					pL9960T->RegisterRead.NDIS_status = tab[11];
-					pL9960T->RegisterRead.DIS_status = tab[10];
-					pL9960T->RegisterRead.BRIDGE_EN = tab[9];
-					pL9960T->RegisterRead.HWSC_LBIST_status_bit2 = tab[8];
-					pL9960T->RegisterRead.HWSC_LBIST_status_bit1 = tab[7];
-					pL9960T->RegisterRead.HWSC_LBIST_status_bit0 = tab[6];
-					pL9960T->RegisterRead.VPS_UV_REG = tab[5];
-					pL9960T->RegisterRead.NGFAIL = tab[4];
-					pL9960T->RegisterRead.ILIM_REG = tab[3];
-					pL9960T->RegisterRead.VDO_OV_REG = tab[2];
-					pL9960T->RegisterRead.VDO_UV_REG = tab[1];
-					pL9960T->RegisterRead.VPS_UV = tab[0];
+				case states_request_1:
+					this->RegisterRead.NDIS_status = tab[11];
+					this->RegisterRead.DIS_status = tab[10];
+					this->RegisterRead.BRIDGE_EN = tab[9];
+					this->RegisterRead.HWSC_LBIST_status_bit2 = tab[8];
+					this->RegisterRead.HWSC_LBIST_status_bit1 = tab[7];
+					this->RegisterRead.HWSC_LBIST_status_bit0 = tab[6];
+					this->RegisterRead.VPS_UV_REG = tab[5];
+					this->RegisterRead.NGFAIL = tab[4];
+					this->RegisterRead.ILIM_REG = tab[3];
+					this->RegisterRead.VDO_OV_REG = tab[2];
+					this->RegisterRead.VDO_UV_REG = tab[1];
+					this->RegisterRead.VPS_UV = tab[0];
 
-				case 0x8003:
-					pL9960T->RegisterRead.OTSDcnt_bit5 = tab[11];
-					pL9960T->RegisterRead.OTSDcnt_bit4 = tab[10];
-					pL9960T->RegisterRead.OTSDcnt_bit3 = tab[9];
-					pL9960T->RegisterRead.OTSDcnt_bit2 = tab[8];
-					pL9960T->RegisterRead.OTSDcnt_bit1 = tab[7];
-					pL9960T->RegisterRead.OTSDcnt_bit0 = tab[6];
-					pL9960T->RegisterRead.OTWARN = tab[5];
-					pL9960T->RegisterRead.OTWARN_REG = tab[4];
-					pL9960T->RegisterRead.NOTSD = tab[3];
-					pL9960T->RegisterRead.NOTSD_REG = tab[2];
-					pL9960T->RegisterRead.OL_ON_STATUS_bit1 = tab[1];
-					pL9960T->RegisterRead.OL_ON_STATUS_bit0 = tab[0];
+				case states_request_2:
+					this->RegisterRead.OTSDcnt_bit5 = tab[11];
+					this->RegisterRead.OTSDcnt_bit4 = tab[10];
+					this->RegisterRead.OTSDcnt_bit3 = tab[9];
+					this->RegisterRead.OTSDcnt_bit2 = tab[8];
+					this->RegisterRead.OTSDcnt_bit1 = tab[7];
+					this->RegisterRead.OTSDcnt_bit0 = tab[6];
+					this->RegisterRead.OTWARN = tab[5];
+					this->RegisterRead.OTWARN_REG = tab[4];
+					this->RegisterRead.NOTSD = tab[3];
+					this->RegisterRead.NOTSD_REG = tab[2];
+					this->RegisterRead.OL_ON_STATUS_bit1 = tab[1];
+					this->RegisterRead.OL_ON_STATUS_bit0 = tab[0];
 
-				case 0x8005:
-					pL9960T->RegisterRead.UV_CNT_REACHED = tab[5];
-					pL9960T->RegisterRead.Error_count_bit3 = tab[4];
-					pL9960T->RegisterRead.Error_count_bit2 = tab[3];
-					pL9960T->RegisterRead.Error_count_bit1 = tab[2];
-					pL9960T->RegisterRead.Error_count_bit0 = tab[1];
+				case states_request_3:
+					this->RegisterRead.UV_CNT_REACHED = tab[5];
+					this->RegisterRead.Error_count_bit3 = tab[4];
+					this->RegisterRead.Error_count_bit2 = tab[3];
+					this->RegisterRead.Error_count_bit1 = tab[2];
+					this->RegisterRead.Error_count_bit0 = tab[1];
 			}
 		case 9:
-			pL9960T->RegisterRead.DIAG_OFF_bit2 = tab[2];
-			pL9960T->RegisterRead.DIAG_OFF_bit1 = tab[1];
-			pL9960T->RegisterRead.DIAG_OFF_bit0 = tab[0];
+			this->RegisterRead.DIAG_OFF_bit2 = tab[2];
+			this->RegisterRead.DIAG_OFF_bit1 = tab[1];
+			this->RegisterRead.DIAG_OFF_bit0 = tab[0];
 
 		case 13:
 			switch(LastCommand){
-				case 0xd000:
-					pL9960T->RegisterRead.I[11] = tab[11];
-					pL9960T->RegisterRead.I[10] = tab[10];
-					pL9960T->RegisterRead.I[9] = tab[9];
-					pL9960T->RegisterRead.I[8] = tab[8];
-					pL9960T->RegisterRead.I[7] = tab[7];
-					pL9960T->RegisterRead.I[6] = tab[6];
-					pL9960T->RegisterRead.I[5] = tab[5];
-					pL9960T->RegisterRead.I[4] = tab[4];
-					pL9960T->RegisterRead.I[3] = tab[3];
-					pL9960T->RegisterRead.I[2] = tab[2];
-					pL9960T->RegisterRead.I[1] = tab[1];
-					pL9960T->RegisterRead.I[0] = tab[0];
+				case component_traceability_number_request_1:
+					this->RegisterRead.I[11] = tab[11];
+					this->RegisterRead.I[10] = tab[10];
+					this->RegisterRead.I[9] = tab[9];
+					this->RegisterRead.I[8] = tab[8];
+					this->RegisterRead.I[7] = tab[7];
+					this->RegisterRead.I[6] = tab[6];
+					this->RegisterRead.I[5] = tab[5];
+					this->RegisterRead.I[4] = tab[4];
+					this->RegisterRead.I[3] = tab[3];
+					this->RegisterRead.I[2] = tab[2];
+					this->RegisterRead.I[1] = tab[1];
+					this->RegisterRead.I[0] = tab[0];
 
-				case 0xd003:
-					pL9960T->RegisterRead.I[23] = tab[23];
-					pL9960T->RegisterRead.I[22] = tab[22];
-					pL9960T->RegisterRead.I[21] = tab[21];
-					pL9960T->RegisterRead.I[20] = tab[20];
-					pL9960T->RegisterRead.I[19] = tab[19];
-					pL9960T->RegisterRead.I[18] = tab[18];
-					pL9960T->RegisterRead.I[17] = tab[17];
-					pL9960T->RegisterRead.I[16] = tab[16];
-					pL9960T->RegisterRead.I[15] = tab[15];
-					pL9960T->RegisterRead.I[14] = tab[14];
-					pL9960T->RegisterRead.I[13] = tab[13];
-					pL9960T->RegisterRead.I[12] = tab[12];
+				case component_traceability_number_request_2:
+					this->RegisterRead.I[23] = tab[23];
+					this->RegisterRead.I[22] = tab[22];
+					this->RegisterRead.I[21] = tab[21];
+					this->RegisterRead.I[20] = tab[20];
+					this->RegisterRead.I[19] = tab[19];
+					this->RegisterRead.I[18] = tab[18];
+					this->RegisterRead.I[17] = tab[17];
+					this->RegisterRead.I[16] = tab[16];
+					this->RegisterRead.I[15] = tab[15];
+					this->RegisterRead.I[14] = tab[14];
+					this->RegisterRead.I[13] = tab[13];
+					this->RegisterRead.I[12] = tab[12];
 			}
 		case 15:
 			switch(LastCommand){
-				case 0xf001:
-					pL9960T->RegisterRead.ASIC_name[9] = tab[11];
-					pL9960T->RegisterRead.ASIC_name[8] = tab[10];
-					pL9960T->RegisterRead.ASIC_name[7] = tab[9];
-					pL9960T->RegisterRead.ASIC_name[6] = tab[8];
-					pL9960T->RegisterRead.ASIC_name[5] = tab[7];
-					pL9960T->RegisterRead.ASIC_name[4] = tab[6];
-					pL9960T->RegisterRead.ASIC_name[3] = tab[5];
-					pL9960T->RegisterRead.ASIC_name[2] = tab[4];
-					pL9960T->RegisterRead.ASIC_name[1] = tab[3];
-					pL9960T->RegisterRead.ASIC_name[0] = tab[2];
-					pL9960T->RegisterRead.ASSP = tab[0];
+				case electronic_id_request:
+					this->RegisterRead.ASIC_name[9] = tab[11];
+					this->RegisterRead.ASIC_name[8] = tab[10];
+					this->RegisterRead.ASIC_name[7] = tab[9];
+					this->RegisterRead.ASIC_name[6] = tab[8];
+					this->RegisterRead.ASIC_name[5] = tab[7];
+					this->RegisterRead.ASIC_name[4] = tab[6];
+					this->RegisterRead.ASIC_name[3] = tab[5];
+					this->RegisterRead.ASIC_name[2] = tab[4];
+					this->RegisterRead.ASIC_name[1] = tab[3];
+					this->RegisterRead.ASIC_name[0] = tab[2];
+					this->RegisterRead.ASSP = tab[0];
 
-				case 0xf002:
-					pL9960T->RegisterRead.Silicon_version[3] = tab[9];
-					pL9960T->RegisterRead.Silicon_version[2] = tab[8];
-					pL9960T->RegisterRead.Silicon_version[1] = tab[7];
-					pL9960T->RegisterRead.Silicon_version[0] = tab[6];
+				case silicon_version_request:
+					this->RegisterRead.Silicon_version[3] = tab[9];
+					this->RegisterRead.Silicon_version[2] = tab[8];
+					this->RegisterRead.Silicon_version[1] = tab[7];
+					this->RegisterRead.Silicon_version[0] = tab[6];
 
-				case 0xf004:
-					pL9960T->RegisterRead.code_version[7] = tab[7];
-					pL9960T->RegisterRead.code_version[6] = tab[6];
-					pL9960T->RegisterRead.code_version[5] = tab[5];
-					pL9960T->RegisterRead.code_version[4] = tab[4];
-					pL9960T->RegisterRead.code_version[3] = tab[3];
-					pL9960T->RegisterRead.code_version[2] = tab[2];
-					pL9960T->RegisterRead.code_version[1] = tab[1];
-					pL9960T->RegisterRead.code_version[0] = tab[0];
+				case Logic_HW_version_request:
+					this->RegisterRead.code_version[7] = tab[7];
+					this->RegisterRead.code_version[6] = tab[6];
+					this->RegisterRead.code_version[5] = tab[5];
+					this->RegisterRead.code_version[4] = tab[4];
+					this->RegisterRead.code_version[3] = tab[3];
+					this->RegisterRead.code_version[2] = tab[2];
+					this->RegisterRead.code_version[1] = tab[1];
+					this->RegisterRead.code_version[0] = tab[0];
 			}
 	}
 }
@@ -655,3 +659,7 @@ HAL_StatusTypeDef L9960T::SPISendReceive(){
 
 	return HAL_OK;
 }
+
+L9960T ControllerLeft(MOTOR_LEFT, hspi2, CS_LEFT_Pin, GPIOD, CommunicationManager);
+
+L9960T ControllerRight(MOTOR_RIGHT, hspi2, CS_RIGHT_Pin, GPIOD, CommunicationManager);

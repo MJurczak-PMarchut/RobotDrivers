@@ -213,5 +213,11 @@ class L9960T : protected MCInterface{
 
 };
 
+CommManager CommunicationManager();
+
+L9960T ControllerLeft;
+
+L9960T ControllerRight;
+
 
 #endif /* SUMODRIVERS_L9960T_L9960T_HPP_ */
