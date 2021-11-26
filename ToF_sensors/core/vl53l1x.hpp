@@ -44,7 +44,7 @@ typedef struct
 class VL53L1X
 {
 	public:
-		VL53L1X(I2C_HandleTypeDef *hi2c);
+		VL53L1X(I2C_HandleTypeDef *hi2c, CommManager *CommunicationManager);
 		~VL53L1X(void);
 		VL53L1X_ERROR SetSensorPins(uint8_t sensor, uint16_t GPIO_PIN, GPIO_TypeDef *GPIO_GPIOx, uint16_t XSHUT_PIN, GPIO_TypeDef *XSHUT_GPIOx);
 		VL53L1X_ERROR InitAllSensors(void);
@@ -53,6 +53,8 @@ class VL53L1X
 		VL53L1X_ERROR StartSensor(uint8_t sensor);
 		VL53L1X_ERROR SetDistanceMode(void);
 	private:
+		CommManager *_CommunicationManager;
+		I2C_HandleTypeDef *_hi2c;
 		VL53L1X_ERROR SetSensorAddress(uint8_t sensor);
 		MessageInfoTypeDef _MessageInfo;
 		VL53L1X_Device _Devices[MAX_TOF_NUMBER];

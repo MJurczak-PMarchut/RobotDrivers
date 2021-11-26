@@ -19,7 +19,6 @@ typedef struct {
 	uint32_t dummy;
 } VL53L1_Dev_t;
 
-MessageInfoTypeDef ToF_I2C_Messages;
 
 typedef VL53L1_Dev_t *VL53L1_DEV;
 
