@@ -7,6 +7,8 @@
 
 #include "L9960T.hpp"
 
+
+
 uint16_t Compose16BitNumber(bool tab[]){
 	uint16_t number = 0;
 	for(int i = 0; i < 16; i++){
@@ -23,7 +25,7 @@ void Decompose16BitNumber(bool *tab, uint16_t number){
 	}
 }
 
-void AnalizeMess(struct MessageInfoTypeDef* MsgInfo){
+/*void AnalizeMess(struct MessageInfoTypeDef* MsgInfo){
 
 	bool tab[16];
 	uint8_t address;
@@ -31,9 +33,9 @@ void AnalizeMess(struct MessageInfoTypeDef* MsgInfo){
 	int LastCommand = *MsgInfo->pTxData;
 	L9960T* pL9960T;
 
-	if(*MsgInfo->GPIO_PIN == ControllerLeft.__CS_Pin)
+	if(MsgInfo->GPIO_PIN == ControllerLeft.__CS_Pin)
 		pL9960T = &ControllerLeft;
-	else if(*MsgInfo->GPIO_PIN == ControllerRight.__CS_Pin)
+	else if(MsgInfo->GPIO_PIN == ControllerRight.__CS_Pin)
 		pL9960T = &ControllerRight;
 
 	address = tab[15]*8 + tab[14]*4 + tab[13]*2 + tab[12]*1;
@@ -196,7 +198,7 @@ void AnalizeMess(struct MessageInfoTypeDef* MsgInfo){
 					pL9960T->RegisterRead.code_version[0] = tab[0];
 			}
 	}
-}
+}*/
 
 L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,  uint16_t CS_Pin, GPIO_TypeDef *CS_Port, CommManager *CommunicationManager)
 {
@@ -320,7 +322,7 @@ HAL_StatusTypeDef L9960T::Disable()
 	return HAL_OK;
 }
 
-HAL_StatusTypeDef L9960T::ComposeSPIMess(int command){
+/*HAL_StatusTypeDef L9960T::ComposeSPIMess(int command){
 	bool tab[16] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
 
 	switch(command){
@@ -465,13 +467,12 @@ HAL_StatusTypeDef L9960T::ComposeSPIMess(int command){
 			tab[12] = true;
 			tab[2] = true;
 	}
-	this->__LastCmdQueue.push(command);
 	this->SPI_TX = Compose16BitNumber(tab);
 
 	return HAL_OK;
-}
+}*/
 
-void L9960T::AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo){
+/*void L9960T::AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo){
 
 	bool tab[16];
 	uint8_t address;
@@ -639,7 +640,7 @@ void L9960T::AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo){
 					this->RegisterRead.code_version[0] = tab[0];
 			}
 	}
-}
+}*/
 
 HAL_StatusTypeDef L9960T::SPISendReceive(){
 
@@ -653,13 +654,14 @@ HAL_StatusTypeDef L9960T::SPISendReceive(){
 	this->SPIMess.len = 2;
 	this->SPIMess.pRxData = (uint8_t*) pSPI_RX;
 	this->SPIMess.pTxData = (uint8_t*) pSPI_TX;
-	this->SPIMess.pRxCompletedCB = AnalizeMess;
+	this->SPIMess.pTxCompletedCB = 0;
+	this->SPIMess.pRxCompletedCB = 0;
 
 	this->__CommunicationManager->PushCommRequestIntoQueue(&SPIMess);
 
 	return HAL_OK;
 }
 
-L9960T ControllerLeft(MOTOR_LEFT, hspi2, CS_LEFT_Pin, GPIOD, CommunicationManager);
+WriteRegs WriteLeft;
+WriteRegs WriteRight;
 
-L9960T ControllerRight(MOTOR_RIGHT, hspi2, CS_RIGHT_Pin, GPIOD, CommunicationManager);

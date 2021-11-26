@@ -9,73 +9,19 @@
 #define SUMODRIVERS_L9960T_L9960T_HPP_
 #include "MotorControl.hpp"
 #include "CommManager.hpp"
+#include "L9960_regs.hpp"
 
-#define overcurrent_monitoring 0x001
-#define restart_trigger 0x002
-#define configuration_1 0x003
-#define configuration_2 0x004
-#define configuration_3 0x005
-#define configuration_4 0x006
-#define configuration_request_1 0x07a
-#define configuration_request_2 0x07b
-#define configuration_request_3 0x07c
-#define configuration_request_4 0x07d
-#define configuration_request_5 0x07e
-#define states_request_1 0x08a
-#define states_request_2 0x08b
-#define states_request_3 0x08c
-#define OFF_STATE_diagnosis 0x009
-#define component_traceability_number_request_1 0x13a
-#define component_traceability_number_request_2 0x13b
-#define electronic_id_request 0x15a
-#define silicon_version_request 0x15b
-#define Logic_HW_version_request 0x15c
-
-
-
-struct L9960TWrite {
-	//restart trigger
-	bool SWreset_bit1;
-	bool SWreset_bit0;
-	bool HWSC_LBIST_Trigger;
-	bool ConfigCC;
-	//configuration 1
-	bool CL_bit1;
-	bool CL_bit0;
-	bool NOSR;
-	bool ISR;
-	bool VSR;
-	bool TDIAG1_bit2;
-	bool TDIAG1_bit1;
-	bool TDIAG1_bit0;
-	bool TSW_low_current;
-	bool DIAG_CLR_EN;
-	//configuration 2
-	bool in1_in2_if;
-	bool OTsd_thr_var_bit2;
-	bool OTsd_thr_var_bit1;
-	bool OTsd_thr_var_bit0;
-	bool OTwarn_thr_var_bit2;
-	bool OTwarn_thr_var_bit1;
-	bool OTwarn_thr_var_bit0;
-	bool UV_PROT_EN;
-	bool NSPREAD;
-	bool UV_WIN;
-	//configuration 3
-	bool WL_MODE;
-	bool TVVL_bit3;
-	bool TVVL_bit2;
-	bool TVVL_bit1;
-	bool TVVL_bit0;
-	bool OTWARN_TSEC_EN;
-	//configuration 4
-	bool TDSR;
-	bool OL_ON;
-	//OFF STATE diagnosis
-	bool TRIG;
+struct WriteRegs {
+	uint16_t rst_trig;
+	uint16_t conf1;
+	uint16_t conf2;
+	uint16_t conf3;
+	uint16_t conf4;
 };
 
-struct L9960TRead {
+typedef struct WriteRegs WriteRegs;
+
+/*struct L9960TRead {
 	//overcurrent monitoring
 	bool OCH1_bit1;
 	bool OCH1_bit0;
@@ -168,10 +114,12 @@ struct L9960TRead {
 	bool Silicon_version[4];
 	//Logic HW version request
 	bool code_version[8];
-};
+};*/
 
 extern uint16_t Compose16BitNumber(bool tab[]);
 extern void Decompose16BitNumber(bool *tab, uint16_t number);
+
+
 
 typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CURRENT_RANGE_3 = 3} L9960T_CurrentRange;
 
@@ -189,10 +137,7 @@ class L9960T : protected MCInterface{
 
 		uint16_t SPI_RX;
 		uint16_t SPI_TX;
-		L9960TWrite RegisterWrite;
-		L9960TRead RegisterRead;
-		struct MessageInfoTypeDef SPIMess;
-		uint16_t __CS_Pin;
+		struct MessageInfoTypeDef SPIMess; //zainicjalizowac na zero;
 
 		HAL_StatusTypeDef ComposeSPIMess(int command);
 		void AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo);
@@ -209,15 +154,10 @@ class L9960T : protected MCInterface{
 		GPIO_PinState __Direction;
 		TIM_HandleTypeDef *__htim;
 		uint32_t __Channel;
-		std::queue <int> __LastCmdQueue;
+		uint16_t __CS_Pin;
 
 };
 
 CommManager CommunicationManager();
-
-L9960T ControllerLeft;
-
-L9960T ControllerRight;
-
 
 #endif /* SUMODRIVERS_L9960T_L9960T_HPP_ */
