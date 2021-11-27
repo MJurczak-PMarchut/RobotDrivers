@@ -13,12 +13,12 @@
 #include "../../CommManager/CommManager.hpp"
 
 #define TOF_DEFAULT_ADDRESS 0x52
-
+#define TIMING_BUDGET_MS         100U
 #define MAX_TOF_NUMBER           6U
 
 #define TOF0_Addr                0x54
 #define TOF1_Addr                0x56
-#define TOF2_Addr                0x58
+#define TOF2_Addr                0x60
 #define TOF3_Addr                0x5A
 #define TOF4_Addr                0x5C
 #define TOF5_Addr                0x5E
