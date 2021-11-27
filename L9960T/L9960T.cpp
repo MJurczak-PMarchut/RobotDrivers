@@ -322,155 +322,127 @@ HAL_StatusTypeDef L9960T::Disable()
 	return HAL_OK;
 }
 
-/*HAL_StatusTypeDef L9960T::ComposeSPIMess(int command){
-	bool tab[16] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+HAL_StatusTypeDef L9960T::ComposeSPIMess(int command){
+	//bool tab[16] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+	uint16_t SPIMess = 0;
 
 	switch(command){
 
 		case overcurrent_monitoring:
-			tab[12] = true;
+			SPIMess |= (1<<12);
 
 		case restart_trigger:
-			tab[13] = true;
-			tab[11] = this->RegisterWrite.SWreset_bit1;
-			tab[10] = this->RegisterWrite.SWreset_bit0;
-			tab[9] = this->RegisterWrite.HWSC_LBIST_Trigger;
-			tab[8] = this->RegisterWrite.ConfigCC;
+			SPIMess = this->Write.rst_trig;
+			SPIMess |= (1<<13);
 
 		case configuration_1:
-			tab[13] = true;
-			tab[12] = true;
-			tab[11] = this->RegisterWrite.CL_bit1;
-			tab[10] = this->RegisterWrite.CL_bit0;
-			tab[9] = this->RegisterWrite.NOSR;
-			tab[8] = this->RegisterWrite.ISR;
-			tab[7] = this->RegisterWrite.VSR;
-			tab[6] = this->RegisterWrite.TDIAG1_bit2;
-			tab[5] = this->RegisterWrite.TDIAG1_bit1;
-			tab[4] = this->RegisterWrite.TDIAG1_bit0;
-			tab[3] = this->RegisterWrite.TSW_low_current;
-			tab[2] = true;
-			tab[1] = this->RegisterWrite.DIAG_CLR_EN;
+			SPIMess = this->Write.conf1;
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
 
 		case configuration_2:
-			tab[14] = true;
-			tab[11] = this->RegisterWrite.in1_in2_if;
-			tab[10] = this->RegisterWrite.OTsd_thr_var_bit2;
-			tab[9] = this->RegisterWrite.OTsd_thr_var_bit1;
-			tab[8] = this->RegisterWrite.OTsd_thr_var_bit0;
-			tab[7] = this->RegisterWrite.OTwarn_thr_var_bit2;
-			tab[6] = this->RegisterWrite.OTwarn_thr_var_bit1;
-			tab[5] = this->RegisterWrite.OTwarn_thr_var_bit0;
-			tab[4] = this->RegisterWrite.UV_PROT_EN;
-			tab[3] = this->RegisterWrite.NSPREAD;
-			tab[1] = this->RegisterWrite.UV_WIN;
+			SPIMess = this->Write.conf2;
+			SPIMess |= (1<<14);
 
 		case configuration_3:
-			tab[14] = true;
-			tab[12] = true;
-			tab[11] = this->RegisterWrite.WL_MODE;
-			tab[10] = this->RegisterWrite.TVVL_bit3;
-			tab[9] = this->RegisterWrite.TVVL_bit2;
-			tab[8] = this->RegisterWrite.TVVL_bit1;
-			tab[7] = this->RegisterWrite.TVVL_bit0;
-			tab[1] = this->RegisterWrite.OTWARN_TSEC_EN;
+			SPIMess = this->Write.conf3;
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<12);
 
 		case configuration_4:
-			tab[14] = true;
-			tab[13] = true;
-			tab[11] = this->RegisterWrite.TDSR;
-			tab[10] = this->RegisterWrite.OL_ON;
+			SPIMess = this->Write.conf3;
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
 
 		case configuration_request_1:
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[1] = true;
-			tab[0] = true;
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<1);
+			SPIMess |= 1;
 
 		case configuration_request_2:
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[2] = true;
-			tab[0] = true;
-
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<2);
+			SPIMess |= 1;
 		case configuration_request_3:
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[3] = true;
-			tab[0] = true;
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<3);
+			SPIMess |= 1;
 
 		case configuration_request_4:
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[4] = true;
-			tab[0] = true;
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<4);
+			SPIMess |= 1;
 
 		case configuration_request_5:
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[5] = true;
-			tab[0] = true;
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<5);
+			SPIMess |= 1;
 
 		case states_request_1:
-			tab[15] = true;
+			SPIMess |= (1<<15);
 
 		case states_request_2:
-			tab[15] = true;
-			tab[1] = true;
-			tab[0] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<1);
+			SPIMess |= 1;
 
 		case states_request_3:
-			tab[15] = true;
-			tab[2] = true;
-			tab[0] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<2);
+			SPIMess |= 1;
 
 		case OFF_STATE_diagnosis:
-			tab[15] = true;
-			tab[12] = true;
-			tab[1] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<1);
 
 		case component_traceability_number_request_1:
-			tab[15] = true;
-			tab[14] = true;
-			tab[12] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<12);
 
 		case component_traceability_number_request_2:
-			tab[15] = true;
-			tab[14] = true;
-			tab[12] = true;
-			tab[1] = true;
-			tab[0] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<1);
+			SPIMess |= 1;
 
 		case electronic_id_request:
-			tab[15] = true;
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[0] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= 1;
 
 		case silicon_version_request:
-			tab[15] = true;
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[1] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<1);
 
 		case Logic_HW_version_request:
-			tab[15] = true;
-			tab[14] = true;
-			tab[13] = true;
-			tab[12] = true;
-			tab[2] = true;
+			SPIMess |= (1<<15);
+			SPIMess |= (1<<14);
+			SPIMess |= (1<<13);
+			SPIMess |= (1<<12);
+			SPIMess |= (1<<2);
 	}
-	this->SPI_TX = Compose16BitNumber(tab);
+	this->SPI_TX = SPIMess;
 
 	return HAL_OK;
-}*/
+}
 
 /*void L9960T::AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo){
 
@@ -662,6 +634,5 @@ HAL_StatusTypeDef L9960T::SPISendReceive(){
 	return HAL_OK;
 }
 
-WriteRegs WriteLeft;
-WriteRegs WriteRight;
+
 

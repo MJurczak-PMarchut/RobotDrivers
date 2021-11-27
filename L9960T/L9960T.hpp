@@ -138,6 +138,7 @@ class L9960T : protected MCInterface{
 		uint16_t SPI_RX;
 		uint16_t SPI_TX;
 		struct MessageInfoTypeDef SPIMess; //zainicjalizowac na zero;
+		WriteRegs Write;
 
 		HAL_StatusTypeDef ComposeSPIMess(int command);
 		void AnalizeSPIMess(struct MessageInfoTypeDef* MsgInfo);
