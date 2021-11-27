@@ -84,16 +84,16 @@ uint8_t ServoControl::AttachServo(GPIO_TypeDef *GPIOx, uint16_t GPIO_PIN)
 		Srv_control.ServoAngle = 0;
 		this->__ServoControlVect2.push_back(Srv_control);
 		this->__NoOfServosAttached++;
-		return this->__ServoControlVect1.size() + 9; // - 1 + 10
+		return this->__ServoControlVect1.size() + this->__ServoControlVect2.size() - 1;
 	}
 	else if (this->__NoOfServosAttached < 24)
 	{
 		Srv_control.GPIO_PIN = GPIO_PIN;
 		Srv_control.GPIOx = GPIOx;
 		Srv_control.ServoAngle = 0;
-		this->__ServoControlVect2.push_back(Srv_control);
+		this->__ServoControlVect3.push_back(Srv_control);
 		this->__NoOfServosAttached++;
-		return this->__ServoControlVect1.size() + 9; // - 1 + 10
+		return this->__ServoControlVect1.size() + this->__ServoControlVect2.size() + this->__ServoControlVect3.size() - 1 ;
 	}
 	else
 	{
@@ -112,11 +112,11 @@ HAL_StatusTypeDef ServoControl::SetServoValue(uint8_t ServoNo, uint16_t ServoAng
 		}
 		else if(ServoNo < 16)
 		{
-			this->__ServoControlVect2[ServoNo].ServoAngle = ServoAngle;
+			this->__ServoControlVect2[ServoNo-8].ServoAngle = ServoAngle;
 		}
 		else if(ServoNo < 24)
 		{
-			this->__ServoControlVect2[ServoNo].ServoAngle = ServoAngle;
+			this->__ServoControlVect3[ServoNo-16].ServoAngle = ServoAngle;
 		}
 		else
 		{
@@ -176,60 +176,56 @@ HAL_StatusTypeDef ServoControl::ServoControlCBHalfPulse(void)
 	//Check what caused the Interrupt
 	uint8_t Sched;
 	Sched = (this->__CurrentServoSched >= 7)? 0: this->__CurrentServoSched + 1;
-	switch(this->__htim->Channel)
+	if(this->__htim->Channel & HAL_TIM_ACTIVE_CHANNEL_1){
+		if(this->__CurrentServoSched < this->__ServoControlVect1.size())
+		{
+			HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
+		}
+		if(Sched < this->__ServoControlVect1.size())
+		{
+			__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[Sched].ServoAngle + 500);
+		}
+		else
+		{
+			__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, 500);
+		}
+	}
+	if(this->__htim->Channel & HAL_TIM_ACTIVE_CHANNEL_2)
 	{
-		case HAL_TIM_ACTIVE_CHANNEL_1:
-			if(this->__CurrentServoSched < this->__ServoControlVect1.size())
-			{
-				HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
-			}
-			if(Sched < this->__ServoControlVect1.size())
-			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, this->__ServoControlVect1[Sched].ServoAngle + 500);
-			}
-			else
-			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_1, 500);
-			}
-			break;
-		case HAL_TIM_ACTIVE_CHANNEL_2:
-			if(this->__CurrentServoSched < this->__ServoControlVect2.size())
-			{
-				HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect2[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
-			}
-			if(Sched < this->__ServoControlVect2.size())
-			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[Sched].ServoAngle + 500);
-			}
-			else
-			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, 500);
-			}
-			break;
-		case HAL_TIM_ACTIVE_CHANNEL_3:
-			if(this->__CurrentServoSched < this->__ServoControlVect3.size())
-			{
-				HAL_GPIO_WritePin(this->__ServoControlVect3[this->__CurrentServoSched].GPIOx, this->__ServoControlVect3[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
-			}
-			if(Sched < this->__ServoControlVect3.size())
-			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, this->__ServoControlVect3[Sched].ServoAngle + 500);
-			}
-			else
-			{
-				__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, 500);
-			}
-			break;
-		default:
-			return HAL_ERROR;
-			break;
+		if(this->__CurrentServoSched < this->__ServoControlVect2.size())
+		{
+			HAL_GPIO_WritePin(this->__ServoControlVect2[this->__CurrentServoSched].GPIOx, this->__ServoControlVect2[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
+		}
+		if(Sched < this->__ServoControlVect2.size())
+		{
+			__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, this->__ServoControlVect2[Sched].ServoAngle + 500);
+		}
+		else
+		{
+			__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_2, 500);
+		}
+	}
+	if(this->__htim->Channel & HAL_TIM_ACTIVE_CHANNEL_3)
+	{
+		if(this->__CurrentServoSched < this->__ServoControlVect3.size())
+		{
+			HAL_GPIO_WritePin(this->__ServoControlVect3[this->__CurrentServoSched].GPIOx, this->__ServoControlVect3[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_RESET);
+		}
+		if(Sched < this->__ServoControlVect3.size())
+		{
+			__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, this->__ServoControlVect3[Sched].ServoAngle + 500);
+		}
+		else
+		{
+			__HAL_TIM_SET_COMPARE(this->__htim, TIM_CHANNEL_3, 500);
+		}
 	}
 	return HAL_OK;
 }
 
 HAL_StatusTypeDef ServoControl::ServoControlCBUpdate(void)
 {
-	this->__CurrentServoSched = (this->__CurrentServoSched < 9)? this->__CurrentServoSched + 1 : 0;
+	this->__CurrentServoSched = (this->__CurrentServoSched < 7)? this->__CurrentServoSched + 1 : 0;
 	if(this->__CurrentServoSched < this->__ServoControlVect1.size())
 	{
 		HAL_GPIO_WritePin(this->__ServoControlVect1[this->__CurrentServoSched].GPIOx, this->__ServoControlVect1[this->__CurrentServoSched].GPIO_PIN, GPIO_PIN_SET);
