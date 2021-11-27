@@ -22,7 +22,7 @@
 #define MCU_STM32H7
 
 //#define SPI_USES_DMA
-#define SPI_USES_IT
+//#define SPI_USES_IT
 //#define SPI_USES_WAIT
 
 #define UART_USES_DMA
@@ -56,8 +56,8 @@
 #define NO_COMMUNICATION_INTERFACE_DEFINED
 #endif
 
-//#define ROBOT_IS_FIDOL
-#define ROBOT_IS_MINISUMO
+#define ROBOT_IS_FIDOL
+//#define ROBOT_IS_MINISUMO
 
 #define LEFT_MOTOR_INVERT_DIRECTION
 #define RIGHT_MOTOR_INVERT_DIRECTION
