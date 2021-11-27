@@ -2,7 +2,7 @@
  * RobotSpecificDefines.hpp
  *
  *  Created on: 21 lis 2021
- *      Author: jurcz
+ *      Author: Mateusz
  */
 
 #ifndef ROBOTSPECIFICDEFINES_HPP_
@@ -48,10 +48,61 @@
 	#define SERVO02_Pin GPIO_PIN_1
 	#define SERVO02_GPIO_Port GPIOD
 
+#elif defined(ROBOT_IS_MINISUMO)
+
 	#define MOTOR_LEFT_TIM_CHANNEL TIM_CHANNEL_1
 	#define MOTOR_RIGHT_TIM_CHANNEL TIM_CHANNEL_3
-	#define MOTOR_LEFT_TIMER_HANDLE &htim3
-	#define MOTOR_RIGHT_TIMER_HANDLE &htim4
+	#define MOTOR_LEFT_TIMER htim3
+	#define MOTOR_RIGHT_TIMER htim4
+
+
+
+	#define MOTOR_NDIS_OFFSET 5
+	#define MOTOR_LEFT_NDIS_ENABLED (1<<5)
+	#define MOTOR_RIGHT_NDIS_ENABLED (1<<6)
+
+	#define TOF_GPIO_1_Pin GPIO_PIN_5
+	#define TOF_GPIO_1_GPIO_Port GPIOE
+	#define XSHUT_1_Pin GPIO_PIN_6
+	#define XSHUT_1_GPIO_Port GPIOE
+	#define START_SW_Pin GPIO_PIN_0
+	#define START_SW_GPIO_Port GPIOB
+	#define TOF_GPIO_3_Pin GPIO_PIN_9
+	#define TOF_GPIO_3_GPIO_Port GPIOE
+	#define XSHUT_3_Pin GPIO_PIN_10
+	#define XSHUT_3_GPIO_Port GPIOE
+	#define TOF_GPIO_4_Pin GPIO_PIN_15
+	#define TOF_GPIO_4_GPIO_Port GPIOE
+	#define XSHUT_4_Pin GPIO_PIN_10
+	#define XSHUT_4_GPIO_Port GPIOB
+	#define MD_CS_2_Pin GPIO_PIN_11
+	#define MD_CS_2_GPIO_Port GPIOD
+	#define MD_DIS_2_Pin GPIO_PIN_12
+	#define MD_DIS_2_GPIO_Port GPIOD
+	#define MD_IN2_DIR_B_Pin GPIO_PIN_13
+	#define MD_IN2_DIR_B_GPIO_Port GPIOD
+	#define MD_IN1_PWM_B_Pin GPIO_PIN_14
+	#define MD_IN1_PWM_B_GPIO_Port GPIOD
+	#define MD_NDIS_Pin GPIO_PIN_15
+	#define MD_NDIS_GPIO_Port GPIOD
+	#define MD_IN1_PWM_A_Pin GPIO_PIN_6
+	#define MD_IN1_PWM_A_GPIO_Port GPIOC
+	#define MD_IN2_DIR_A_Pin GPIO_PIN_7
+	#define MD_IN2_DIR_A_GPIO_Port GPIOC
+	#define MD_DIS_1_Pin GPIO_PIN_8
+	#define MD_DIS_1_GPIO_Port GPIOA
+	#define MD_CS_1_Pin GPIO_PIN_9
+	#define MD_CS_1_GPIO_Port GPIOA
+	#define TOF_GPIO_2_Pin GPIO_PIN_11
+	#define TOF_GPIO_2_GPIO_Port GPIOA
+	#define XSHUT_2_Pin GPIO_PIN_12
+	#define XSHUT_2_GPIO_Port GPIOA
+	#define XSHUT_5_Pin GPIO_PIN_11
+	#define XSHUT_5_GPIO_Port GPIOC
+	#define TOF_GPIO_6_Pin GPIO_PIN_12
+	#define TOF_GPIO_6_GPIO_Port GPIOC
+	#define XSHUT_6_Pin GPIO_PIN_0
+	#define XSHUT_6_GPIO_Port GPIOD
 
 #endif
 
