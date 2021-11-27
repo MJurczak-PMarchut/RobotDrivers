@@ -18,7 +18,7 @@
 
 #define TOF0_Addr                0x54
 #define TOF1_Addr                0x56
-#define TOF2_Addr                0x60
+#define TOF2_Addr                0x58
 #define TOF3_Addr                0x5A
 #define TOF4_Addr                0x5C
 #define TOF5_Addr                0x5E
@@ -50,8 +50,10 @@ class VL53L1X
 		VL53L1X_ERROR InitAllSensors(void);
 		VL53L1X_ERROR InitSensor(uint8_t sensor);
 		VL53L1X_ERROR StartAllSensors(void);
-		VL53L1X_ERROR StartSensor(uint8_t sensor);
+		VL53L1X_ERROR StartRanging(uint8_t sensor);
+		VL53L1X_ERROR StartRangingAllSensors(void);
 		VL53L1X_ERROR SetDistanceMode(void);
+		void MsgSent(void);
 	private:
 		CommManager *_CommunicationManager;
 		I2C_HandleTypeDef *_hi2c;

@@ -15,6 +15,8 @@ extern "C"
 {
 #endif
 
+#define MESSAGE_LENGTH 3
+
 typedef struct {
 	uint32_t dummy;
 } VL53L1_Dev_t;
@@ -44,7 +46,9 @@ int8_t VL53L1_ReadMulti(
 int8_t VL53L1_WrByte(
 		uint16_t dev,
 		uint16_t      index,
-		uint8_t       data);
+		uint8_t       data,
+		CommManager *CommunicationManager,
+		MessageInfoTypeDef *MsgInfo);
 /** @brief VL53L1_WrWord() definition.\n
  * To be implemented by the developer
  */
@@ -65,7 +69,9 @@ int8_t VL53L1_WrDWord(
 int8_t VL53L1_RdByte(
 		uint16_t dev,
 		uint16_t      index,
-		uint8_t      *pdata);
+		uint8_t      *pdata,
+		CommManager *CommunicationManager,
+		MessageInfoTypeDef *MsgInfo);
 /** @brief VL53L1_RdWord() definition.\n
  * To be implemented by the developer
  */

@@ -53,13 +53,14 @@ VL53L1X::VL53L1X(I2C_HandleTypeDef *hi2c, CommManager *CommunicationManager)
 VL53L1X_ERROR VL53L1X::InitSensor(uint8_t sensor)
 {
 	VL53L1X_ERROR status = 0;
+	MessageInfoTypeDef MsgInfo;
 	if(this->_Devices[sensor].Address == TOF_DEFAULT_ADDRESS)
 	{
 		status = 0xFE;
 		this->_Devices[sensor].Active = false;
 	}
 	else status = this->SetSensorAddress(sensor);
-	status |= VL53L1X_SensorInit(this->_Devices[sensor].Address);
+	status |= VL53L1X_SensorInit(this->_Devices[sensor].Address, this->_CommunicationManager, &MsgInfo);
 	if(status == 0)
 	{
 		this->_Devices[sensor].Active = true;
@@ -94,8 +95,9 @@ VL53L1X_ERROR VL53L1X::InitAllSensors(void)
 VL53L1X_ERROR VL53L1X::SetSensorAddress(uint8_t sensor)
 {
 	VL53L1X_ERROR status = 0;
+	MessageInfoTypeDef MsgInfo;
 
-	status = VL53L1X_SetI2CAddress(TOF_DEFAULT_ADDRESS, this->_Devices[sensor].Address);
+	status = VL53L1X_SetI2CAddress(TOF_DEFAULT_ADDRESS, this->_Devices[sensor].Address, this->_CommunicationManager, &MsgInfo);
 	return status;
 }
 
@@ -108,7 +110,18 @@ VL53L1X_ERROR VL53L1X::SetSensorPins(uint8_t sensor, uint16_t GPIO_PIN, GPIO_Typ
 	return 0;
 }
 
-VL53L1X_ERROR VL53L1X::StartSensor(uint8_t sensor)
+VL53L1X_ERROR VL53L1X::StartRanging(uint8_t sensor)
 {
-	return 0;
+	MessageInfoTypeDef MsgInfo = {0};
+	MsgInfo.uCommInt.hi2c = _hi2c;
+	MsgInfo.eCommType = COMM_INT_I2C_TX;
+	MsgInfo.context = sensor << 4;
+//	MsgInfo.pTxCompletedCB = this->MsgSent();
+	return VL53L1X_StartRanging(this->_Devices[sensor].Address, this->_CommunicationManager, &MsgInfo);
 }
+
+void VL53L1X::MsgSent(void)
+{
+
+}
+
