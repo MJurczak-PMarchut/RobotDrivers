@@ -46,8 +46,15 @@ int8_t VL53L1_ReadMulti(uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t c
 	return 0; // to be implemented
 }
 
-int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t data) {
-	return 0; // to be implemented
+int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
+	static uint8_t _data[MESSAGE_LENGTH];
+	_data[0] = (uint8_t) index >> 8;
+	_data[1] = (uint8_t) index & 0xff;
+	_data[2] = data;
+	MsgInfo->I2C_Addr = dev;
+	MsgInfo->pTxData = _data;
+	MsgInfo->len = MESSAGE_LENGTH;
+	return CommunicationManager->PushCommRequestIntoQueue(MsgInfo); // to be implemented
 }
 
 int8_t VL53L1_WrWord(uint16_t dev, uint16_t index, uint16_t data) {
@@ -58,7 +65,7 @@ int8_t VL53L1_WrDWord(uint16_t dev, uint16_t index, uint32_t data) {
 	return 0; // to be implemented
 }
 
-int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data) {
+int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
 	return 0; // to be implemented
 }
 
