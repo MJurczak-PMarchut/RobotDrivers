@@ -78,7 +78,9 @@ int8_t VL53L1_RdByte(
 int8_t VL53L1_RdWord(
 		uint16_t dev,
 		uint16_t      index,
-		uint16_t     *pdata);
+		uint16_t     *pdata,
+		CommManager *CommunicationManager,
+		MessageInfoTypeDef *MsgInfo);
 /** @brief VL53L1_RdDWord() definition.\n
  * To be implemented by the developer
  */

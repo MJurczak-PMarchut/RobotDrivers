@@ -38,6 +38,9 @@
 #include <math.h>
 #include <platform/vl53l1_platform.hpp>
 
+static uint8_t _data[MESSAGE_LENGTH];
+static uint8_t _data_receive[MESSAGE_LENGTH];
+
 int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t count) {
 	return 0; // to be implemented
 }
@@ -54,7 +57,9 @@ int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t data, CommManager *Co
 	MsgInfo->I2C_Addr = dev;
 	MsgInfo->pTxData = _data;
 	MsgInfo->len = MESSAGE_LENGTH;
-	return CommunicationManager->PushCommRequestIntoQueue(MsgInfo); // to be implemented
+
+//	return CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
+	return HAL_I2C_Master_Transmit(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, _data, MsgInfo->len, 100);
 }
 
 int8_t VL53L1_WrWord(uint16_t dev, uint16_t index, uint16_t data) {
@@ -69,8 +74,25 @@ int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *C
 	return 0; // to be implemented
 }
 
-int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data) {
-	return 0; // to be implemented
+int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
+	int8_t status = 0;
+	_data[0] = (uint8_t) index >> 8;
+	_data[1] = (uint8_t) index & 0xff;
+	_data[2] = 0;
+	_data_receive[0] = 0;
+	_data_receive[1] = 0;
+	_data_receive[2] = 0;
+	MsgInfo->I2C_Addr = dev;
+	MsgInfo->pTxData = _data;
+	MsgInfo->len = 2;
+	MsgInfo->pRxData = _data_receive;
+
+//	return CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
+//	status |= HAL_I2C_Master_Transmit_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len);
+//	status |= HAL_I2C_Master_Receive_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
+	status |= HAL_I2C_Master_Transmit(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len, 100);
+	status |= HAL_I2C_Master_Receive(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len, 100);
+	return status;
 }
 
 int8_t VL53L1_RdDWord(uint16_t dev, uint16_t index, uint32_t *data) {

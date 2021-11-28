@@ -237,19 +237,19 @@ VL53L1X_ERROR VL53L1X_SensorInit(uint16_t dev, CommManager *CommunicationManager
 //	}
 //	status |= VL53L1X_ClearInterrupt(dev);
 //	status |= VL53L1X_StopRanging(dev);
-//	status |= VL53L1_WrByte(dev, VL53L1_VHV_CONFIG__TIMEOUT_MACROP_LOOP_BOUND, 0x09); /* two bounds VHV */
-//	status |= VL53L1_WrByte(dev, 0x0B, 0); /* start VHV from the previous temperature */
+//	status |= VL53L1_WrByte(dev, VL53L1_VHV_CONFIG__TIMEOUT_MACROP_LOOP_BOUND, 0x09, CommunicationManager, MsgInfo); /* two bounds VHV */
+//	status |= VL53L1_WrByte(dev, 0x0B, 0, CommunicationManager, MsgInfo); /* start VHV from the previous temperature */
 	return status;
 }
 
-//VL53L1X_ERROR VL53L1X_ClearInterrupt(uint16_t dev)
-//{
-//	VL53L1X_ERROR status = 0;
-//
-//	status |= VL53L1_WrByte(dev, SYSTEM__INTERRUPT_CLEAR, 0x01);
-//	return status;
-//}
-//
+VL53L1X_ERROR VL53L1X_ClearInterrupt(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+{
+	VL53L1X_ERROR status = 0;
+
+	status |= VL53L1_WrByte(dev, SYSTEM__INTERRUPT_CLEAR, 0x01, CommunicationManager, MsgInfo);
+	return status;
+}
+
 //VL53L1X_ERROR VL53L1X_SetInterruptPolarity(uint16_t dev, uint8_t NewPolarity)
 //{
 //	uint8_t Temp;
@@ -408,47 +408,47 @@ VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManag
 //	return status;
 //}
 //
-//VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget)
-//{
-//	uint16_t Temp;
-//	VL53L1X_ERROR status = 0;
-//
-//	status |= VL53L1_RdWord(dev, RANGE_CONFIG__TIMEOUT_MACROP_A_HI, &Temp);
-//	switch (Temp) {
-//		case 0x001D :
-//			*pTimingBudget = 15;
-//			break;
-//		case 0x0051 :
-//		case 0x001E :
-//			*pTimingBudget = 20;
-//			break;
-//		case 0x00D6 :
-//		case 0x0060 :
-//			*pTimingBudget = 33;
-//			break;
-//		case 0x1AE :
-//		case 0x00AD :
-//			*pTimingBudget = 50;
-//			break;
-//		case 0x02E1 :
-//		case 0x01CC :
-//			*pTimingBudget = 100;
-//			break;
-//		case 0x03E1 :
-//		case 0x02D9 :
-//			*pTimingBudget = 200;
-//			break;
-//		case 0x0591 :
-//		case 0x048F :
-//			*pTimingBudget = 500;
-//			break;
-//		default:
-//			status = 1;
-//			*pTimingBudget = 0;
-//	}
-//	return status;
-//}
-//
+VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+{
+	uint16_t Temp;
+	VL53L1X_ERROR status = 0;
+
+	status |= VL53L1_RdWord(dev, RANGE_CONFIG__TIMEOUT_MACROP_A_HI, &Temp, CommunicationManager, MsgInfo);
+	switch (Temp) {
+		case 0x001D :
+			*pTimingBudget = 15;
+			break;
+		case 0x0051 :
+		case 0x001E :
+			*pTimingBudget = 20;
+			break;
+		case 0x00D6 :
+		case 0x0060 :
+			*pTimingBudget = 33;
+			break;
+		case 0x1AE :
+		case 0x00AD :
+			*pTimingBudget = 50;
+			break;
+		case 0x02E1 :
+		case 0x01CC :
+			*pTimingBudget = 100;
+			break;
+		case 0x03E1 :
+		case 0x02D9 :
+			*pTimingBudget = 200;
+			break;
+		case 0x0591 :
+		case 0x048F :
+			*pTimingBudget = 500;
+			break;
+		default:
+			status = 1;
+			*pTimingBudget = 0;
+	}
+	return status;
+}
+
 //VL53L1X_ERROR VL53L1X_SetDistanceMode(uint16_t dev, uint16_t DM)
 //{
 //	uint16_t TB;
@@ -543,16 +543,15 @@ VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManag
 //	return status;
 //}
 //
-//VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance)
-//{
-//	VL53L1X_ERROR status = 0;
-//	uint16_t tmp;
-//
-//	status |= (VL53L1_RdWord(dev,
-//			VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0, &tmp));
-//	*distance = tmp;
-//	return status;
-//}
+VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+{
+	VL53L1X_ERROR status = 0;
+	uint16_t tmp;
+
+	status |= (VL53L1_RdWord(dev, VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0, &tmp, CommunicationManager, MsgInfo));
+	*distance = tmp;
+	return status;
+}
 //
 //VL53L1X_ERROR VL53L1X_GetSignalPerSpad(uint16_t dev, uint16_t *signalRate)
 //{

@@ -52,6 +52,8 @@ class VL53L1X
 		VL53L1X_ERROR StartAllSensors(void);
 		VL53L1X_ERROR StartRanging(uint8_t sensor);
 		VL53L1X_ERROR StartRangingAllSensors(void);
+		VL53L1X_ERROR GetDistance(uint8_t sensor);
+		VL53L1X_ERROR ClearInterrupt(uint8_t sensor);
 		VL53L1X_ERROR SetDistanceMode(void);
 		void MsgSent(void);
 	private:
