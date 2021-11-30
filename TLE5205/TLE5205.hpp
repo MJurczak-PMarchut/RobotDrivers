@@ -36,6 +36,7 @@ class TLE5205 : protected MCInterface{
 		MotorDirectionTypeDef __Dir;
 		uint16_t __PowerPWM;
 		uint32_t __Channel;
+		MotorEnabledTypeDef __Motor_State;
 };
 
 #endif /* TLE5205_TLE5205_HPP_ */

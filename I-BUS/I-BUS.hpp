@@ -13,15 +13,24 @@
 #ifdef __cplusplus
 class IBus{
 	public:
-		IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void));
+#ifdef RESTART_IBUS_UART_DMA
+		IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void), uint8_t *pRxData, DMA_HandleTypeDef *hdma);
+#else
+		IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void), uint8_t *pRxData);
+#endif
 		uint16_t GetAxisValue(uint8_t Axis);
 		void ProcessRxDataCB(uint8_t *pRxData);
+		void ProcessRxDataCB();
 		HAL_StatusTypeDef GetConnectionStatus(void);
 	private:
 		UART_HandleTypeDef *__ibus_huart;
 		uint16_t __AxesData[14];
 		void (*__CallEmergencyStop)(void);
 		uint32_t __IsConnected_tick;
+		uint8_t *pData;
+#ifdef RESTART_IBUS_UART_DMA
+		DMA_HandleTypeDef *__hdma;
+#endif
 };
 #else
 	#error("IBus can be used in Cpp code only for now")

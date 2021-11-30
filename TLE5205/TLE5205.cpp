@@ -37,6 +37,7 @@ TLE5205::TLE5205(MotorSideTypeDef side, TIM_HandleTypeDef *htim, uint32_t Channe
 		__IN1_PORT = MOTOR_RIGHT_IN1_Port;
 		__IN2_PORT = MOTOR_RIGHT_IN2_Port;
 	}
+	__Motor_State = MOTOR_DISABLED;
 }
 
 
@@ -71,6 +72,7 @@ HAL_StatusTypeDef TLE5205::Disable(void)
 {
 	__PowerPWM = 0;
 	__HAL_TIM_SET_COMPARE(this->__htim, this->__Channel, 0);
+	__Motor_State = MOTOR_DISABLED;
 	return HAL_OK;
 }
 
@@ -84,6 +86,7 @@ HAL_StatusTypeDef TLE5205::Brake(void)
 
 HAL_StatusTypeDef TLE5205::Enable(void)
 {
+	__Motor_State = MOTOR_ENABLED;
 	return HAL_OK;
 }
 
@@ -94,7 +97,7 @@ HAL_StatusTypeDef TLE5205::EmergencyStop(void)
 
 void TLE5205::TimCB(void)
 {
-	if(__PowerPWM == 0)
+	if((__PowerPWM == 0)|| (__Motor_State == MOTOR_DISABLED))
 	{
 		HAL_GPIO_WritePin(__IN1_PORT, __IN1_PIN, (GPIO_PinState)(FREEWHELING & 0x1));
 		HAL_GPIO_WritePin(__IN2_PORT, __IN2_PIN, (GPIO_PinState)((FREEWHELING & 0x2) >> 1));

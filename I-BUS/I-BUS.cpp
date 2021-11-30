@@ -21,12 +21,30 @@
  * @param ibus_huart uart handle, not used right now
  * @param CallEmergencyStop needs to be a function that stops robot movement
  */
-IBus::IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void))
+
+#ifdef RESTART_IBUS_UART_DMA
+
+IBus::IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void), uint8_t *pRxData, DMA_HandleTypeDef *hdma)
 {
 	__ibus_huart = ibus_huart;
 	__IsConnected_tick = 0;
 	__CallEmergencyStop = CallEmergencyStop;
+	pData = pRxData;
+	__hdma = hdma;
 }
+
+#else
+
+IBus::IBus(UART_HandleTypeDef *ibus_huart, void (*CallEmergencyStop)(void), uint8_t *pRxData)
+{
+	__ibus_huart = ibus_huart;
+	__IsConnected_tick = 0;
+	__CallEmergencyStop = CallEmergencyStop;
+	pData = pRxData;
+}
+
+
+#endif
 
 /*
  * @brief Processes Rx Data received through Uart, should be called in uart callback
@@ -65,6 +83,56 @@ void IBus::ProcessRxDataCB(uint8_t *pRxData)
 	{
 		__CallEmergencyStop();
 	}
+#endif
+
+#ifdef RESTART_IBUS_UART_DMA
+	HAL_UARTEx_ReceiveToIdle_DMA(__ibus_huart, pData, 32);
+	__HAL_DMA_DISABLE_IT(__hdma, DMA_IT_HT);
+#endif
+}
+
+void IBus::ProcessRxDataCB()
+{
+	uint8_t *pRxData = pData;
+	if(pData == 0)
+	{
+
+	}
+	uint16_t Checksum = ((uint16_t*)pRxData)[15];
+	//Confirm data correct
+	for(uint8_t u8Iter = 0; u8Iter < 30; u8Iter++)
+	{
+		Checksum = Checksum + pRxData[u8Iter];
+	}
+	//update connection tick
+	if(Checksum == 0xFFFF && (pRxData[1] - pRxData[0] == 0x20))
+	{
+		__IsConnected_tick = HAL_GetTick();
+	}
+	else
+	{
+		return;
+	}
+	//swap bytes and add to axesData
+	pRxData += 2;
+	for(uint8_t u8Iter = 0; u8Iter < 14; u8Iter++)
+	{
+		//Move bytes into place and copy values to __axesData
+		__AxesData[u8Iter] =  ((uint16_t*)pRxData)[u8Iter];
+		//Substract 1000 from values to get range from 0 to 1000
+		__AxesData[u8Iter] -= 1000;
+	}
+	//call emergency stop if enabled
+#ifdef EMERGENCY_STOP_AXIS
+	if(__AxesData[EMERGENCY_STOP_AXIS] > 500)
+	{
+		__CallEmergencyStop();
+	}
+#endif
+
+#ifdef RESTART_IBUS_UART_DMA
+	HAL_UARTEx_ReceiveToIdle_DMA(__ibus_huart, pData, 40);
+	__HAL_DMA_DISABLE_IT(__hdma, DMA_IT_HT);
 #endif
 }
 /*
