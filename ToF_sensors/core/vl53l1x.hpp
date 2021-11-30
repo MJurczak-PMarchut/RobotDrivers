@@ -24,10 +24,10 @@
 #define TOF5_Addr                0x5E
 
 #define TOF0				     0U
-#define TOF1				     1U
-#define TOF2				     2U
-#define TOF3				     3U
-#define TOF4				     4U
+//#define TOF1				     1U
+//#define TOF2				     2U
+//#define TOF3				     3U
+//#define TOF4				     4U
 #define TOF5				     5U
 
 
@@ -41,28 +41,28 @@ typedef struct
 	GPIO_TypeDef *XSHUT_GPIOx;
 }VL53L1X_Device;
 
-class VL53L1X
-{
-	public:
-		VL53L1X(I2C_HandleTypeDef *hi2c, CommManager *CommunicationManager);
-		~VL53L1X(void);
-		VL53L1X_ERROR SetSensorPins(uint8_t sensor, uint16_t GPIO_PIN, GPIO_TypeDef *GPIO_GPIOx, uint16_t XSHUT_PIN, GPIO_TypeDef *XSHUT_GPIOx);
-		VL53L1X_ERROR InitAllSensors(void);
-		VL53L1X_ERROR InitSensor(uint8_t sensor);
-		VL53L1X_ERROR StartAllSensors(void);
-		VL53L1X_ERROR StartRanging(uint8_t sensor);
-		VL53L1X_ERROR StartRangingAllSensors(void);
-		VL53L1X_ERROR GetDistance(uint8_t sensor);
-		VL53L1X_ERROR ClearInterrupt(uint8_t sensor);
-		VL53L1X_ERROR SetDistanceMode(void);
-		void MsgSent(void);
-	private:
-		CommManager *_CommunicationManager;
-		I2C_HandleTypeDef *_hi2c;
-		VL53L1X_ERROR SetSensorAddress(uint8_t sensor);
-		MessageInfoTypeDef _MessageInfo;
-		VL53L1X_Device _Devices[MAX_TOF_NUMBER];
-};
+//class VL53L1X
+//{
+//	public:
+//		VL53L1X(I2C_HandleTypeDef *hi2c, CommManager *CommunicationManager);
+//		~VL53L1X(void);
+//		VL53L1X_ERROR SetSensorPins(uint8_t sensor, uint16_t GPIO_PIN, GPIO_TypeDef *GPIO_GPIOx, uint16_t XSHUT_PIN, GPIO_TypeDef *XSHUT_GPIOx);
+//		VL53L1X_ERROR InitAllSensors(void);
+//		VL53L1X_ERROR InitSensor(uint8_t sensor);
+//		VL53L1X_ERROR StartAllSensors(void);
+//		VL53L1X_ERROR StartRanging(uint8_t sensor);
+//		VL53L1X_ERROR StartRangingAllSensors(void);
+//		VL53L1X_ERROR GetDistance(uint8_t sensor);
+//		VL53L1X_ERROR ClearInterrupt(uint8_t sensor);
+//		VL53L1X_ERROR SetDistanceMode(void);
+//		void MsgSent(void);
+//	private:
+//		CommManager *_CommunicationManager;
+//		I2C_HandleTypeDef *_hi2c;
+//		VL53L1X_ERROR SetSensorAddress(uint8_t sensor);
+//		MessageInfoTypeDef _MessageInfo;
+//		VL53L1X_Device _Devices[MAX_TOF_NUMBER];
+//};
 
 
 

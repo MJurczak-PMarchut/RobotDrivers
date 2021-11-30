@@ -54,15 +54,15 @@ HAL_StatusTypeDef TLE5205::SetMotorPowerPWM(uint16_t PowerPWM)
 HAL_StatusTypeDef TLE5205::SetMotorDirection(MotorDirectionTypeDef Dir)
 {
 	__Dir = Dir;
-	if(MOTOR_DIR_FORWARD)
+	if(Dir == MOTOR_DIR_FORWARD)
 	{
 		__IN1_STATE = (GPIO_PinState)(MOTOR_CW & 0x1);
-		__IN2_STATE = (GPIO_PinState)(MOTOR_CW & 0x2);
+		__IN2_STATE = (GPIO_PinState)((MOTOR_CW & 0x2) >> 1);
 	}
 	else
 	{
 		__IN1_STATE = (GPIO_PinState)(MOTOR_CCW & 0x1);
-		__IN2_STATE = (GPIO_PinState)(MOTOR_CCW & 0x2);
+		__IN2_STATE = (GPIO_PinState)((MOTOR_CCW & 0x2) >> 1);
 	}
 	return HAL_OK;
 }
@@ -97,7 +97,7 @@ void TLE5205::TimCB(void)
 	if(__PowerPWM == 0)
 	{
 		HAL_GPIO_WritePin(__IN1_PORT, __IN1_PIN, (GPIO_PinState)(FREEWHELING & 0x1));
-		HAL_GPIO_WritePin(__IN2_PORT, __IN2_PIN, (GPIO_PinState)(FREEWHELING & 0x2));
+		HAL_GPIO_WritePin(__IN2_PORT, __IN2_PIN, (GPIO_PinState)((FREEWHELING & 0x2) >> 1));
 	}
 	else
 	{
@@ -108,10 +108,8 @@ void TLE5205::TimCB(void)
 
 void TLE5205::TimCBPulse(void)
 {
-	if(__htim->Channel == __Channel)
-	{
-		HAL_GPIO_WritePin(__IN1_PORT, __IN1_PIN, (GPIO_PinState)(FREEWHELING & 0x1));
-		HAL_GPIO_WritePin(__IN2_PORT, __IN2_PIN, (GPIO_PinState)(FREEWHELING & 0x2));
-	}
+
+	HAL_GPIO_WritePin(__IN1_PORT, __IN1_PIN, (GPIO_PinState)(FREEWHELING & 0x1));
+	HAL_GPIO_WritePin(__IN2_PORT, __IN2_PIN, (GPIO_PinState)((FREEWHELING & 0x2) >> 1));
 }
 

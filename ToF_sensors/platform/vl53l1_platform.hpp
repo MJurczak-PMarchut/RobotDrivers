@@ -9,6 +9,7 @@
 #include <platform/vl53l1_types.hpp>
 #include "../../Configuration.h"
 #include "../../CommManager/CommManager.hpp"
+#include "../core/vl53l1x.hpp"
 
 #ifdef __cplusplus
 extern "C"

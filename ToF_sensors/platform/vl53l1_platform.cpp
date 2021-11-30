@@ -39,7 +39,8 @@
 #include <platform/vl53l1_platform.hpp>
 
 static uint8_t _data[MESSAGE_LENGTH];
-static uint8_t _data_receive[MESSAGE_LENGTH];
+uint8_t _data_receiveL[MESSAGE_LENGTH];
+uint8_t _data_receiveR[MESSAGE_LENGTH];
 
 int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t count) {
 	return 0; // to be implemented
@@ -79,13 +80,24 @@ int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data, CommManager *
 	_data[0] = (uint8_t) index >> 8;
 	_data[1] = (uint8_t) index & 0xff;
 	_data[2] = 0;
-	_data_receive[0] = 0;
-	_data_receive[1] = 0;
-	_data_receive[2] = 0;
+
 	MsgInfo->I2C_Addr = dev;
 	MsgInfo->pTxData = _data;
 	MsgInfo->len = 2;
-	MsgInfo->pRxData = _data_receive;
+	if(dev == TOF5_Addr)
+	{
+		_data_receiveL[0] = 0;
+		_data_receiveL[1] = 0;
+		_data_receiveL[2] = 0;
+		MsgInfo->pRxData = _data_receiveL;
+	}
+	else
+	{
+		_data_receiveR[0] = 0;
+		_data_receiveR[1] = 0;
+		_data_receiveR[2] = 0;
+		MsgInfo->pRxData = _data_receiveR;
+	}
 
 //	return CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
 //	status |= HAL_I2C_Master_Transmit_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len);
