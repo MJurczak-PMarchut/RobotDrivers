@@ -64,4 +64,7 @@
 
 #define RESTART_IBUS_UART_DMA
 
+
+#define GPIO_NUMBER_SUMO (16U)
+
 #endif /* CONFIGURATION_H_ */
