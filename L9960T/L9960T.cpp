@@ -43,6 +43,8 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 		this->__Direction = GPIO_PIN_SET;
 #endif
 	}
+	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
+	this->Disable();
 }
 
 L9960T::L9960T(MotorSideTypeDef side)
@@ -86,6 +88,8 @@ L9960T::L9960T(MotorSideTypeDef side)
 		this->__Direction = GPIO_PIN_SET;
 #endif
 	}
+	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
+	this->Disable();
 }
 
 HAL_StatusTypeDef L9960T::AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint32_t Channel)
@@ -98,7 +102,11 @@ HAL_StatusTypeDef L9960T::AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint
 
 HAL_StatusTypeDef L9960T::SetMotorPowerPWM(uint16_t PowerPWM)
 {
-	if(PowerPWM < 1000)
+	if(((1 << this->__side) << MOTOR_NDIS_OFFSET) & this->__Instantiated_sides)
+	{
+		return HAL_ERROR;
+	}
+	else if(PowerPWM < 1000)
 	{
 		__HAL_TIM_SET_COMPARE(this->__htim, this->__Channel, PowerPWM);
 		return HAL_OK;
@@ -128,8 +136,9 @@ HAL_StatusTypeDef L9960T::EmergencyStop(void)
 
 HAL_StatusTypeDef L9960T::Disable(void)
 {
+	SetMotorPowerPWM(0);
 	this->__Instantiated_sides |=  ((1 << this->__side) << MOTOR_NDIS_OFFSET);
-	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_SET);
 	return HAL_OK;
 }
 
@@ -140,10 +149,6 @@ HAL_StatusTypeDef L9960T::Enable(void)
 		this->__Instantiated_sides &= ~ ((1 << this->__side) << MOTOR_NDIS_OFFSET);
 		HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_RESET);
 	}
-	if(!(this->__Instantiated_sides & (MOTOR_RIGHT_NDIS_ENABLED | MOTOR_LEFT_NDIS_ENABLED)))
-	{
-		HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
-		return HAL_OK;
-	}
-	return HAL_ERROR;
+	HAL_Delay(1); 	//Wait 1ms to satisfy wait on dis condition (1us is enough but too much work)
+	return HAL_OK;
 }
