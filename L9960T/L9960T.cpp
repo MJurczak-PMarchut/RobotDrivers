@@ -58,8 +58,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 
 HAL_StatusTypeDef L9960T::Init(void)
 {
-	uint16_t Message = 0;
-	uint8_t address = 0;
+	static uint16_t Message;
 	MessageInfoTypeDef MsgInfo = {0};
 	static uint8_t MessageCounter = 0;
 	MsgInfo.GPIO_PIN = this->__CS_Pin;
@@ -75,21 +74,19 @@ HAL_StatusTypeDef L9960T::Init(void)
 	switch(MessageCounter)
 	{
 		case 0://Ask for ASIC number
-			address = ELECTRONIC_ID_REQUEST_ADDR;
-			Message = ELECTRONIC_ID_REQUEST_MSG;
-			Message = (address << ADDRESS_OFFSET) | (Message << MESSAGE_OFFSET);
+			Message = (ELECTRONIC_ID_REQUEST_ADDR << ADDRESS_OFFSET) | (ELECTRONIC_ID_REQUEST_MSG << MESSAGE_OFFSET);
 			Message |= (__builtin_parity(Message) & 1);
+			MsgInfo.pTxData = (uint8_t*)&Message;
 			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
 			break;
 		case 1://Answer for the ASIC number will come now
 			//TODO: For now it will ask again and we will check the number
-			address = ELECTRONIC_ID_REQUEST_ADDR;
-			Message = ELECTRONIC_ID_REQUEST_MSG;
-			Message = (address << ADDRESS_OFFSET) | (Message << MESSAGE_OFFSET);
+			Message = (ELECTRONIC_ID_REQUEST_ADDR << ADDRESS_OFFSET) | (ELECTRONIC_ID_REQUEST_MSG << MESSAGE_OFFSET);
 			Message |= (__builtin_parity(Message) & 1);
 			MsgInfo.context = (1 << this->__side) |
 							  (0 << CONTEXT_OFFSET) | //Tis a Stop sequence!
 					          (MessageCounter << 8);
+			MsgInfo.pTxData = (uint8_t*)&Message;
 			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
 			break;
 	}
