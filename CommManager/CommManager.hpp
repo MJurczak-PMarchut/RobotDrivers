@@ -13,6 +13,10 @@
 #include "vector"
 #include "queue"
 
+//#include "L9960T.hpp"
+//#include "VESC/VescUart.h"
+//#include "MotorControl.hpp"
+
 //TODO that is the dumbest way to do it possible, I don't like it, I should probably fix this in the future
 
 typedef union {
@@ -26,7 +30,17 @@ typedef union {
 	I2C_HandleTypeDef *hi2c;
 #endif
 }CommIntUnionTypeDef;
-
+//
+//typedef union {
+//	L9960T *L9960T_Controller;
+//	VescUart *VESC_Controller;
+//}MotorControllerUnionTypeDef;
+//
+//typedef struct
+//{
+//	MotorControllerUnionTypeDef MCUnion;
+//	ControllerTypeTypeDef ControllerType;
+//}MotorControllerCallbackTD;
 
 typedef enum {
 	COMM_INT_SPI_TXRX, COMM_INT_SPI_RX, COMM_INT_UART_TX, COMM_INT_UART_RX, COMM_INT_I2C_TX, COMM_INT_I2C_RX
@@ -42,10 +56,11 @@ struct MessageInfoTypeDef{
 	uint16_t len;
 	uint8_t *pRxData;
 	uint8_t *pTxData;
-	uint8_t context;
+	uint16_t context;
 	uint16_t I2C_Addr;
 	void (*pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 	void (*pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
+//	MotorControllerCallbackTD CommCompletedTB;
 };
 
 template <typename T>
@@ -129,7 +144,7 @@ class CommManager
 
 		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(UART_HandleTypeDef *huart);
 #endif
-
+		struct{
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 
 		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
@@ -144,7 +159,7 @@ class CommManager
 
 		std::vector<CommQueue<I2C_HandleTypeDef*>> __hi2cQueueVect;
 #endif
-
+		}__CommQueueStruct;
 #if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
 
 		std::vector<DMA_HandleTypeDef*> __hdmaVect;

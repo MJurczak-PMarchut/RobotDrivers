@@ -13,7 +13,7 @@
 #include <queue>
 
 typedef enum {MOTOR_LEFT = 0, MOTOR_RIGHT = 1} MotorSideTypeDef;
-typedef enum {VESC_CONTROLLER, l9960T_CONTROLLER} ControllerTypeTypeDef;
+typedef enum {NONE = 0, VESC_CONTROLLER, l9960T_CONTROLLER} ControllerTypeTypeDef;
 typedef enum {MOTOR_DIR_FORWARD = 0, MOTOR_DIR_BACKWARD} MotorDirectionTypeDef;
 typedef enum {MOTOR_DISABLED, MOTOR_ENABLED} MotorEnabledTypeDef;
 
@@ -33,6 +33,7 @@ class MCInterface{
 		virtual HAL_StatusTypeDef Disable(void) = 0;
 		virtual HAL_StatusTypeDef Enable(void) = 0;
 		virtual HAL_StatusTypeDef EmergencyStop(void) = 0;
+
 	private:
 	protected:
 		static uint8_t __Instantiated_sides;

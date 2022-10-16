@@ -7,7 +7,7 @@
 
 #ifndef TLE5205_TLE5205_HPP_
 #define TLE5205_TLE5205_HPP_
-#include "Configuration.h"
+//#include "Configuration.h"
 #include "MotorControl.hpp"
 #include "RobotSpecificDefines.hpp"
 

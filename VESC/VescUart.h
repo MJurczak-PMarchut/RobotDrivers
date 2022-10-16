@@ -5,6 +5,7 @@
 #include "buffer.h"
 #include "crc.h"
 #include "Configuration.h"
+#include "CommManager.hpp"
 
 class VescUart
 {
@@ -100,6 +101,9 @@ class VescUart
 		 * @return     The number of bytes send
 		 */
 		int packSendPayload(uint8_t * payload, int lenPay);
+
+		void RxCompletedCB(struct MessageInfoTypeDef* MsgInfo);
+		void TxCompletedCB(struct MessageInfoTypeDef* MsgInfo);
 
 	private:
 

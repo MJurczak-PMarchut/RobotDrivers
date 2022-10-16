@@ -10,12 +10,16 @@
 #include "MotorControl.hpp"
 #include "RobotSpecificDefines.hpp"
 
+#define INIT_SEQUENCE_CONTEXT 3
+
 typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CURRENT_RANGE_3 = 3} L9960T_CurrentRange;
+
+
 
 class L9960T : protected MCInterface{
 	public:
-		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager);
-		L9960T(MotorSideTypeDef side);
+		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager,
+				void (*pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo), void (*pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo));
 		HAL_StatusTypeDef AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint32_t Channel);
 		HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM);
 		HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir);
@@ -24,10 +28,11 @@ class L9960T : protected MCInterface{
 		HAL_StatusTypeDef Enable(void);
 		HAL_StatusTypeDef EmergencyStop(void);
 		HAL_StatusTypeDef CheckIfControllerInitializedOk(void);
+		HAL_StatusTypeDef Init(void);
 	private:
-		CommManager *__CommunicationManager;
 		MotorSideTypeDef __side;
 		SPI_HandleTypeDef *__hspi;
+		CommManager *__CommunicationManager;
 		uint16_t __CS_Pin;
 		uint16_t __IN1_PWM_PIN;
 		uint16_t __IN2_DIR_PIN;
@@ -39,6 +44,9 @@ class L9960T : protected MCInterface{
 		GPIO_PinState __Direction;
 		TIM_HandleTypeDef *__htim;
 		uint32_t __Channel;
+		uint8_t pRxData[2];
+		void (*__pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
+		void (*__pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 
 };
 

@@ -133,4 +133,3 @@ void TLE5205::TimCBPulse(void)
 //	HAL_GPIO_WritePin(__IN1_PORT, __IN1_PIN, (GPIO_PinState)(FREEWHELING & 0x1));
 //	HAL_GPIO_WritePin(__IN2_PORT, __IN2_PIN, (GPIO_PinState)((FREEWHELING & 0x2) >> 1));
 }
-
