@@ -1,4 +1,5 @@
 #include "VescUart.h"
+#include "string.h"
 
 VescUart::VescUart(UART_HandleTypeDef *huart){
 	__huart = huart;
@@ -16,13 +17,13 @@ int VescUart::receiveUartMessage(uint8_t * payloadReceived) {
 	uint8_t messageReceived[256];
 	uint16_t lenPayload = 0;
 	bool unpacked = false;
-	uint32_t timeout = millis() + 100; // Defining the timestamp for timeout (100ms before timeout)
+	uint32_t timeout = HAL_GetTick() + 100; // Defining the timestamp for timeout (100ms before timeout)
 
-	while ( millis() < timeout && messageRead == false) {
+	while ( HAL_GetTick() < timeout && messageRead == false) {
 
 		if(__huart->gState == HAL_UART_STATE_READY) {
 
-			HAL_UARTEx_ReceiveToIdle(__huart, messageReceived, 255, counter, 100);
+			HAL_UARTEx_ReceiveToIdle(__huart, messageReceived, 255, &counter, 100);
 
 			switch (messageReceived[0])
 			{
