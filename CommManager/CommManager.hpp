@@ -85,8 +85,8 @@ class CommManager
 
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 
-		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, CommIntTypeDef eCommType, uint16_t len);
-		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, CommIntTypeDef eCommType);
+		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, uint16_t len);
+		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart);
 #endif
 #if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
 
@@ -125,26 +125,16 @@ class CommManager
 #endif
 
 	private:
-
+		template<typename Handle, typename QueueVectTD>
+		HAL_StatusTypeDef __MsgReceivedCB(Handle *IntHandle, QueueVectTD *Queue);
 		uint8_t __CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeDef *uCommInt, CommIntTypeDef eCommIntType);
 		HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex);
 		HAL_StatusTypeDef __CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex);
+		template<typename queue>
+		HAL_StatusTypeDef __CheckAndSetCSPinsGeneric(queue *VectQueue, uint8_t VectorIndex, MessageInfoTypeDef *MsgInfo);
+		template<typename Handle, typename QueueVectTD>
+		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(Handle *IntHandle, QueueVectTD *Queue);
 
-#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
-
-		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(I2C_HandleTypeDef *hi2c);
-#endif
-
-#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
-
-		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(SPI_HandleTypeDef *hspi);
-#endif
-
-#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
-
-		HAL_StatusTypeDef __CheckForNextCommRequestAndStart(UART_HandleTypeDef *huart);
-#endif
-		struct{
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 
 		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
@@ -159,7 +149,7 @@ class CommManager
 
 		std::vector<CommQueue<I2C_HandleTypeDef*>> __hi2cQueueVect;
 #endif
-		}__CommQueueStruct;
+
 #if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
 
 		std::vector<DMA_HandleTypeDef*> __hdmaVect;
