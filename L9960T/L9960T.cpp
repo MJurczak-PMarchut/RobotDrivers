@@ -50,10 +50,6 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	}
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	this->Disable();
-	if(this->Init() != HAL_OK)
-	{
-		Error_Handler();
-	}
 }
 
 HAL_StatusTypeDef L9960T::Init(void)
