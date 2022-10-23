@@ -46,6 +46,8 @@ class L9960T : protected MCInterface{
 		TIM_HandleTypeDef *__htim;
 		uint32_t __Channel;
 		uint8_t pRxData[2];
+		uint8_t pTxData[2];
+		uint8_t __InitMessageID;
 		void (*__pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 		void (*__pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 
