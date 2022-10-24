@@ -27,6 +27,8 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 		this->__Instantiated_sides |= MOTOR_LEFT_NDIS_ENABLED;
 		this->__CS_Pin = MD_CS_1_Pin;
 		this->__CS_Port = MD_CS_1_GPIO_Port;
+		this->__DIS_PORT = MD_DIS_1_GPIO_Port;
+		this->__DIS_PIN = MD_DIS_1_Pin;
 #ifdef LEFT_MOTOR_INVERT_DIRECTION
 		this->__Direction = GPIO_PIN_RESET;
 #else
@@ -43,6 +45,8 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 		this->__Instantiated_sides |= MOTOR_RIGHT_NDIS_ENABLED;
 		this->__CS_Pin = MD_CS_2_Pin;
 		this->__CS_Port = MD_CS_2_GPIO_Port;
+		this->__DIS_PORT = MD_DIS_2_GPIO_Port;
+		this->__DIS_PIN = MD_DIS_2_Pin;
 #ifdef RIGHT_MOTOR_INVERT_DIRECTION
 		this->__Direction = GPIO_PIN_RESET;
 #else
@@ -106,7 +110,7 @@ HAL_StatusTypeDef L9960T::Init(void)
 			break;
 		case 3://Answer for the ASIC number will come now
 			//TODO: For now it will ask again and we will check the number
-			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_2 << MESSAGE_OFFSET);
+			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfo.context = (1 << this->__side) |
 							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
@@ -133,6 +137,87 @@ HAL_StatusTypeDef L9960T::Init(void)
 			Message = (ELECTRONIC_ID_REQUEST_ADDR << ADDRESS_OFFSET) | (ELECTRONIC_ID_REQUEST_MSG << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfo.context = (1 << this->__side) |
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfo.pTxData = pTxData;
+			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			break;
+		case 6://Answer for the ASIC number will come now
+			//TODO: For now it will ask again and we will check the number
+			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_TRIGGER << MESSAGE_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfo.context = (1 << this->__side) |
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfo.pTxData = pTxData;
+			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			break;
+		case 7://Answer for the ASIC number will come now
+			//TODO: For now it will ask again and we will check the number
+			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfo.context = (1 << this->__side) |
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfo.pTxData = pTxData;
+			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			break;
+		case 8://Answer for the ASIC number will come now
+			//TODO: For now it will ask again and we will check the number
+			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfo.context = (1 << this->__side) |
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfo.pTxData = pTxData;
+			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			break;
+		case 9://Answer for the ASIC number will come now
+			//TODO: For now it will ask again and we will check the number
+			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfo.context = (1 << this->__side) |
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfo.pTxData = pTxData;
+			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			break;
+		case 10://Answer for the ASIC number will come now
+		case 11://Answer for the ASIC number will come now
+		case 12://Answer for the ASIC number will come now
+		case 13://Answer for the ASIC number will come now
+		case 14://Answer for the ASIC number will come now
+		case 15://Answer for the ASIC number will come now
+		case 16://Answer for the ASIC number will come now
+		case 17://Answer for the ASIC number will come now
+		case 18://Answer for the ASIC number will come now
+		case 19://Answer for the ASIC number will come now
+			//TODO: For now it will ask again and we will check the number
+			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfo.context = (1 << this->__side) |
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfo.pTxData = pTxData;
+			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			break;
+		case 20://Answer for the ASIC number will come now
+			//TODO: For now it will ask again and we will check the number
+			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfo.context = (1 << this->__side) |
 							  (0 << CONTEXT_OFFSET) | //Tis a Stop sequence!
 							  (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
@@ -140,7 +225,18 @@ HAL_StatusTypeDef L9960T::Init(void)
 			MsgInfo.pTxData = pTxData;
 			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
 			break;
-
+		case 21://Answer for the ASIC number will come now
+			//TODO: For now it will ask again and we will check the number
+			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfo.context = (1 << this->__side) |
+							  (0 << CONTEXT_OFFSET) | //Tis a Stop sequence!
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfo.pTxData = pTxData;
+			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			break;
 	}
 	this->__InitMessageID++;
 	return HAL_OK;
