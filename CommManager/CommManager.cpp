@@ -331,6 +331,10 @@ HAL_StatusTypeDef CommManager::__MsgReceivedCB(Handle *IntHandle, QueueVectTD *Q
 						{
 							Msg.pTxCompletedCB(&Msg);
 						}
+					if(Msg.pCB != 0)
+					{
+						Msg.pCB();
+					}
 				}
 					break;
 				default:

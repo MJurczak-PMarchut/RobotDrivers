@@ -8,13 +8,12 @@
 #include "L9960T.hpp"
 
 
-L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager,
-	void (*pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo), void (*pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo)):
+L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim):
 	__side{side},
 	__hspi{hspi},
 	__CommunicationManager{CommunicationManager},
-	__pRxCompletedCB{pRxCompletedCB},
-	__pTxCompletedCB{pTxCompletedCB}
+	__htim{htim},
+	__Channel{Channel}
 {
 	__InitMessageID = 0;
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
@@ -54,13 +53,13 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 #endif
 	}
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
-	this->Disable();
+	this->__Instantiated_sides |=  ((1 << this->__side) << MOTOR_NDIS_OFFSET);
+	HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_SET);
 }
 
-HAL_StatusTypeDef L9960T::Init(void)
+void L9960T::Init(void)
 {
 	uint16_t Message;
-	HAL_StatusTypeDef ret;
 	MessageInfoTypeDef MsgInfo = {0};
 	MsgInfo.GPIO_PIN = this->__CS_Pin;
 	MsgInfo.GPIOx = this->__CS_Port;
@@ -69,23 +68,21 @@ HAL_StatusTypeDef L9960T::Init(void)
 			          (this->__InitMessageID << 8);
 	MsgInfo.eCommType = COMM_INT_SPI_TXRX;
 	MsgInfo.len = 2;
-	MsgInfo.pRxCompletedCB = this->__pRxCompletedCB;
-	MsgInfo.pTxCompletedCB = this->__pTxCompletedCB;
 	MsgInfo.pRxData = this->pRxData;
-	*(uint16_t*)this->pRxData = 0;
 	MsgInfo.uCommInt.hspi = this->__hspi;
+	MsgInfo.pCB = std::bind(&L9960T::Init, this);
 	switch(this->__InitMessageID)
 	{
-		case 0://Ask for ASIC number
-			Message = (ELECTRONIC_ID_REQUEST_ADDR << ADDRESS_OFFSET) | (ELECTRONIC_ID_REQUEST_MSG << MESSAGE_OFFSET);
+		case 0://Reset SW
+			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (RESET_TRIGGER_CONF_SW_RESET << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__InitMessageID++;
 			break;
-		case 1://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
+		case 1://Check POR status
 			Message = (CONFIGURATION_REQUEST_ADDR << ADDRESS_OFFSET) | (CONFIGURATION_REQUEST_CONF(5) << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfo.context = (1 << this->__side) |
@@ -94,11 +91,14 @@ HAL_StatusTypeDef L9960T::Init(void)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			if((this->pRxData[0] & POR_STATUS_MSK) == POR_STATUS_MSK)
+			{
+				this->__InitMessageID++;
+			}
 			break;
-		case 2://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (CC_CONFIG << MESSAGE_OFFSET);
+		case 2://Trigger HWSC & BIST
+			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (RESET_TRIGGER_CONF_HWSC << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfo.context = (1 << this->__side) |
 							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
@@ -106,10 +106,10 @@ HAL_StatusTypeDef L9960T::Init(void)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__InitMessageID++;
 			break;
-		case 3://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
+		case 3://Check BIST status
 			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfo.context = (1 << this->__side) |
@@ -118,128 +118,51 @@ HAL_StatusTypeDef L9960T::Init(void)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			Message = 0;
+			Message = (this->pRxData[0]<<8) | this->pRxData[1];
+			if(Message & HWSC_BIST_RUN_STATUS_MSK)
+			{
+				if((Message & HWSC_BIST_PASS) == HWSC_BIST_PASS)
+				{
+					//PASS
+					this->__InitMessageID++;
+				}
+				else if((Message & HWSC_BIST_PASS) == HWSC_BIST_RUN_STATUS_MSK)
+				{
+					//FAIL
+					this->__InitMessageID++;
+					this->__InitMessageID--;
+				}
+				else if((Message & HWSC_BIST_PASS) == HWSC_RUNNING)
+				{
+					//RUNNING
+					this->__InitMessageID++;
+					this->__InitMessageID--;
+				}
+				else if((Message & HWSC_BIST_PASS) == HWSC_BIST_FAIL)
+				{
+					//GENERAL FAIL
+					this->__InitMessageID++;
+					this->__InitMessageID--;
+				}
+			}
 			break;
-		case 4://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_3 << MESSAGE_OFFSET);
+		case 4://Clear Communication Check bit and start timers
+			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfo.context = (1 << this->__side) |
-							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
+							  (0 << CONTEXT_OFFSET) | //End Init
 							  (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			this->__InitMessageID++;
+			this->StartPWM();
 			break;
-		case 5://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (ELECTRONIC_ID_REQUEST_ADDR << ADDRESS_OFFSET) | (ELECTRONIC_ID_REQUEST_MSG << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
-		case 6://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_TRIGGER << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
-		case 7://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
-		case 8://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
-		case 9://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
-		case 10://Answer for the ASIC number will come now
-		case 11://Answer for the ASIC number will come now
-		case 12://Answer for the ASIC number will come now
-		case 13://Answer for the ASIC number will come now
-		case 14://Answer for the ASIC number will come now
-		case 15://Answer for the ASIC number will come now
-		case 16://Answer for the ASIC number will come now
-		case 17://Answer for the ASIC number will come now
-		case 18://Answer for the ASIC number will come now
-		case 19://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
-		case 20://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (0 << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
-		case 21://Answer for the ASIC number will come now
-			//TODO: For now it will ask again and we will check the number
-			Message = (OFF_STATE_DIAGNOSIS_ADDR << ADDRESS_OFFSET) | (OFF_STATE_DIAGNOSIS_READ << MESSAGE_OFFSET);
-			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
-							  (0 << CONTEXT_OFFSET) | //Tis a Stop sequence!
-							  (this->__InitMessageID << 8);
-			this->pTxData[1] = (Message & 0xFF);
-			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-			break;
+
 	}
-	this->__InitMessageID++;
-	return HAL_OK;
 }
 
 HAL_StatusTypeDef L9960T::AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint32_t Channel)
@@ -289,6 +212,7 @@ HAL_StatusTypeDef L9960T::Disable(void)
 	SetMotorPowerPWM(0);
 	this->__Instantiated_sides |=  ((1 << this->__side) << MOTOR_NDIS_OFFSET);
 	HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_SET);
+	HAL_TIM_PWM_Stop(__htim, __Channel);
 	return HAL_OK;
 }
 
@@ -303,3 +227,12 @@ HAL_StatusTypeDef L9960T::Enable(void)
 	return HAL_OK;
 }
 
+HAL_StatusTypeDef L9960T::CheckIfControllerInitializedOk(void)
+{
+	return (__InitMessageID == 5)? HAL_OK : HAL_ERROR;
+}
+
+HAL_StatusTypeDef L9960T::StartPWM(void)
+{
+	return HAL_TIM_PWM_Start(__htim, __Channel);
+}

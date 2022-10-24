@@ -12,7 +12,7 @@
 #ifndef NO_COMMUNICATION_INTERFACE_DEFINED
 #include "vector"
 #include "queue"
-
+#include <functional>
 //#include "L9960T.hpp"
 //#include "VESC/VescUart.h"
 //#include "MotorControl.hpp"
@@ -58,6 +58,7 @@ struct MessageInfoTypeDef{
 	uint8_t *pTxData;
 	uint16_t context;
 	uint16_t I2C_Addr;
+	std::function<void()> pCB;
 	void (*pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 	void (*pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 //	MotorControllerCallbackTD CommCompletedTB;

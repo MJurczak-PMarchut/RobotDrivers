@@ -19,8 +19,7 @@ typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CUR
 
 class L9960T : protected MCInterface{
 	public:
-		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager,
-				void (*pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo), void (*pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo));
+		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim);
 		HAL_StatusTypeDef AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint32_t Channel);
 		HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM);
 		HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir);
@@ -29,7 +28,8 @@ class L9960T : protected MCInterface{
 		HAL_StatusTypeDef Enable(void);
 		HAL_StatusTypeDef EmergencyStop(void);
 		HAL_StatusTypeDef CheckIfControllerInitializedOk(void);
-		HAL_StatusTypeDef Init(void);
+		HAL_StatusTypeDef StartPWM(void);
+		void Init(void);
 	private:
 		MotorSideTypeDef __side;
 		SPI_HandleTypeDef *__hspi;
@@ -48,8 +48,6 @@ class L9960T : protected MCInterface{
 		uint8_t pRxData[2];
 		uint8_t pTxData[2];
 		uint8_t __InitMessageID;
-		void (*__pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
-		void (*__pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
 
 };
 
