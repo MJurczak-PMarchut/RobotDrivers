@@ -17,6 +17,12 @@
 
 #define MAX_MESSAGE_NO_IN_QUEUE 10
 
+#define USES_RTOS
+
+
+#ifdef USES_RTOS
+#include "cmsis_os.h"
+#endif
 
 //#define MCU_STM32F4
 #define MCU_STM32H7

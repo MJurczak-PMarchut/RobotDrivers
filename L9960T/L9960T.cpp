@@ -7,6 +7,14 @@
 
 #include "L9960T.hpp"
 
+#ifdef USES_RTOS
+//Use vTaskDelay when RTOS is in use
+
+void HAL_Delay(uint32_t Delay)
+{
+	vTaskDelay(Delay);
+}
+#endif
 
 L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim):
 	__side{side},
