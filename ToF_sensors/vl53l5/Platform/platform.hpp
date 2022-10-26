@@ -219,6 +219,7 @@ uint8_t WaitMs(
 		uint32_t TimeMs);
 
 
+<<<<<<< HEAD
 class Sensor_vl53l5cx
 {
 private:
@@ -233,6 +234,8 @@ public:
 	ToF_Position getPosition(void) {return __pos;};
 	HAL_StatusTypeDef Init(void);
 };
+=======
+>>>>>>> 72a70791fe0407dfa9f16939347f54009d8d497a
 
 
 #endif
