@@ -70,6 +70,8 @@
 
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 
+typedef enum e_ToF_Position {FRONT_LEFT, FRONT_RIGHT} ToF_Position;
+
 /**
  * @brief Structure VL53L5CX_Platform needs to be filled by the customer,
  * depending on his platform. At least, it contains the VL53L5CX I2C address.
@@ -217,6 +219,20 @@ uint8_t WaitMs(
 		uint32_t TimeMs);
 
 
+class Sensor_vl53l5cx
+{
+private:
+	CommManager *__CommunicationManager;
+	static uint8_t __sensor_nb;
+	ToF_Position __pos;
+public:
+	Sensor_vl53l5cx(uint8_t position, CommManager *comm)
+		: __CommunicationManager{comm}, __pos{position}
+		{__sensor_nb = __sensor_nb + 1;};
+	~Sensor_vl53l5cx(void) {__sensor_nb = __sensor_nb - 1;};
+	ToF_Position getPosition(void) {return __pos;};
+	HAL_StatusTypeDef Init(void);
+};
 
 
 #endif
