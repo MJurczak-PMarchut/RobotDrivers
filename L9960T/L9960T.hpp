@@ -29,7 +29,7 @@ class L9960T : protected MCInterface{
 		HAL_StatusTypeDef EmergencyStop(void);
 		HAL_StatusTypeDef CheckIfControllerInitializedOk(void);
 		HAL_StatusTypeDef StartPWM(void);
-		void Init(void);
+		void Init(MessageInfoTypeDef* MsgInfo);
 	private:
 		MotorSideTypeDef __side;
 		SPI_HandleTypeDef *__hspi;

@@ -333,7 +333,7 @@ HAL_StatusTypeDef CommManager::__MsgReceivedCB(Handle *IntHandle, QueueVectTD *Q
 						}
 					if(Msg.pCB != 0)
 					{
-						Msg.pCB();
+						Msg.pCB(&Msg);
 					}
 				}
 					break;

@@ -58,9 +58,9 @@ struct MessageInfoTypeDef{
 	uint8_t *pTxData;
 	uint16_t context;
 	uint16_t I2C_Addr;
-	std::function<void()> pCB;
-	void (*pRxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
-	void (*pTxCompletedCB)(struct MessageInfoTypeDef* MsgInfo);
+	std::function<void(MessageInfoTypeDef* MsgInfo)> pCB;
+	void (*pRxCompletedCB)(MessageInfoTypeDef* MsgInfo);
+	void (*pTxCompletedCB)(MessageInfoTypeDef* MsgInfo);
 //	MotorControllerCallbackTD CommCompletedTB;
 };
 

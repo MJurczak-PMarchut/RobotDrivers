@@ -64,13 +64,21 @@
 #include "platform.hpp"
 #include "CommManager.hpp"
 
+extern I2C_HandleTypeDef hi2c1;
+
 uint8_t RdByte(
 		VL53L5CX_Platform *p_platform,
 		uint16_t RegisterAdress,
 		uint8_t *p_value)
 {
 	uint8_t status = 255;
+	MessageInfoTypeDef MsgInfo = {0};
 	
+	MsgInfo.I2C_Addr = p_platform->address;
+	MsgInfo.len = 1;
+	MsgInfo.uCommInt.hi2c = &hi2c1;
+	MsgInfo.pRxData = p_value;
+	MsgInfo.eCommType = COMM_INT_I2C_RX;
 	/* Need to be implemented by customer. This function returns 0 if OK */
 
 	return status;

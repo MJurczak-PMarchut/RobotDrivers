@@ -65,20 +65,20 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_SET);
 }
 
-void L9960T::Init(void)
+void L9960T::Init(MessageInfoTypeDef* MsgInfo)
 {
 	uint16_t Message;
-	MessageInfoTypeDef MsgInfo = {0};
-	MsgInfo.GPIO_PIN = this->__CS_Pin;
-	MsgInfo.GPIOx = this->__CS_Port;
-	MsgInfo.context = (1 << this->__side) |
+	MessageInfoTypeDef MsgInfoToSend = {0};
+	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
+	MsgInfoToSend.GPIOx = this->__CS_Port;
+	MsgInfoToSend.context = (1 << this->__side) |
 					  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Init sequence!
 			          (this->__InitMessageID << 8);
-	MsgInfo.eCommType = COMM_INT_SPI_TXRX;
-	MsgInfo.len = 2;
-	MsgInfo.pRxData = this->pRxData;
-	MsgInfo.uCommInt.hspi = this->__hspi;
-	MsgInfo.pCB = std::bind(&L9960T::Init, this);
+	MsgInfoToSend.eCommType = COMM_INT_SPI_TXRX;
+	MsgInfoToSend.len = 2;
+	MsgInfoToSend.pRxData = this->pRxData;
+	MsgInfoToSend.uCommInt.hspi = this->__hspi;
+	MsgInfoToSend.pCB = std::bind(&L9960T::Init, this, std::placeholders::_1);
 	switch(this->__InitMessageID)
 	{
 		case 0://Reset SW
@@ -86,20 +86,20 @@ void L9960T::Init(void)
 			Message |= (~__builtin_parity(Message) & 1);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			MsgInfoToSend.pTxData = pTxData;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->__InitMessageID++;
 			break;
 		case 1://Check POR status
 			Message = (CONFIGURATION_REQUEST_ADDR << ADDRESS_OFFSET) | (CONFIGURATION_REQUEST_CONF(5) << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
+			MsgInfoToSend.context = (1 << this->__side) |
 							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
 					          (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			MsgInfoToSend.pTxData = pTxData;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			if((this->pRxData[0] & POR_STATUS_MSK) == POR_STATUS_MSK)
 			{
 				this->__InitMessageID++;
@@ -108,25 +108,25 @@ void L9960T::Init(void)
 		case 2://Trigger HWSC & BIST
 			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (RESET_TRIGGER_CONF_HWSC << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
+			MsgInfoToSend.context = (1 << this->__side) |
 							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
 					          (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			MsgInfoToSend.pTxData = pTxData;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->__InitMessageID++;
 			break;
 		case 3://Check BIST status
 			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
+			MsgInfoToSend.context = (1 << this->__side) |
 							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
 					          (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			MsgInfoToSend.pTxData = pTxData;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			Message = 0;
 			Message = (this->pRxData[0]<<8) | this->pRxData[1];
 			if(Message & HWSC_BIST_RUN_STATUS_MSK)
@@ -159,13 +159,13 @@ void L9960T::Init(void)
 		case 4://Clear Communication Check bit and start timers
 			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
 			Message |= (~__builtin_parity(Message) & 1);
-			MsgInfo.context = (1 << this->__side) |
+			MsgInfoToSend.context = (1 << this->__side) |
 							  (0 << CONTEXT_OFFSET) | //End Init
 							  (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
-			MsgInfo.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+			MsgInfoToSend.pTxData = pTxData;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->__InitMessageID++;
 			this->StartPWM();
 			break;

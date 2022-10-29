@@ -5,12 +5,19 @@
  *      Author: Paulina
  */
 
-#include <VL53L5/VL53L5CX_ULD_API/inc/vl53l5cx.hpp>
-#include <VL53L5/VL53L5CX_ULD_API/inc/vl53l5cx_api.h>
+#include "vl53l5cx.hpp"
 
+
+Sensor_vl53l5cx::Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm):
+	ToF_Sensor(vl53l5, position, comm)
+{
+	__sensor_conf.platform.__CommunicationManager = comm;
+}
 
 HAL_StatusTypeDef Sensor_vl53l5cx::SensorInit(void)
 {
-	return HAL_OK;
+	HAL_StatusTypeDef ret = HAL_OK;
+	ret = HAL_StatusTypeDef(vl53l5cx_init(&(this->__sensor_conf)));
+	return ret;
 }
 

@@ -68,6 +68,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "../Configuration.h"
+#include "CommManager.hpp"
 #include <ToFSensor.hpp>
 
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
@@ -88,6 +89,7 @@ typedef struct
 	 * needs to be added */
 	/* Example for most standard platform : I2C address of sensor */
     uint16_t  			address;
+    CommManager*        __CommunicationManager;
 
 } VL53L5CX_Platform;
 
