@@ -71,7 +71,7 @@ uint8_t RdByte(
 		uint16_t RegisterAdress,
 		uint8_t *p_value)
 {
-	uint8_t status = 255;
+	uint8_t status = 0;
 	MessageInfoTypeDef MsgInfo = {0};
 	
 	MsgInfo.I2C_Addr = p_platform->address;
@@ -79,6 +79,10 @@ uint8_t RdByte(
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pRxData = p_value;
 	MsgInfo.eCommType = COMM_INT_I2C_RX;
+	MsgInfo.I2C_MemAddr = RegisterAdress;
+
+	p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+
 	/* Need to be implemented by customer. This function returns 0 if OK */
 
 	return status;
@@ -89,7 +93,17 @@ uint8_t WrByte(
 		uint16_t RegisterAdress,
 		uint8_t value)
 {
-	uint8_t status = 255;
+	uint8_t status = 0;
+	MessageInfoTypeDef MsgInfo = {0};
+
+	MsgInfo.I2C_Addr = p_platform->address;
+	MsgInfo.len = 1;
+	MsgInfo.uCommInt.hi2c = &hi2c1;
+	MsgInfo.pTxData = &value;
+	MsgInfo.eCommType = COMM_INT_I2C_TX;
+	MsgInfo.I2C_MemAddr = RegisterAdress;
+
+	p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
 
 	/* Need to be implemented by customer. This function returns 0 if OK */
 
