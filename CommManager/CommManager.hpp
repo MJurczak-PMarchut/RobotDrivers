@@ -43,7 +43,14 @@ typedef union {
 //}MotorControllerCallbackTD;
 
 typedef enum {
-	COMM_INT_SPI_TXRX, COMM_INT_SPI_RX, COMM_INT_UART_TX, COMM_INT_UART_RX, COMM_INT_I2C_TX, COMM_INT_I2C_RX
+	COMM_INT_SPI_TXRX,
+	COMM_INT_SPI_RX,
+	COMM_INT_UART_TX,
+	COMM_INT_UART_RX,
+	COMM_INT_I2C_TX,
+	COMM_INT_I2C_RX,
+	COMM_INT_I2C_MEM_TX,
+	COMM_INT_I2C_MEM_RX
 }CommIntTypeDef;
 
 typedef struct MessageInfoTypeDef MessageInfoTypeDef;
@@ -58,6 +65,7 @@ struct MessageInfoTypeDef{
 	uint8_t *pTxData;
 	uint16_t context;
 	uint16_t I2C_Addr;
+	uint16_t I2C_MemAddr;
 	std::function<void(MessageInfoTypeDef* MsgInfo)> pCB;
 	void (*pRxCompletedCB)(MessageInfoTypeDef* MsgInfo);
 	void (*pTxCompletedCB)(MessageInfoTypeDef* MsgInfo);

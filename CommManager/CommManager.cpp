@@ -404,6 +404,62 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 #endif
 		}
 			break;
+		case COMM_INT_I2C_MEM_RX:
+		{
+#ifdef I2C_USES_DMA
+			if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
+			{
+				//Queue empty and peripheral ready, send message
+				__CheckAndSetCSPins(MsgInfo, VectorIndex);
+				ret = HAL_I2C_Mem_Read_DMA(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+				__HAL_DMA_DISABLE_IT(this->__hi2cQueueVect[VectorIndex].hdmaRx, DMA_IT_HT);
+				return ret;
+			}
+#elif defined I2C_USES_IT
+			if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
+			{
+				//Queue empty and peripheral ready, send message
+				__CheckAndSetCSPins(MsgInfo, VectorIndex);
+				return HAL_I2C_Mem_Read_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+			}
+#elif defined I2C_USES_WAIT
+			if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
+			{
+				//Queue empty and peripheral ready, send message
+				__CheckAndSetCSPins(MsgInfo, VectorIndex);
+				return HAL_I2C_Mem_Read(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+			}
+#endif
+		}
+			break;
+		case COMM_INT_I2C_MEM_TX:
+				{
+		#ifdef I2C_USES_DMA
+					if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
+					{
+						//Queue empty and peripheral ready, send message
+						__CheckAndSetCSPins(MsgInfo, VectorIndex);
+						ret = HAL_I2C_Mem_Write_DMA(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+						__HAL_DMA_DISABLE_IT(this->__hi2cQueueVect[VectorIndex].hdmaRx, DMA_IT_HT);
+						return ret;
+					}
+		#elif defined I2C_USES_IT
+					if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
+					{
+						//Queue empty and peripheral ready, send message
+						__CheckAndSetCSPins(MsgInfo, VectorIndex);
+						return HAL_I2C_Mem_Write_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+					}
+		#elif defined I2C_USES_WAIT
+					if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
+					{
+						//Queue empty and peripheral ready, send message
+						__CheckAndSetCSPins(MsgInfo, VectorIndex);
+						return HAL_I2C_Mem_Write(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+					}
+		#endif
+				}
+					break;
 		case COMM_INT_I2C_TX:
 		{
 #ifdef I2C_USES_DMA
