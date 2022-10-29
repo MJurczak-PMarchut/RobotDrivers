@@ -66,6 +66,15 @@
 
 extern I2C_HandleTypeDef hi2c1;
 
+#ifdef USES_RTOS
+//Use vTaskDelay when RTOS is in use
+
+void HAL_Delay(uint32_t Delay)
+{
+	vTaskDelay(Delay);
+}
+#endif
+
 uint8_t RdByte(
 		VL53L5CX_Platform *p_platform,
 		uint16_t RegisterAdress,
@@ -81,7 +90,7 @@ uint8_t RdByte(
 	MsgInfo.eCommType = COMM_INT_I2C_RX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
 
-	p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
 
 	/* Need to be implemented by customer. This function returns 0 if OK */
 
@@ -103,7 +112,7 @@ uint8_t WrByte(
 	MsgInfo.eCommType = COMM_INT_I2C_TX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
 
-	p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
 
 	/* Need to be implemented by customer. This function returns 0 if OK */
 
@@ -116,9 +125,19 @@ uint8_t WrMulti(
 		uint8_t *p_values,
 		uint32_t size)
 {
-	uint8_t status = 255;
-	
-		/* Need to be implemented by customer. This function returns 0 if OK */
+	uint8_t status = 0;
+	MessageInfoTypeDef MsgInfo = {0};
+
+	MsgInfo.I2C_Addr = p_platform->address;
+	MsgInfo.len = size;
+	MsgInfo.uCommInt.hi2c = &hi2c1;
+	MsgInfo.pTxData = p_values;
+	MsgInfo.eCommType = COMM_INT_I2C_TX;
+	MsgInfo.I2C_MemAddr = RegisterAdress;
+
+	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+
+	/* Need to be implemented by customer. This function returns 0 if OK */
 
 	return status;
 }
@@ -129,10 +148,20 @@ uint8_t RdMulti(
 		uint8_t *p_values,
 		uint32_t size)
 {
-	uint8_t status = 255;
+	uint8_t status = 0;
+	MessageInfoTypeDef MsgInfo = {0};
 	
+	MsgInfo.I2C_Addr = p_platform->address;
+	MsgInfo.len = size;
+	MsgInfo.uCommInt.hi2c = &hi2c1;
+	MsgInfo.pRxData = p_values;
+	MsgInfo.eCommType = COMM_INT_I2C_RX;
+	MsgInfo.I2C_MemAddr = RegisterAdress;
+
+	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+
 	/* Need to be implemented by customer. This function returns 0 if OK */
-	
+
 	return status;
 }
 
@@ -179,9 +208,9 @@ uint8_t WaitMs(
 		VL53L5CX_Platform *p_platform,
 		uint32_t TimeMs)
 {
-	uint8_t status = 255;
+	uint8_t status = 0;
 
-	/* Need to be implemented by customer. This function returns 0 if OK */
+	HAL_Delay(TimeMs);
 	
 	return status;
 }
