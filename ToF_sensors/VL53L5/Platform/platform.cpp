@@ -61,7 +61,7 @@
 *******************************************************************************/
 
 
-#include <vl53l5/Platform/platform.hpp>
+#include "platform.hpp"
 #include "CommManager.hpp"
 
 uint8_t RdByte(
@@ -163,3 +163,5 @@ uint8_t WaitMs(
 	
 	return status;
 }
+
+

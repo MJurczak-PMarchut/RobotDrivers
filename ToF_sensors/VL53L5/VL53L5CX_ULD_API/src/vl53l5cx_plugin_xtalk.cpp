@@ -60,7 +60,7 @@
 *
 *******************************************************************************/
 
-#include "vl53l5cx_plugin_xtalk.h"
+#include <ToF_sensors/VL53L5/VL53L5CX_ULD_API/inc/vl53l5cx_plugin_xtalk.h>
 
 /*
  * Inner function, not available outside this file. This function is used to

@@ -69,7 +69,7 @@
 
 
 
-#include <vl53l5/Platform/platform.hpp>
+#include "platform.hpp"
 
 /**
  * @brief Current driver version.

@@ -60,7 +60,7 @@
 *
 *******************************************************************************/
 
-#include "vl53l5cx_plugin_detection_thresholds.h"
+#include <ToF_sensors/VL53L5/VL53L5CX_ULD_API/inc/vl53l5cx_plugin_detection_thresholds.h>
 
 uint8_t vl53l5cx_get_detection_thresholds_enable(
 		VL53L5CX_Configuration		*p_dev,

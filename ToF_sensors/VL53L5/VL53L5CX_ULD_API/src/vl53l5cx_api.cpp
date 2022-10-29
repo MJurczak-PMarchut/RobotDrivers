@@ -62,8 +62,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "vl53l5cx_api.h"
-#include "vl53l5cx_buffers.h"
+#include <VL53L5/VL53L5CX_ULD_API/inc/vl53l5cx_api.h>
+#include <VL53L5/VL53L5CX_ULD_API/inc/vl53l5cx_buffers.h>
 
 /**
  * @brief Inner function, not available outside this file. This function is used

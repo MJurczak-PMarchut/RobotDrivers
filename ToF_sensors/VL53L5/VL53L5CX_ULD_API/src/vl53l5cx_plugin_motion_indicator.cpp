@@ -61,7 +61,7 @@
 *******************************************************************************/
 
 #include <math.h> 
-#include "vl53l5cx_plugin_motion_indicator.h"
+#include <ToF_sensors/VL53L5/VL53L5CX_ULD_API/inc/vl53l5cx_plugin_motion_indicator.h>
 
 uint8_t vl53l5cx_motion_indicator_init(
 		VL53L5CX_Configuration		*p_dev,
