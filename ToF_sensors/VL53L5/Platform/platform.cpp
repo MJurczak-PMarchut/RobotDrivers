@@ -66,14 +66,14 @@
 
 extern I2C_HandleTypeDef hi2c1;
 
-#ifdef USES_RTOS
-//Use vTaskDelay when RTOS is in use
-
-void HAL_Delay(uint32_t Delay)
-{
-	vTaskDelay(Delay);
-}
-#endif
+//#ifdef USES_RTOS
+////Use vTaskDelay when RTOS is in use
+//
+//void HAL_Delay(uint32_t Delay)
+//{
+//	vTaskDelay(Delay);
+//}
+//#endif
 
 uint8_t RdByte(
 		VL53L5CX_Platform *p_platform,
@@ -83,16 +83,17 @@ uint8_t RdByte(
 	uint8_t status = 0;
 	MessageInfoTypeDef MsgInfo = {0};
 	
-	MsgInfo.I2C_Addr = p_platform->address;
-	MsgInfo.len = 1;
-	MsgInfo.uCommInt.hi2c = &hi2c1;
-	MsgInfo.pRxData = p_value;
-	MsgInfo.eCommType = COMM_INT_I2C_RX;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
+		MsgInfo.I2C_Addr = p_platform->address;
+		MsgInfo.len = 1;
+		MsgInfo.uCommInt.hi2c = &hi2c1;
+		MsgInfo.pRxData = p_value;
+		MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
+		MsgInfo.I2C_MemAddr = RegisterAdress;
 
-	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-
-	/* Need to be implemented by customer. This function returns 0 if OK */
+	do
+	{
+		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+	} while(status!=0);
 
 	return status;
 }
@@ -109,12 +110,13 @@ uint8_t WrByte(
 	MsgInfo.len = 1;
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pTxData = &value;
-	MsgInfo.eCommType = COMM_INT_I2C_TX;
+	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
 
-	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-
-	/* Need to be implemented by customer. This function returns 0 if OK */
+	do
+	{
+		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+	} while(status!=0);
 
 	return status;
 }
@@ -132,12 +134,13 @@ uint8_t WrMulti(
 	MsgInfo.len = size;
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pTxData = p_values;
-	MsgInfo.eCommType = COMM_INT_I2C_TX;
+	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
 
-	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-
-	/* Need to be implemented by customer. This function returns 0 if OK */
+	do
+	{
+		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+	} while(status!=0);
 
 	return status;
 }
@@ -155,12 +158,13 @@ uint8_t RdMulti(
 	MsgInfo.len = size;
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pRxData = p_values;
-	MsgInfo.eCommType = COMM_INT_I2C_RX;
+	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
 
-	status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-
-	/* Need to be implemented by customer. This function returns 0 if OK */
+	do
+	{
+		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+	} while(status!=0);
 
 	return status;
 }
