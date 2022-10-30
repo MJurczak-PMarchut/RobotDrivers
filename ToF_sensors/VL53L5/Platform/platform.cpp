@@ -66,14 +66,6 @@
 
 extern I2C_HandleTypeDef hi2c1;
 
-//#ifdef USES_RTOS
-////Use vTaskDelay when RTOS is in use
-//
-//void HAL_Delay(uint32_t Delay)
-//{
-//	vTaskDelay(Delay);
-//}
-//#endif
 
 uint8_t RdByte(
 		VL53L5CX_Platform *p_platform,
@@ -214,8 +206,14 @@ uint8_t WaitMs(
 {
 	uint8_t status = 0;
 
+#ifdef USES_RTOS
+//Use vTaskDelay when RTOS is in use
+	vTaskDelay(TimeMs);
+#else
 	HAL_Delay(TimeMs);
+#endif
 	
+
 	return status;
 }
 

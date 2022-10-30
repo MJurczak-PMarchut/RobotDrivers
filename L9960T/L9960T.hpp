@@ -31,6 +31,7 @@ class L9960T : protected MCInterface{
 		HAL_StatusTypeDef StartPWM(void);
 		void Init(MessageInfoTypeDef* MsgInfo);
 	private:
+		void __delay_ms(uint32_t TimeMs);
 		MotorSideTypeDef __side;
 		SPI_HandleTypeDef *__hspi;
 		CommManager *__CommunicationManager;

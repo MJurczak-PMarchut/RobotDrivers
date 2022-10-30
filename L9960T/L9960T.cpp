@@ -7,14 +7,6 @@
 
 #include "L9960T.hpp"
 
-#ifdef USES_RTOS
-//Use vTaskDelay when RTOS is in use
-
-void HAL_Delay(uint32_t Delay)
-{
-	vTaskDelay(Delay);
-}
-#endif
 
 L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim):
 	__side{side},
@@ -231,7 +223,7 @@ HAL_StatusTypeDef L9960T::Enable(void)
 		this->__Instantiated_sides &= ~ ((1 << this->__side) << MOTOR_NDIS_OFFSET);
 		HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_RESET);
 	}
-	HAL_Delay(1); 	//Wait 1ms to satisfy wait on dis condition (1us is enough but too much work)
+	this->__delay_ms(1); 	//Wait 1ms to satisfy wait on dis condition (1us is enough but too much work)
 	return HAL_OK;
 }
 
@@ -243,4 +235,15 @@ HAL_StatusTypeDef L9960T::CheckIfControllerInitializedOk(void)
 HAL_StatusTypeDef L9960T::StartPWM(void)
 {
 	return HAL_TIM_PWM_Start(__htim, __Channel);
+}
+
+void L9960T::__delay_ms(uint32_t TimeMs)
+{
+#ifdef USES_RTOS
+//Use vTaskDelay when RTOS is in use
+	vTaskDelay(TimeMs);
+#else
+	HAL_Delay(TimeMs)
+#endif
+
 }
