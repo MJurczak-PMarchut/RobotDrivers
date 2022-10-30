@@ -26,8 +26,8 @@ private:
 public:
 	Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm);
 	virtual HAL_StatusTypeDef SensorInit(void);
-	HAL_StatusTypeDef SetI2CAddress();
-	HAL_StatusTypeDef IsAlive(void);
+	HAL_StatusTypeDef SetI2CAddress(void);
+	HAL_StatusTypeDef IsAlive(uint8_t is_alive);
 	HAL_StatusTypeDef GetPowerMode(void);
 	HAL_StatusTypeDef SetPowerMode(void);
 	HAL_StatusTypeDef StartRanging(void);
@@ -44,6 +44,13 @@ public:
 	HAL_StatusTypeDef SetSharpenerPercent(void);
 	HAL_StatusTypeDef GetTargetOrder(void);
 	HAL_StatusTypeDef SetTargetOrder(void);
+	HAL_StatusTypeDef GetRangingMode(void);
+	HAL_StatusTypeDef SetRangingMode(void);
+	HAL_StatusTypeDef EnableInternalCP(void);
+	HAL_StatusTypeDef DisableInternalCP(void);
+	HAL_StatusTypeDef DciWriteData(void);
+	HAL_StatusTypeDef DciReadData(void);
+	HAL_StatusTypeDef DciReplaceData(void);
 	~Sensor_vl53l5cx(void) {};
 };
 

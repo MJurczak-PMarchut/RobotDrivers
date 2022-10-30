@@ -21,6 +21,7 @@ Sensor_vl53l5cx::Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm):
 	this->__sensor_index = __sensor_nb;
 	this->__sensor_nb++;
 	this->__sensor_conf.platform.__CommunicationManager = comm;
+	this->__sensor_conf.platform.address = DEFAULT_ADDR;
 
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index], __ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
 }
@@ -60,3 +61,8 @@ HAL_StatusTypeDef Sensor_vl53l5cx::SetI2CAddress()
 	return (ret == 0)? HAL_OK : HAL_ERROR;
 }
 
+HAL_StatusTypeDef Sensor_vl53l5cx::IsAlive(uint8_t is_alive)
+{
+	uint8_t ret = vl53l5cx_is_alive(&this->__sensor_conf, is_alive);
+	return (ret == 0)? HAL_OK : HAL_ERROR;
+}
