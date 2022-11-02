@@ -8,7 +8,7 @@
 #ifndef TOF_SENSORS_CORE_VL53L1X_H_
 #define TOF_SENSORS_CORE_VL53L1X_H_
 
-#include <core/VL53L1X_api.hpp>
+#include "VL53L1X_api.hpp"
 #include "../../Configuration.h"
 #include "../../CommManager/CommManager.hpp"
 

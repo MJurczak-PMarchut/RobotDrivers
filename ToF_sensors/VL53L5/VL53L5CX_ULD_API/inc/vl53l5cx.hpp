@@ -27,7 +27,7 @@ public:
 	Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm);
 	virtual HAL_StatusTypeDef SensorInit(void);
 	HAL_StatusTypeDef SetI2CAddress(void);
-	HAL_StatusTypeDef IsAlive(uint8_t is_alive);
+	HAL_StatusTypeDef IsAlive(uint8_t *is_alive);
 	HAL_StatusTypeDef GetPowerMode(void);
 	HAL_StatusTypeDef SetPowerMode(void);
 	HAL_StatusTypeDef StartRanging(void);

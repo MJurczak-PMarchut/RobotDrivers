@@ -63,7 +63,7 @@
  * @file  vl53l1x_calibration.c
  * @brief Calibration functions implementation
  */
-#include <core/VL53L1X_calibration.hpp>
+#include "VL53L1X_calibration.hpp"
 
 #include "VL53L1X_api.hpp"
 

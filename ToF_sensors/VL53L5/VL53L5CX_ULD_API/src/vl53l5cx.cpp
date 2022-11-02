@@ -10,7 +10,7 @@
 const static uint8_t __ToFAddr [] = {0x54, 0x56, 0x58, 0x60, 0x62, 0x64};
 const static uint16_t __ToFX_SHUT_Pin [] = {XSHUT_3_Pin, XSHUT_3_Pin, XSHUT_3_Pin,
 											XSHUT_4_Pin, XSHUT_5_Pin, XSHUT_6_Pin};
-const static GPIO_TypeDef* __ToFX_SHUT_Port [] = {XSHUT_3_GPIO_Port, XSHUT_3_GPIO_Port,
+static GPIO_TypeDef *__ToFX_SHUT_Port [] = {XSHUT_3_GPIO_Port, XSHUT_3_GPIO_Port,
 												 XSHUT_3_GPIO_Port, XSHUT_4_GPIO_Port,
 												 XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port};
 
@@ -61,7 +61,7 @@ HAL_StatusTypeDef Sensor_vl53l5cx::SetI2CAddress()
 	return (ret == 0)? HAL_OK : HAL_ERROR;
 }
 
-HAL_StatusTypeDef Sensor_vl53l5cx::IsAlive(uint8_t is_alive)
+HAL_StatusTypeDef Sensor_vl53l5cx::IsAlive(uint8_t *is_alive)
 {
 	uint8_t ret = vl53l5cx_is_alive(&this->__sensor_conf, is_alive);
 	return (ret == 0)? HAL_OK : HAL_ERROR;

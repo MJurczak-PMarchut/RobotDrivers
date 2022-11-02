@@ -36,7 +36,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include <platform/vl53l1_platform.hpp>
+#include "vl53l1_platform.hpp"
 
 static uint8_t _data[MESSAGE_LENGTH];
 uint8_t _data_receiveL[MESSAGE_LENGTH];

@@ -69,7 +69,6 @@
 #include <string.h>
 #include "../Configuration.h"
 #include "CommManager.hpp"
-#include "ToFSensor.hpp"
 
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 
