@@ -1,4 +1,5 @@
-#include "VescUart.h"
+#include "../../RobotDrivers/VESC/VescUart.h"
+
 #include "string.h"
 
 VescUart::VescUart(UART_HandleTypeDef *huart){

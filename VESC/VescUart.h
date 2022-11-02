@@ -1,11 +1,11 @@
 #ifndef _VESCUART_h
 #define _VESCUART_h
 
-#include "datatypes.h"
-#include "buffer.h"
-#include "crc.h"
-#include "Configuration.h"
-#include "CommManager.hpp"
+#include "../../RobotDrivers/CommManager/CommManager.hpp"
+#include "../../RobotDrivers/Configuration.h"
+#include "../../RobotDrivers/VESC/buffer.h"
+#include "../../RobotDrivers/VESC/crc.h"
+#include "../../RobotDrivers/VESC/datatypes.h"
 
 class VescUart
 {

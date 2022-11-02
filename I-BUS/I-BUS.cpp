@@ -4,8 +4,9 @@
  *  Created on: Nov 12, 2021
  *      Author: Mateusz
  */
-#include "I-BUS.hpp"
-#include "..\Configuration.h"
+#include "../../RobotDrivers/I-BUS/I-BUS.hpp"
+
+#include "../../RobotDrivers/Configuration.h"
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 #ifndef EMERGENCY_STOP_AXIS
 #define EMERGENCY_STOP_AXIS 4

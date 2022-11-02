@@ -7,7 +7,7 @@
 
 #ifndef SUMODRIVERS_I_BUS_I_BUS_HPP_
 #define SUMODRIVERS_I_BUS_I_BUS_HPP_
-#include "../Configuration.h"
+#include "../../RobotDrivers/Configuration.h"
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 
 #ifdef __cplusplus

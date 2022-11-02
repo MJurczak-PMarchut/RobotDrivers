@@ -70,6 +70,7 @@
 
 #define RESTART_IBUS_UART_DMA
 
+#define MAX_LINE_DETECTOR_COUNT 4
 
 #define GPIO_NUMBER_SUMO (16U)
 

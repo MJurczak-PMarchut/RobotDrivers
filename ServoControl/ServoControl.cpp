@@ -4,7 +4,7 @@
  *  Created on: Nov 17, 2021
  *      Author: Mateusz
  */
-#include "ServoControl.hpp"
+#include "../../RobotDrivers/ServoControl/ServoControl.hpp"
 
 ServoControl::ServoControl(TIM_HandleTypeDef *htim)
 {

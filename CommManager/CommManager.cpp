@@ -4,7 +4,8 @@
  *  Created on: Nov 13, 2021
  *      Author: Mateusz
  */
-#include "CommManager.hpp"
+#include "../../RobotDrivers/CommManager/CommManager.hpp"
+
 #include "vector"
 
 #ifndef NO_COMMUNICATION_INTERFACE_DEFINED

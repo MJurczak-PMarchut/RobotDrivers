@@ -7,9 +7,9 @@
 
 #ifndef SUMODRIVERS_L9960T_L9960T_HPP_
 #define SUMODRIVERS_L9960T_L9960T_HPP_
-#include "MotorControl.hpp"
-#include "RobotSpecificDefines.hpp"
-#include "L9960_regs.hpp"
+#include "../../RobotDrivers/L9960T/L9960_regs.hpp"
+#include "../../RobotDrivers/Motor Control/MotorControl.hpp"
+#include "../../RobotDrivers/RobotSpecificDefines.hpp"
 
 #define INIT_SEQUENCE_CONTEXT 3
 

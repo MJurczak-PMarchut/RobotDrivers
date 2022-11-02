@@ -6,8 +6,8 @@
  */
 #ifndef SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
 #define SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
-#include "Configuration.h"
-#include "CommManager.hpp"
+#include "../../RobotDrivers/CommManager/CommManager.hpp"
+#include "../../RobotDrivers/Configuration.h"
 #if (defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)) or (defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT))
 
 #include <queue>

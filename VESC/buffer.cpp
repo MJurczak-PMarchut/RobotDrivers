@@ -22,7 +22,7 @@
  *      Author: benjamin
  */
 
-#include "buffer.h"
+#include "../../RobotDrivers/VESC/buffer.h"
 
 void buffer_append_int16(uint8_t* buffer, int16_t number, int32_t *index) {
 	buffer[(*index)++] = number >> 8;

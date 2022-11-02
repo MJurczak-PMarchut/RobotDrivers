@@ -7,8 +7,8 @@
 
 #ifndef SERVOCONTROL_SERVOCONTROL_HPP_
 #define SERVOCONTROL_SERVOCONTROL_HPP_
-#include "Configuration.h"
 #include <Vector>
+#include "../../RobotDrivers/Configuration.h"
 
 #define UNABLE_TO_ATTACH_SERVO 0xFF
 

@@ -5,7 +5,7 @@
  *      Author: Mateusz
  */
 
-#include "L9960T.hpp"
+#include "../../RobotDrivers/L9960T/L9960T.hpp"
 
 
 L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim):

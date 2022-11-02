@@ -8,8 +8,8 @@
 #ifndef TLE5205_TLE5205_HPP_
 #define TLE5205_TLE5205_HPP_
 //#include "Configuration.h"
-#include "MotorControl.hpp"
-#include "RobotSpecificDefines.hpp"
+#include "../../RobotDrivers/Motor Control/MotorControl.hpp"
+#include "../../RobotDrivers/RobotSpecificDefines.hpp"
 
 
 

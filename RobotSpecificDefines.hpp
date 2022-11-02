@@ -7,7 +7,7 @@
 
 #ifndef ROBOTSPECIFICDEFINES_HPP_
 #define ROBOTSPECIFICDEFINES_HPP_
-#include "Configuration.h"
+#include "../RobotDrivers/Configuration.h"
 
 #ifdef ROBOT_IS_FIDOL
 

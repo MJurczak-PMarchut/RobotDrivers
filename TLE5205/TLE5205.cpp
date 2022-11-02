@@ -5,7 +5,7 @@
  *      Author: Mateusz
  */
 
-#include "TLE5205.hpp"
+#include "../../RobotDrivers/TLE5205/TLE5205.hpp"
 
 #define FREEWHELING 0b11
 #define MOTOR_CCW 0b10
