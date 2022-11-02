@@ -18,16 +18,16 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	__InitMessageID = 0;
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
 	{
-		this->__IN1_PWM_PIN = MD_IN1_PWM_A_Pin;
-		this->__IN2_DIR_PIN = MD_IN2_DIR_A_Pin;
-		this->__IN1_PWM_PORT = MD_IN1_PWM_A_GPIO_Port;
-		this->__IN2_DIR_PORT = MD_IN2_DIR_A_GPIO_Port;
+		this->__IN1_PWM_PIN = MD_IN1_PWM_B_Pin;
+		this->__IN2_DIR_PIN = MD_IN2_DIR_B_Pin;
+		this->__IN1_PWM_PORT = MD_IN1_PWM_B_GPIO_Port;
+		this->__IN2_DIR_PORT = MD_IN2_DIR_B_GPIO_Port;
 		this->__Instantiated_sides |= (1 << MOTOR_LEFT);
 		this->__Instantiated_sides |= MOTOR_LEFT_NDIS_ENABLED;
-		this->__CS_Pin = MD_CS_1_Pin;
-		this->__CS_Port = MD_CS_1_GPIO_Port;
-		this->__DIS_PORT = MD_DIS_1_GPIO_Port;
-		this->__DIS_PIN = MD_DIS_1_Pin;
+		this->__CS_Pin = MD_CS_2_Pin;
+		this->__CS_Port = MD_CS_2_GPIO_Port;
+		this->__DIS_PORT = MD_DIS_2_GPIO_Port;
+		this->__DIS_PIN = MD_DIS_2_Pin;
 #ifdef LEFT_MOTOR_INVERT_DIRECTION
 		this->__Direction = GPIO_PIN_RESET;
 #else
@@ -36,16 +36,16 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	}
 	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << MOTOR_RIGHT)) == 0))
 	{
-		this->__IN1_PWM_PIN = MD_IN1_PWM_B_Pin;
-		this->__IN2_DIR_PIN = MD_IN2_DIR_B_Pin;
-		this->__IN1_PWM_PORT = MD_IN1_PWM_B_GPIO_Port;
-		this->__IN2_DIR_PORT = MD_IN2_DIR_B_GPIO_Port;
+		this->__IN1_PWM_PIN = MD_IN1_PWM_A_Pin;
+		this->__IN2_DIR_PIN = MD_IN2_DIR_A_Pin;
+		this->__IN1_PWM_PORT = MD_IN1_PWM_A_GPIO_Port;
+		this->__IN2_DIR_PORT = MD_IN2_DIR_A_GPIO_Port;
 		this->__Instantiated_sides |= (1 << MOTOR_RIGHT);
 		this->__Instantiated_sides |= MOTOR_RIGHT_NDIS_ENABLED;
-		this->__CS_Pin = MD_CS_2_Pin;
-		this->__CS_Port = MD_CS_2_GPIO_Port;
-		this->__DIS_PORT = MD_DIS_2_GPIO_Port;
-		this->__DIS_PIN = MD_DIS_2_Pin;
+		this->__CS_Pin = MD_CS_1_Pin;
+		this->__CS_Port = MD_CS_1_GPIO_Port;
+		this->__DIS_PORT = MD_DIS_1_GPIO_Port;
+		this->__DIS_PIN = MD_DIS_1_Pin;
 #ifdef RIGHT_MOTOR_INVERT_DIRECTION
 		this->__Direction = GPIO_PIN_RESET;
 #else
