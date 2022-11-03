@@ -69,6 +69,7 @@ struct MessageInfoTypeDef{
 	std::function<void(MessageInfoTypeDef* MsgInfo)> pCB;
 	void (*pRxCompletedCB)(MessageInfoTypeDef* MsgInfo);
 	void (*pTxCompletedCB)(MessageInfoTypeDef* MsgInfo);
+	HAL_StatusTypeDef* TransactionStatus;
 //	MotorControllerCallbackTD CommCompletedTB;
 };
 

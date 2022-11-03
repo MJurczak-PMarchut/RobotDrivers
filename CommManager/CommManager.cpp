@@ -107,6 +107,10 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 	}
 	else
 	{
+		if(MsgInfo->TransactionStatus !=0)
+		{
+			*MsgInfo->TransactionStatus = HAL_BUSY;
+		}
 		switch(MsgInfo->eCommType)
 		{
 			case COMM_INT_SPI_TXRX:
@@ -300,6 +304,10 @@ HAL_StatusTypeDef CommManager::__MsgReceivedCB(Handle *IntHandle, QueueVectTD *Q
 			//Clear CS Pin if any
 			if(Msg.GPIOx != 0){
 				HAL_GPIO_WritePin(Msg.GPIOx, Msg.GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+			}
+			//Set transaction status
+			if(Msg.TransactionStatus != 0){
+				*Msg.TransactionStatus = HAL_OK;
 			}
 			switch(Msg.eCommType)
 			{
