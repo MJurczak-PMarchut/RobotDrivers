@@ -28,11 +28,12 @@ typedef VL53L1_Dev_t *VL53L1_DEV;
 /** @brief VL53L1_WriteMulti() definition.\n
  * To be implemented by the developer
  */
-int8_t VL53L1_WriteMulti(
-		uint16_t 			dev,
-		uint16_t      index,
-		uint8_t      *pdata,
-		uint32_t      count);
+int8_t VL53L1_WriteMulti( uint16_t dev,
+		uint16_t index,
+		uint8_t *pdata,
+		uint16_t count,
+		CommManager *CommunicationManager,
+		MessageInfoTypeDef *MsgInfo);
 /** @brief VL53L1_ReadMulti() definition.\n
  * To be implemented by the developer
  */
@@ -47,7 +48,7 @@ int8_t VL53L1_ReadMulti(
 int8_t VL53L1_WrByte(
 		uint16_t dev,
 		uint16_t      index,
-		uint8_t       data,
+		uint8_t*       data,
 		CommManager *CommunicationManager,
 		MessageInfoTypeDef *MsgInfo);
 /** @brief VL53L1_WrWord() definition.\n

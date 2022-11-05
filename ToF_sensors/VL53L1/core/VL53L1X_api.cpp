@@ -104,7 +104,7 @@ uint8_t VL51L1X_NVM_CONFIGURATION[] = {
 }
 #endif
 
-const uint8_t VL51L1X_DEFAULT_CONFIGURATION[] = {
+uint8_t VL51L1X_DEFAULT_CONFIGURATION[] = {
 0x00, /* 0x2d : set bit 2 and 5 to 1 for fast plus mode (1MHz I2C), else don't touch */
 0x00, /* 0x2e : bit 0 if I2C pulled up at 1.8V, else set bit 0 to 1 (pull up at AVDD) */
 0x00, /* 0x2f : bit 0 if GPIO pulled up at 1.8V, else set bit 0 to 1 (pull up at AVDD) */
@@ -203,6 +203,9 @@ static const uint8_t status_rtn[24] = { 255, 255, 255, 5, 2, 4, 1, 7, 3, 0,
 	255, 255, 11, 12
 };
 
+static uint8_t start_ranging_const = 0x40;
+static uint8_t clr_interrupt = 0x01;
+
 VL53L1X_ERROR VL53L1X_GetSWVersion(VL53L1X_Version_t *pVersion)
 {
 	VL53L1X_ERROR Status = 0;
@@ -217,8 +220,12 @@ VL53L1X_ERROR VL53L1X_GetSWVersion(VL53L1X_Version_t *pVersion)
 VL53L1X_ERROR VL53L1X_SetI2CAddress(uint16_t dev, uint8_t new_address, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
 {
 	VL53L1X_ERROR status = 0;
-
-	status |= VL53L1_WrByte(dev, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, new_address >> 1, CommunicationManager, MsgInfo);
+	HAL_StatusTypeDef transaction_status = HAL_ERROR;
+	static uint8_t addr;
+	addr = new_address>>1;
+	MsgInfo->TransactionStatus = &transaction_status;
+	status |= VL53L1_WrByte(dev, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, &addr, CommunicationManager, MsgInfo);
+	*MsgInfo->TransactionStatus = HAL_ERROR;
 	return status;
 }
 
@@ -227,9 +234,7 @@ VL53L1X_ERROR VL53L1X_SensorInit(uint16_t dev, CommManager *CommunicationManager
 	VL53L1X_ERROR status = 0;
 	uint8_t Addr = 0x00, tmp;
 	UNUSED(tmp);
-	for (Addr = 0x2D; Addr <= 0x87; Addr++){
-		status |= VL53L1_WrByte(dev, Addr, VL51L1X_DEFAULT_CONFIGURATION[Addr - 0x2D], CommunicationManager, MsgInfo);
-	}
+	status |= VL53L1_WriteMulti(dev, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 0x88-0x2D, CommunicationManager, MsgInfo);
 	status |= VL53L1X_StartRanging(dev, CommunicationManager, MsgInfo);
 	tmp  = 0;
 	while(tmp==0){
@@ -246,7 +251,7 @@ VL53L1X_ERROR VL53L1X_ClearInterrupt(uint16_t dev, CommManager *CommunicationMan
 {
 	VL53L1X_ERROR status = 0;
 
-	status |= VL53L1_WrByte(dev, SYSTEM__INTERRUPT_CLEAR, 0x01, CommunicationManager, MsgInfo);
+	status |= VL53L1_WrByte(dev, SYSTEM__INTERRUPT_CLEAR, &clr_interrupt, CommunicationManager, MsgInfo);
 	return status;
 }
 
@@ -267,6 +272,8 @@ VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPola
 	VL53L1X_ERROR status = 0;
 
 	status |= VL53L1_RdByte(dev, GPIO_HV_MUX__CTRL, &Temp, CommunicationManager, MsgInfo);
+	while(*MsgInfo->TransactionStatus != HAL_OK){}
+	*MsgInfo->TransactionStatus = HAL_ERROR;
 	Temp = Temp & 0x10;
 	*pInterruptPolarity = !(Temp>>4);
 	return status;
@@ -275,8 +282,7 @@ VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPola
 VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
 {
 	VL53L1X_ERROR status = 0;
-
-	status |= VL53L1_WrByte(dev, SYSTEM__MODE_START, 0x40, CommunicationManager, MsgInfo);	/* Enable VL53L1X */
+	status |= VL53L1_WrByte(dev, SYSTEM__MODE_START, &start_ranging_const, CommunicationManager, MsgInfo);	/* Enable VL53L1X */
 	return status;
 }
 
@@ -293,9 +299,12 @@ VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, Comm
 	uint8_t Temp;
 	uint8_t IntPol;
 	VL53L1X_ERROR status = 0;
-
+	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	MsgInfo->TransactionStatus = &transmit_status;
 	status |= VL53L1X_GetInterruptPolarity(dev, &IntPol, CommunicationManager, MsgInfo);
 	status |= VL53L1_RdByte(dev, GPIO__TIO_HV_STATUS, &Temp, CommunicationManager, MsgInfo);
+	while(*MsgInfo->TransactionStatus != HAL_OK){}
+	*MsgInfo->TransactionStatus = HAL_ERROR;
 	/* Read in the register to check if a new value is available */
 	if (status == 0){
 		if ((Temp & 1) == IntPol)
