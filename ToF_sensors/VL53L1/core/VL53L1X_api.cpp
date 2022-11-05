@@ -555,10 +555,8 @@ VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget,
 VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
 {
 	VL53L1X_ERROR status = 0;
-	uint16_t tmp;
 
-	status |= (VL53L1_RdWord(dev, VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0, &tmp, CommunicationManager, MsgInfo));
-	*distance = tmp;
+	status |= (VL53L1_RdWord(dev, VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0, distance, CommunicationManager, MsgInfo));
 	return status;
 }
 //
