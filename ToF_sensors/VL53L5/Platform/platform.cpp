@@ -75,12 +75,12 @@ uint8_t RdByte(
 	uint8_t status = 0;
 	MessageInfoTypeDef MsgInfo = {0};
 	
-		MsgInfo.I2C_Addr = p_platform->address;
-		MsgInfo.len = 1;
-		MsgInfo.uCommInt.hi2c = &hi2c1;
-		MsgInfo.pRxData = p_value;
-		MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
-		MsgInfo.I2C_MemAddr = RegisterAdress;
+	MsgInfo.I2C_Addr = p_platform->address;
+	MsgInfo.len = 1;
+	MsgInfo.uCommInt.hi2c = &hi2c1;
+	MsgInfo.pRxData = p_value;
+	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
+	MsgInfo.I2C_MemAddr = RegisterAdress;
 
 	do
 	{

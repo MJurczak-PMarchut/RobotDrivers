@@ -14,12 +14,14 @@ static GPIO_TypeDef *__ToFX_SHUT_Port [] = {XSHUT_3_GPIO_Port, XSHUT_3_GPIO_Port
 												 XSHUT_3_GPIO_Port, XSHUT_4_GPIO_Port,
 												 XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port};
 
+uint8_t Sensor_vl53l5cx::__sensor_nb = 0;
+uint8_t Sensor_vl53l5cx::__sensor_init_tbd = 0;
 
 Sensor_vl53l5cx::Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm):
 	ToF_Sensor(vl53l5, position, comm)
 {
 	this->__sensor_index = __sensor_nb;
-	this->__sensor_nb++;
+	__sensor_nb++;
 	this->__sensor_conf.platform.__CommunicationManager = comm;
 	this->__sensor_conf.platform.address = DEFAULT_ADDR;
 
@@ -51,7 +53,7 @@ HAL_StatusTypeDef Sensor_vl53l5cx::SensorInit(void)
 	//Init sensor
 	ret = (vl53l5cx_init(&(this->__sensor_conf)) == 0)? HAL_OK : HAL_ERROR ;
 	//Increment __sensor_init_tbd
-	this->__sensor_init_tbd++;
+	Sensor_vl53l5cx::__sensor_init_tbd++;
 	return ret;
 }
 
@@ -66,3 +68,21 @@ HAL_StatusTypeDef Sensor_vl53l5cx::IsAlive(uint8_t *is_alive)
 	uint8_t ret = vl53l5cx_is_alive(&this->__sensor_conf, is_alive);
 	return (ret == 0)? HAL_OK : HAL_ERROR;
 }
+
+HAL_StatusTypeDef Sensor_vl53l5cx::StartRanging(void)
+{
+	uint8_t ret = vl53l5cx_start_ranging(&this->__sensor_conf);
+	return (ret == 0)? HAL_OK : HAL_ERROR;
+}
+
+HAL_StatusTypeDef Sensor_vl53l5cx::GetRangingData(void)
+{
+	uint8_t ret = vl53l5cx_get_ranging_data(&this->__sensor_conf, &this->result);
+	return (ret == 0)? HAL_OK : HAL_ERROR;
+}
+
+HAL_StatusTypeDef Sensor_vl53l5cx::CheckDataReady(void)
+{
+
+}
+

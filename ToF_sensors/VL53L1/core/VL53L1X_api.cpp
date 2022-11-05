@@ -230,12 +230,12 @@ VL53L1X_ERROR VL53L1X_SensorInit(uint16_t dev, CommManager *CommunicationManager
 	for (Addr = 0x2D; Addr <= 0x87; Addr++){
 		status |= VL53L1_WrByte(dev, Addr, VL51L1X_DEFAULT_CONFIGURATION[Addr - 0x2D], CommunicationManager, MsgInfo);
 	}
-//	status |= VL53L1X_StartRanging(dev);
-//	tmp  = 0;
-//	while(tmp==0){
-//			status |= VL53L1X_CheckForDataReady(dev, &tmp);
-//	}
-//	status |= VL53L1X_ClearInterrupt(dev);
+	status |= VL53L1X_StartRanging(dev, CommunicationManager, MsgInfo);
+	tmp  = 0;
+	while(tmp==0){
+			status |= VL53L1X_CheckForDataReady(dev, &tmp, CommunicationManager, MsgInfo);
+	}
+	status |= VL53L1X_ClearInterrupt(dev, CommunicationManager, MsgInfo);
 //	status |= VL53L1X_StopRanging(dev);
 //	status |= VL53L1_WrByte(dev, VL53L1_VHV_CONFIG__TIMEOUT_MACROP_LOOP_BOUND, 0x09, CommunicationManager, MsgInfo); /* two bounds VHV */
 //	status |= VL53L1_WrByte(dev, 0x0B, 0, CommunicationManager, MsgInfo); /* start VHV from the previous temperature */
@@ -261,17 +261,17 @@ VL53L1X_ERROR VL53L1X_ClearInterrupt(uint16_t dev, CommManager *CommunicationMan
 //	return status;
 //}
 //
-//VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity)
-//{
-//	uint8_t Temp;
-//	VL53L1X_ERROR status = 0;
-//
-//	status |= VL53L1_RdByte(dev, GPIO_HV_MUX__CTRL, &Temp);
-//	Temp = Temp & 0x10;
-//	*pInterruptPolarity = !(Temp>>4);
-//	return status;
-//}
-//
+VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+{
+	uint8_t Temp;
+	VL53L1X_ERROR status = 0;
+
+	status |= VL53L1_RdByte(dev, GPIO_HV_MUX__CTRL, &Temp, CommunicationManager, MsgInfo);
+	Temp = Temp & 0x10;
+	*pInterruptPolarity = !(Temp>>4);
+	return status;
+}
+
 VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
 {
 	VL53L1X_ERROR status = 0;
@@ -288,24 +288,24 @@ VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManag
 //	return status;
 //}
 //
-//VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady)
-//{
-//	uint8_t Temp;
-//	uint8_t IntPol;
-//	VL53L1X_ERROR status = 0;
-//
-//	status |= VL53L1X_GetInterruptPolarity(dev, &IntPol);
-//	status |= VL53L1_RdByte(dev, GPIO__TIO_HV_STATUS, &Temp);
-//	/* Read in the register to check if a new value is available */
-//	if (status == 0){
-//		if ((Temp & 1) == IntPol)
-//			*isDataReady = 1;
-//		else
-//			*isDataReady = 0;
-//	}
-//	return status;
-//}
-//
+VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+{
+	uint8_t Temp;
+	uint8_t IntPol;
+	VL53L1X_ERROR status = 0;
+
+	status |= VL53L1X_GetInterruptPolarity(dev, &IntPol, CommunicationManager, MsgInfo);
+	status |= VL53L1_RdByte(dev, GPIO__TIO_HV_STATUS, &Temp, CommunicationManager, MsgInfo);
+	/* Read in the register to check if a new value is available */
+	if (status == 0){
+		if ((Temp & 1) == IntPol)
+			*isDataReady = 1;
+		else
+			*isDataReady = 0;
+	}
+	return status;
+}
+
 //VL53L1X_ERROR VL53L1X_SetTimingBudgetInMs(uint16_t dev, uint16_t TimingBudgetInMs)
 //{
 //	uint16_t DM;

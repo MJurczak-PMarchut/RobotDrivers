@@ -52,15 +52,22 @@ int8_t VL53L1_ReadMulti(uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t c
 
 int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
 	static uint8_t _data[MESSAGE_LENGTH];
+	int8_t status = 0;
 	_data[0] = (uint8_t) index >> 8;
 	_data[1] = (uint8_t) index & 0xff;
 	_data[2] = data;
 	MsgInfo->I2C_Addr = dev;
-	MsgInfo->pTxData = _data;
+	MsgInfo->eCommType = COMM_INT_I2C_MEM_TX;
+	MsgInfo->I2C_MemAddr = index;
+	MsgInfo->pTxData = &data;
 	MsgInfo->len = MESSAGE_LENGTH;
 
-//	return CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
-	return HAL_I2C_Master_Transmit(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, _data, MsgInfo->len, 100);
+	do
+	{
+		status = CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
+	} while(status!=0);
+//	return HAL_I2C_Master_Transmit(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, _data, MsgInfo->len, 100);
+	return status;
 }
 
 int8_t VL53L1_WrWord(uint16_t dev, uint16_t index, uint16_t data) {
@@ -72,7 +79,35 @@ int8_t VL53L1_WrDWord(uint16_t dev, uint16_t index, uint32_t data) {
 }
 
 int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
-	return 0; // to be implemented
+	int8_t status = 0;
+	_data[0] = (uint8_t) index >> 8;
+	_data[1] = (uint8_t) index & 0xff;
+	_data[2] = 0;
+
+	MsgInfo->I2C_Addr = dev;
+	MsgInfo->I2C_MemAddr = index;
+	MsgInfo->pTxData = _data;
+	MsgInfo->len = 2;
+	if(dev == TOF5_Addr)
+	{
+		_data_receiveL[0] = 0;
+		_data_receiveL[1] = 0;
+		_data_receiveL[2] = 0;
+//		MsgInfo->pRxData = _data_receiveL;
+	}
+	else
+	{
+		_data_receiveR[0] = 0;
+		_data_receiveR[1] = 0;
+		_data_receiveR[2] = 0;
+//		MsgInfo->pRxData = _data_receiveR;
+	}
+	MsgInfo->pRxData = data;
+	do
+	{
+		status = CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
+	} while(status!=0);
+	return status;
 }
 
 int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
@@ -82,6 +117,7 @@ int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data, CommManager *
 	_data[2] = 0;
 
 	MsgInfo->I2C_Addr = dev;
+	MsgInfo->I2C_MemAddr = index;
 	MsgInfo->pTxData = _data;
 	MsgInfo->len = 2;
 	if(dev == TOF5_Addr)
@@ -99,11 +135,17 @@ int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data, CommManager *
 		MsgInfo->pRxData = _data_receiveR;
 	}
 
-//	return CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
+	do
+	{
+		status = CommunicationManager->PushCommRequestIntoQueue(MsgInfo);
+	} while(status!=0);
+
 //	status |= HAL_I2C_Master_Transmit_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len);
 //	status |= HAL_I2C_Master_Receive_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
-	status |= HAL_I2C_Master_Transmit(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len, 100);
-	status |= HAL_I2C_Master_Receive(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len, 100);
+
+	// it worked previously
+//	status |= HAL_I2C_Master_Transmit(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len, 100);
+//	status |= HAL_I2C_Master_Receive(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len, 100);
 	return status;
 }
 

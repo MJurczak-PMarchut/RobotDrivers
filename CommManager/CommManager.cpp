@@ -126,6 +126,8 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				break;
 			case COMM_INT_I2C_TX:
 			case COMM_INT_I2C_RX:
+			case COMM_INT_I2C_MEM_TX:
+			case COMM_INT_I2C_MEM_RX:
 			{
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 				this->__hi2cQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
@@ -191,6 +193,8 @@ uint8_t CommManager::__CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntUnionTypeD
 			break;
 		case COMM_INT_I2C_TX:
 		case COMM_INT_I2C_RX:
+		case COMM_INT_I2C_MEM_TX:
+		case COMM_INT_I2C_MEM_RX:
 		{
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 			for(u8Iter = 0; u8Iter < this->__hi2cQueueVect.size(); u8Iter++)
@@ -314,6 +318,7 @@ HAL_StatusTypeDef CommManager::__MsgReceivedCB(Handle *IntHandle, QueueVectTD *Q
 				case COMM_INT_I2C_RX:
 				case COMM_INT_SPI_RX:
 				case COMM_INT_UART_RX:
+				case COMM_INT_I2C_MEM_RX:
 				{
 					if(Msg.pRxCompletedCB != 0)
 						{
@@ -323,6 +328,7 @@ HAL_StatusTypeDef CommManager::__MsgReceivedCB(Handle *IntHandle, QueueVectTD *Q
 					break;
 				case COMM_INT_I2C_TX:
 				case COMM_INT_UART_TX:
+				case COMM_INT_I2C_MEM_TX:
 				{
 					if(Msg.pTxCompletedCB != 0)
 						{
@@ -366,8 +372,13 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(Handle *IntHand
 		if(IntHandle->Instance == (*Queue)[VectorIndex].handle->Instance)
 		{
 			//Check if there are messages in queue
-			if((*Queue)[VectorIndex].MsgInfo.size() > 0)
+			if((*Queue)[VectorIndex].MsgInfo.size() > MAX_MESSAGE_NO_IN_QUEUE)
 			{
+				Error_Handler(); //Ooops
+			}
+			else if((*Queue)[VectorIndex].MsgInfo.size() > 0)
+			{
+				auto size = (*Queue)[VectorIndex].MsgInfo.size();
 				MsgInfo =(*Queue)[VectorIndex].MsgInfo.front();
 				//send message
 				return this->__CheckIfFreeAndSendRecv(&MsgInfo, VectorIndex);
@@ -457,7 +468,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 					{
 						//Queue empty and peripheral ready, send message
 						__CheckAndSetCSPins(MsgInfo, VectorIndex);
-						return HAL_I2C_Mem_Write_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+						return HAL_I2C_Mem_Write_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pTxData, MsgInfo->len);
 					}
 		#elif defined I2C_USES_WAIT
 					if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)

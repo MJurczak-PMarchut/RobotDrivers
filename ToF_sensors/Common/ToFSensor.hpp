@@ -16,7 +16,7 @@ typedef enum  {vl53l5, vl53l1}e_ToF_Type;
 typedef enum  {FRONT_LEFT, FRONT_RIGHT}e_ToF_Position;
 
 class ToF_Sensor {
-private:
+protected:
 	e_ToF_Type ToF_Type;
 	CommManager *__CommunicationManager;
 	e_ToF_Position __pos;

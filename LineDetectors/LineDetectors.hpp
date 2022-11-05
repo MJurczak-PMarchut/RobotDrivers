@@ -12,10 +12,10 @@
 #include <map>
 
 typedef enum {
-	FRONT_LEFT = 0,
-	FRONT_RIGHT,
-	BACK_LEFT,
-	BACK_RIGHT
+	LD_FRONT_LEFT = 0,
+	LD_FRONT_RIGHT,
+	LD_BACK_LEFT,
+	LD_BACK_RIGHT
 } LineDetectors_t;
 
 /*

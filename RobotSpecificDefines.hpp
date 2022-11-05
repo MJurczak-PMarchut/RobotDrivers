@@ -71,10 +71,16 @@
 	#define MOTOR_LEFT_NDIS_ENABLED (1<<5)
 	#define MOTOR_RIGHT_NDIS_ENABLED (1<<6)
 
-	#define __IN2_L_Pin GPIO_PIN_5
-	#define __IN2_L_GPIO_Port GPIOE
 	#define __IN1_L_Pin GPIO_PIN_6
 	#define __IN1_L_GPIO_Port GPIOE
+	#define V_LS1_Pin GPIO_PIN_4
+	#define V_LS1_GPIO_Port GPIOA
+	#define V_LS2_Pin GPIO_PIN_5
+	#define V_LS2_GPIO_Port GPIOA
+	#define V_LS3_Pin GPIO_PIN_6
+	#define V_LS3_GPIO_Port GPIOA
+	#define V_LS4_Pin GPIO_PIN_7
+	#define V_LS4_GPIO_Port GPIOA
 	#define START_SW_Pin GPIO_PIN_0
 	#define START_SW_GPIO_Port GPIOB
 	#define TOF_GPIO_3_Pin GPIO_PIN_9
@@ -93,12 +99,12 @@
 	#define MD_DIS_2_GPIO_Port GPIOD
 	#define MD_IN2_DIR_B_Pin GPIO_PIN_13
 	#define MD_IN2_DIR_B_GPIO_Port GPIOD
-	#define MD_IN2_PWM_B_Pin GPIO_PIN_14
-	#define MD_IN2_PWM_B_GPIO_Port GPIOD
+	#define MD_IN1_PWM_B_Pin GPIO_PIN_14
+	#define MD_IN1_PWM_B_GPIO_Port GPIOD
 	#define MD_NDIS_Pin GPIO_PIN_15
 	#define MD_NDIS_GPIO_Port GPIOD
-	#define MD_IN2_PWM_A_Pin GPIO_PIN_6
-	#define MD_IN2_PWM_A_GPIO_Port GPIOC
+	#define MD_IN1_PWM_A_Pin GPIO_PIN_6
+	#define MD_IN1_PWM_A_GPIO_Port GPIOC
 	#define MD_IN2_DIR_A_Pin GPIO_PIN_7
 	#define MD_IN2_DIR_A_GPIO_Port GPIOC
 	#define MD_DIS_1_Pin GPIO_PIN_8

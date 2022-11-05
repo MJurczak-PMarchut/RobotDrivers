@@ -24,6 +24,7 @@ private:
 	uint8_t __sensor_index;
 	VL53L5CX_Configuration __sensor_conf;
 public:
+	VL53L5CX_ResultsData result;
 	Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm);
 	virtual HAL_StatusTypeDef SensorInit(void);
 	HAL_StatusTypeDef SetI2CAddress(void);
