@@ -1,2 +1,2 @@
-# SumoDrivers
-Standard API for controlling our Sumo type robots
+# RobotDrivers
+Standard API for controlling our robots
