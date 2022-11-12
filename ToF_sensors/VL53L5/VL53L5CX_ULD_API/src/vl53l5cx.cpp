@@ -14,10 +14,10 @@ static GPIO_TypeDef *__ToFX_SHUT_Port [] = {XSHUT_3_GPIO_Port, XSHUT_3_GPIO_Port
 												 XSHUT_3_GPIO_Port, XSHUT_4_GPIO_Port,
 												 XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port};
 
-uint8_t Sensor_vl53l5cx::__sensor_nb = 0;
-uint8_t Sensor_vl53l5cx::__sensor_init_tbd = 0;
+uint8_t VL53L5CX::__sensor_nb = 0;
+uint8_t VL53L5CX::__sensor_init_tbd = 0;
 
-Sensor_vl53l5cx::Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm):
+VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm):
 	ToF_Sensor(vl53l5, position, comm)
 {
 	this->__sensor_index = __sensor_nb;
@@ -33,7 +33,7 @@ Sensor_vl53l5cx::Sensor_vl53l5cx(e_ToF_Position position, CommManager *comm):
  * Could probably be made static to initialize all sensors present
  * Or be implemented in parent class
  */
-HAL_StatusTypeDef Sensor_vl53l5cx::SensorInit(void)
+HAL_StatusTypeDef VL53L5CX::SensorInit(void)
 {
 	HAL_StatusTypeDef ret = HAL_OK;
 	while(__sensor_init_tbd != this->__sensor_index)
@@ -53,35 +53,35 @@ HAL_StatusTypeDef Sensor_vl53l5cx::SensorInit(void)
 	//Init sensor
 	ret = (vl53l5cx_init(&(this->__sensor_conf)) == 0)? HAL_OK : HAL_ERROR ;
 	//Increment __sensor_init_tbd
-	Sensor_vl53l5cx::__sensor_init_tbd++;
+	VL53L5CX::__sensor_init_tbd++;
 	return ret;
 }
 
-HAL_StatusTypeDef Sensor_vl53l5cx::SetI2CAddress()
+HAL_StatusTypeDef VL53L5CX::SetI2CAddress()
 {
     uint8_t ret = vl53l5cx_set_i2c_address(&this->__sensor_conf, __ToFAddr[this->__sensor_index]);
 	return (ret == 0)? HAL_OK : HAL_ERROR;
 }
 
-HAL_StatusTypeDef Sensor_vl53l5cx::IsAlive(uint8_t *is_alive)
+HAL_StatusTypeDef VL53L5CX::IsAlive(uint8_t *is_alive)
 {
 	uint8_t ret = vl53l5cx_is_alive(&this->__sensor_conf, is_alive);
 	return (ret == 0)? HAL_OK : HAL_ERROR;
 }
 
-HAL_StatusTypeDef Sensor_vl53l5cx::StartRanging(void)
+HAL_StatusTypeDef VL53L5CX::StartRanging(void)
 {
 	uint8_t ret = vl53l5cx_start_ranging(&this->__sensor_conf);
 	return (ret == 0)? HAL_OK : HAL_ERROR;
 }
 
-HAL_StatusTypeDef Sensor_vl53l5cx::GetRangingData(void)
+HAL_StatusTypeDef VL53L5CX::GetRangingData(void)
 {
 	uint8_t ret = vl53l5cx_get_ranging_data(&this->__sensor_conf, &this->result);
 	return (ret == 0)? HAL_OK : HAL_ERROR;
 }
 
-HAL_StatusTypeDef Sensor_vl53l5cx::CheckDataReady(void)
+HAL_StatusTypeDef VL53L5CX::CheckDataReady(void)
 {
 
 }
