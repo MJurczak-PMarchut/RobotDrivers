@@ -29,24 +29,27 @@ public:
 
 protected:
 	HAL_StatusTypeDef StopRanging(void);
-	HAL_StatusTypeDef SensorInit(void);
+	HAL_StatusTypeDef SensorInit(MessageInfoTypeDef* MsgInfo);
 	HAL_StatusTypeDef SetI2CAddress(void);
 	HAL_StatusTypeDef IsAlive(uint8_t *is_alive);
 	HAL_StatusTypeDef SetPowerMode(void);
 	HAL_StatusTypeDef StartRanging(void);
 	HAL_StatusTypeDef DisableSensorComm(void);
+	HAL_StatusTypeDef EnableSensorComm(void);
 	HAL_StatusTypeDef SetResolution(void);
 	HAL_StatusTypeDef SetRangingFrequency(void);
 
 private:
 	void __waitInit(uint32_t waitms);
-	HAL_StatusTypeDef VL53L5CX::__CheckInitPollingMessage(
+	HAL_StatusTypeDef __CheckInitPollingMessage(
 			uint8_t					size,
 			uint8_t					pos,
 			uint8_t					mask,
 			uint8_t					expected_value,
 			MessageInfoTypeDef* 	MsgInfo,
 			MessageInfoTypeDef*		MsgInfoToSend);
+	uint8_t __vl53l5cx_poll_for_mcu_boot(MessageInfoTypeDef* MsgInfoToSend);
+	uint8_t __vl53l5cx_send_offset_data(uint8_t resolution);
 	uint16_t __InitSequenceID;
 	TickType_t __wait_until_tick;
 	static uint8_t __sensor_nb;
@@ -56,7 +59,8 @@ private:
 	ToF_Status_t __Status;
 	uint16_t __address;
 	static uint8_t null_data_sink;
-	uint8_t __comm_buffer[4];
+	uint8_t __comm_buffer[VL53L5CX_TEMPORARY_BUFFER_SIZE];
+	uint8_t __offset_buffer[VL53L5CX_OFFSET_BUFFER_SIZE];
 };
 
 #endif /* TOF_SENSORS_VL53L5_VL53L5CX_ULD_API_INC_VL53L5CX_HPP_ */

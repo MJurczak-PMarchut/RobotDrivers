@@ -11,6 +11,9 @@
 #error("RTOS is needed for current implementation of Tof Sensor drivers")
 #endif
 
+TaskHandle_t ToF_Sensor::*__pTaskHandle = 0;
+std::vector<ToF_Sensor*>  ToF_Sensor::__ToFSensorPointer;
+
 ToF_Sensor::ToF_Sensor(e_ToF_Type type, e_ToF_Position position,
 		CommManager *comm) :
 		ToF_Type { type }, __CommunicationManager { comm }, __pos { position } {
@@ -22,7 +25,6 @@ void ToF_Sensor::StartSensorTask(void) {
 	//SetI2CAddress;
 	for (auto SensorObj : __ToFSensorPointer)
 	{
-		SensorObj->EnableSensorComm();
 		SensorObj->SetI2CAddress();
 	}
 	//Start task for monitoring and initialization of ToF sensors
