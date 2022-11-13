@@ -19,11 +19,6 @@ ToF_Sensor::ToF_Sensor(e_ToF_Type type, e_ToF_Position position,
 
 void ToF_Sensor::StartSensorTask(void) {
 
-	//Disable all sensors
-	for (auto SensorObj : __ToFSensorPointer)
-	{
-		SensorObj->DisableSensorComm();
-	}
 	//SetI2CAddress;
 	for (auto SensorObj : __ToFSensorPointer)
 	{
@@ -82,5 +77,5 @@ void ToF_Sensor::__ToFSensorThread(void *pvParameters) {
 				break;
 		}
 	}
-	vTaskDelay(1);
+	vTaskDelay(50);
 }
