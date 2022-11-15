@@ -378,7 +378,7 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(Handle *IntHand
 			}
 			else if((*Queue)[VectorIndex].MsgInfo.size() > 0)
 			{
-				auto size = (*Queue)[VectorIndex].MsgInfo.size();
+//				auto size = (*Queue)[VectorIndex].MsgInfo.size();
 				MsgInfo =(*Queue)[VectorIndex].MsgInfo.front();
 				//send message
 				return this->__CheckIfFreeAndSendRecv(&MsgInfo, VectorIndex);

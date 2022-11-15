@@ -229,7 +229,7 @@ VL53L1X_ERROR VL53L1X::VL53L1X_SetI2CAddress()
 VL53L1X_ERROR VL53L1X::VL53L1X_SensorInit()
 {
 	VL53L1X_ERROR status = 0;
-	uint8_t Addr = 0x00, tmp;
+	uint8_t tmp;
 	UNUSED(tmp);
 	status |= VL53L1_WriteMulti(this->__MsgInfo.I2C_Addr, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 0x88-0x2D, this->__CommunicationManager, &this->__MsgInfo);
 	status |= VL53L1X_StartRanging(this->__MsgInfo.I2C_Addr, this->__CommunicationManager, &this->__MsgInfo);

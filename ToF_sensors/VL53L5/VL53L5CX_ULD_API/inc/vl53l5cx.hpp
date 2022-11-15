@@ -57,7 +57,6 @@ private:
 			uint8_t 			*_cmd,
 			uint32_t			index,
 			uint16_t			data_size);
-	uint32_t __data_count;
 	uint16_t __InitSequenceID;
 	TickType_t __wait_until_tick;
 	static uint8_t __sensor_nb;
@@ -65,6 +64,7 @@ private:
 	uint8_t __sensor_index;
 	VL53L5CX_Configuration __sensor_conf;
 	ToF_Status_t __Status;
+	uint32_t __data_count;
 	uint16_t __address;
 	static uint8_t null_data_sink;
 	uint8_t __comm_buffer[VL53L5CX_TEMPORARY_BUFFER_SIZE];

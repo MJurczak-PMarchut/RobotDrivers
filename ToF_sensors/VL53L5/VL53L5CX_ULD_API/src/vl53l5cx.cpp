@@ -224,7 +224,7 @@ uint32_t header_config[2] = {0, 0};
 
 VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm) :
 		ToF_Sensor(vl53l5, position, comm), __InitSequenceID { 0 }, __wait_until_tick {
-				0 }, __Status { TOF_STATE_NOT_INITIALIZED }, __data_count{0} {
+				0 }, __Status { TOF_INIT_NOT_DONE }, __data_count{0} {
 
 	this->__sensor_index = __sensor_nb;
 	__sensor_nb++;
@@ -259,7 +259,7 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 	//sink for rx
 	MsgInfoToSend.pRxData = &null_data_sink;
 	//Init sensor
-	if (this->__Status == TOF_STATE_NOT_INITIALIZED) {
+	if (this->__Status == TOF_INIT_NOT_DONE) {
 		//Basically wait for sensor boot
 		MsgInfoToSend.len = 0;
 		this->__waitInit(1);
