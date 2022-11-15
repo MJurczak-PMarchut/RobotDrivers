@@ -50,6 +50,14 @@ private:
 			MessageInfoTypeDef*		MsgInfoToSend);
 	uint8_t __vl53l5cx_poll_for_mcu_boot(MessageInfoTypeDef* MsgInfoToSend);
 	uint8_t __vl53l5cx_send_offset_data(uint8_t resolution);
+	uint8_t __vl53l5cx_send_xtalk_data(uint8_t resolution);
+	uint8_t __vl53l5cx_start_ranging(MessageInfoTypeDef* MsgInfoToSend);
+	uint16_t __vl53l5cx_dci_write_data(uint8_t *data, uint32_t index, uint16_t data_size);
+	uint8_t __vl53l5cx_dci_read_data(
+			uint8_t 			*_cmd,
+			uint32_t			index,
+			uint16_t			data_size);
+	uint32_t __data_count;
 	uint16_t __InitSequenceID;
 	TickType_t __wait_until_tick;
 	static uint8_t __sensor_nb;

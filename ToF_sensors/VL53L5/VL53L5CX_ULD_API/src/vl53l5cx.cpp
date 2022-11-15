@@ -5,10 +5,10 @@
  *      Author: Paulina
  *
  * History:
- * 	--Date: 12.11.2022
+ * 	--Date: 15.11.2022
  * 	--Author: Mateusz
- * 	--Changes:
- * 		--A
+ * 	--Changes: 	Added SensorInit and helper functions
+ *
  */
 
 #include "vl53l5cx.hpp"
@@ -29,31 +29,46 @@ uint8_t VL53L5CX::__sensor_init_tbd = 0;
 uint8_t VL53L5CX::null_data_sink = 0;
 
 uint16_t VL53L5CX_INIT_REGS[] = {
+		/* SW reboot sequence */
 		0x7FFF, 0x0009, 0x000F, 0x000A,
 		0x7FFF,
 		0x000C, 0x0101, 0x0102, 0x010A, 0x4002, 0x4002, 0x010A, 0x0103, 0x000C, 0x000F,
 		0x0000,
 		0x000F, 0x000A,
 		0x0000,
+		/* Wait for sensor booted (several ms required to get sensor ready ) */
 		0x7FFF,
 		0x0006,
-		0x000E, 0x7FFF, 0x0003, 0x7FFF,
+		0x000E, 0x7FFF,
+		/* Enable FW access */
+		0x0003, 0x7FFF,
+		0x0021,
+		0x7FFF,
+		/* Enable host access to GO1 */
+		0x7FFF,
+		0x000C,
+		/* Power ON status */
+		0x7FFF, 0x0101, 0x0102, 0x010A, 0x4002, 0x4002, 0x010A, 0x0103, 0x400F, 0x021A, 0x021A, 0x021A, 0x021A, 0x0219, 0x021B,
+		/* Wake up MCU */
+		0x7FFF,
+		0x7FFF,
+		0x000C, 0x7FFF, 0x0020, 0x0020,
+		/* Download FW into VL53L5 */
+		0x7FFF,
+		0x0000,
+		0x7FFF,
+		0x0000,
+		0x7FFF,
+		0x0000,
+		0x7FFF,
+		/* Check if FW correctly downloaded */
+		0x7FFF, 0x0003, 0x7FFF,
 		0x0021,
 		0x7FFF,
 		0x7FFF,
-		0x000C, 0x7FFF, 0x0101, 0x0102, 0x010A, 0x4002, 0x4002, 0x010A, 0x0103, 0x400F, 0x021A, 0x021A, 0x021A, 0x021A, 0x0219, 0x021B, 0x7FFF,
-		0x7FFF,
-		0x000C, 0x7FFF, 0x0020, 0x0020, 0x7FFF,
-		0x0000,
-		0x7FFF,
-		0x0000,
-		0x7FFF,
-		0x0000,
-		0x7FFF, 0x7FFF, 0x0003, 0x7FFF,
-		0x0021,
-		0x7FFF,
-		0x7FFF,
-		0x000C, 0x7FFF, 0x0114, 0x0115, 0x0116, 0x0117, 0x000B,
+		0x000C,
+		/* Reset MCU and wait boot */
+		0x7FFF, 0x0114, 0x0115, 0x0116, 0x0117, 0x000B,
 		0x7FFF,
 		0x000C, 0x000B,
 		0x0006,
@@ -64,35 +79,80 @@ uint16_t VL53L5CX_INIT_REGS[] = {
 		VL53L5CX_UI_CMD_START,
 		/* _vl53l5cx_send_offset_data */
 		0x2E18,
-		VL53L5CX_UI_CMD_STATUS
+		VL53L5CX_UI_CMD_STATUS,
+		/*__vl53l5cx_send_xtalk_data */
+		0x2CF8,
+		/* Send default configuration to VL53L5CX firmware */
+		0x2C34,
+		VL53L5CX_UI_CMD_STATUS,
+		/* send dci #1 */
+		0x0000,
+		VL53L5CX_UI_CMD_STATUS,
+		/* send dci #2 */
+		0x0000,
+		VL53L5CX_UI_CMD_STATUS,
+		/* Init ends here, now send start ranging command and set frequency*/
+		0x0000,
+		VL53L5CX_UI_CMD_STATUS,
+		/* second dci in start ranging */
+		0x0000,
+		VL53L5CX_UI_CMD_STATUS,
+		/* third dci */
+		0x0000,
+		VL53L5CX_UI_CMD_STATUS,
+		/* Start xshut bypass (interrupt mode) */
+		0x7FFF, 0x0009, 0x7FFF,
+		/* WrMulti*/
+		VL53L5CX_UI_CMD_END - (uint16_t)(4 - 1),
+		VL53L5CX_UI_CMD_STATUS,
+		/* Read ui range data content and compare if data size is the correct one */
+		/* Request data reading from FW */
+		VL53L5CX_UI_CMD_END-(uint16_t)11,
+		VL53L5CX_UI_CMD_STATUS,
+		/* Read new data sent (4 bytes header + data_size + 8 bytes footer) */
+		VL53L5CX_UI_CMD_START,
+
+
 
 };
 uint8_t VL53L5CX_INIT_REG_VALUES[] = {
+		/* SW reboot sequence */
 		0x00, 0x04, 0x40, 0x03,
 		0x00,
 		0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x03, 0x01, 0x00, 0x43,
 		0x00,
 		0x40,0x01,
 		0x00,
+		/* Wait for sensor booted (several ms required to get sensor ready ) */
 		0x00,
 		0x00,
-		0x01, 0x02, 0x0D, 0x01,
+		0x01, 0x02,
+		/* Enable FW access */
+		0x0D, 0x01,
 		0x00,
 		0x00,
 		0x00,
-		0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x03, 0x01, 0x00, 0x43, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00,
+		0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x03, 0x01, 0x00, 0x43, 0x03, 0x01, 0x00, 0x00, 0x00,
+		/* Wake up MCU */
 		0x00,
-		0x00, 0x01, 0x07, 0x06, 0x09,
+		0x00,
+		0x00, 0x01, 0x07, 0x06,
+		/* Download FW into VL53L5 */
+		0x09,
 		0x00,
 		0x0A,
 		0x00,
 		0x0B,
 		0x00,
-		0x01, 0x02, 0x0D, 0x01,
+		0x01,
+		/* Check if FW correctly downloaded */
+		0x02, 0x0D, 0x01,
 		0x00,
 		0x00,
 		0x00,
-		0x01, 0x00, 0x00, 0x00, 0x42, 0x00, 0x00,
+		0x01,
+		/* Reset MCU and wait boot */
+		0x00, 0x00, 0x00, 0x42, 0x00, 0x00,
 		0x00,
 		0x00, 0x01,
 		0x00,
@@ -103,13 +163,68 @@ uint8_t VL53L5CX_INIT_REG_VALUES[] = {
 		0x00,
 		/* _vl53l5cx_send_offset_data */
 		0x00,
+		0x00,
+		/*__vl53l5cx_send_xtalk_data */
+		0x00,
+		/* Send default configuration to VL53L5CX firmware */
+		0x00,
+		0x00,
+		/* send dci #1 */
+		0x00,
+		0x00,
+		/* send dci #2 */
+		0x00,
+		0x00,
+		/* Init ends here, now send start ranging command and set frequency*/
+		0x00,
+		0x00,
+		/* second dci in start ranging */
+		0x00,
+		0x00,
+		/* third dci */
+		0x00,
+		0x00,
+		/* Start xshut bypass (interrupt mode) */
+		0x00, 0x05, 0x02,
+		/* WrMulti*/
+		0x00,
+		0x00,
+		/* Read ui range data content and compare if data size is the correct one */
+		/* Request data reading from FW */
+		0x00,
+		0x00,
+		/* Read new data sent (4 bytes header + data_size + 8 bytes footer) */
 		0x00
 
 };
 
+/* Enable mandatory output (meta and common data) */
+uint32_t output_bh_enable[] = {
+	0x00000007U,
+	0x00000000U,
+	0x00000000U,
+	0xC0000000U};
+
+/* Send addresses of possible output */
+uint32_t output[] ={VL53L5CX_START_BH,
+	VL53L5CX_METADATA_BH,
+	VL53L5CX_COMMONDATA_BH,
+	VL53L5CX_AMBIENT_RATE_BH,
+	VL53L5CX_SPAD_COUNT_BH,
+	VL53L5CX_NB_TARGET_DETECTED_BH,
+	VL53L5CX_SIGNAL_RATE_BH,
+	VL53L5CX_RANGE_SIGMA_MM_BH,
+	VL53L5CX_DISTANCE_BH,
+	VL53L5CX_REFLECTANCE_BH,
+	VL53L5CX_TARGET_STATUS_BH,
+	VL53L5CX_MOTION_DETECT_BH};
+
+uint8_t start_ranging_cmd[] = {0x00, 0x03, 0x00, 0x00};
+uint32_t header_config[2] = {0, 0};
+
 VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm) :
 		ToF_Sensor(vl53l5, position, comm), __InitSequenceID { 0 }, __wait_until_tick {
-				0 }, __Status { TOF_STATE_NOT_INITIALIZED } {
+				0 }, __Status { TOF_STATE_NOT_INITIALIZED }, __data_count{0} {
 
 	this->__sensor_index = __sensor_nb;
 	__sensor_nb++;
@@ -128,7 +243,13 @@ VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm) :
 HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 	HAL_StatusTypeDef ret = HAL_OK;
 	MessageInfoTypeDef MsgInfoToSend = { 0 };
-
+	uint32_t header_config[2] = {0, 0};
+	uint8_t pipe_ctrl[] = {VL53L5CX_NB_TARGET_PER_ZONE, 0x00, 0x01, 0x00};
+	uint32_t single_range = 0x01;
+	uint8_t cmd[] = {0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x0f,
+			0x00, 0x02, 0x00, 0x08};
+	uint16_t tmp;
 	MsgInfoToSend.context = this->__InitSequenceID;
 	MsgInfoToSend.pCB = std::bind(&VL53L5CX::SensorInit, this, std::placeholders::_1);
 	MsgInfoToSend.I2C_Addr = this->__address;
@@ -142,7 +263,7 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 		//Basically wait for sensor boot
 		MsgInfoToSend.len = 0;
 		this->__waitInit(1);
-	} else {
+	} else if (this->__Status == TOF_STATE_INIT_ONGOING){
 		switch (this->__InitSequenceID) {
 		case 0 ... 3:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
@@ -164,94 +285,102 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 			MsgInfoToSend.len = 0;
 			this->__waitInit(100);
 			break;
+		/* Wait for sensor booted (several ms required to get sensor ready ) */
 		case 19:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			break;
+		case 20:
 			this->__CheckInitPollingMessage(1, 0, 0xff, 1, MsgInfo, &MsgInfoToSend);
 			break;
-		case 20 ... 23:
+		case 21 ... 24:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
-			break;
-		case 24:
-			this->__CheckInitPollingMessage(1, 0, 0x10, 0x10, MsgInfo, &MsgInfoToSend);
 			break;
 		case 25:
-			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			this->__CheckInitPollingMessage(1, 0, 0x10, 0x10, MsgInfo, &MsgInfoToSend);
 			break;
 		case 26:
-			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
-			break;
-		case 27 ... 43:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 44:
+		case 27:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
 			break;
-		case 45 ... 49:
+		case 28 ... 44:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 50:
+		case 45:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
+			break;
+		case 46 ... 50:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			break;
+		case 51:
 			//FW download
 			MsgInfoToSend.len = 0x8000;
 			MsgInfoToSend.pTxData = (uint8_t*)&VL53L5CX_FIRMWARE[0];
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 51:
+		case 52:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 52:
+		case 53:
 			//FW download #2
 			MsgInfoToSend.len = 0x8000;
 			MsgInfoToSend.pTxData = (uint8_t*)&VL53L5CX_FIRMWARE[0x8000];
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 53:
+		case 54:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 54:
+		case 55:
 			//FW download #3
 			MsgInfoToSend.len = 0x5000;
 			MsgInfoToSend.pTxData = (uint8_t*)&VL53L5CX_FIRMWARE[0x10000];
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 55 ... 58:
+		case 56 ... 59:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
-			break;
-		case 59:
-			this->__CheckInitPollingMessage(1, 0, 0x10, 0x10, MsgInfo, &MsgInfoToSend);
 			break;
 		case 60:
-			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			this->__CheckInitPollingMessage(1, 0, 0x10, 0x10, MsgInfo, &MsgInfoToSend);
 			break;
 		case 61:
-			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
-			break;
-		case 62 ... 68:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 69:
+		case 62:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
 			break;
-		case 70 ... 71:
+		case 63 ... 69:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			break;
-		case 72:
+		case 70:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
+			break;
+		case 71 ... 72:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			break;
+		case 73:
 			if (__vl53l5cx_poll_for_mcu_boot(&MsgInfoToSend) != 0)
 			{
 				Error_Handler();
 			}
-		case 73:
+			break;
+		case 74:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			break;
+		case 75:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			MsgInfoToSend.len = sizeof(VL53L5CX_GET_NVM_CMD);
 			MsgInfoToSend.pTxData = (uint8_t*)VL53L5CX_GET_NVM_CMD;
 			break;
-		case 74:
+		case 76:
 			this->__CheckInitPollingMessage(4, 0, 0xFF, 2, MsgInfo, &MsgInfoToSend);
 			break;
-		case 75:
+		case 77:
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
 			MsgInfoToSend.len = VL53L5CX_NVM_DATA_SIZE;
 			MsgInfoToSend.pRxData = this-> __comm_buffer;
 			break;
-		case 76:
+		case 78:
 			//Send offset buffer;
 			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
 			(void)memcpy(this->__offset_buffer, this->__comm_buffer,
@@ -260,9 +389,121 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 			MsgInfoToSend.len = VL53L5CX_OFFSET_BUFFER_SIZE;
 			MsgInfoToSend.pTxData = this->__comm_buffer;
 			break;
-		case 77:
-			this->__CheckInitPollingMessage(4, 1, 0xFF, 2, MsgInfo, &MsgInfoToSend);
+		case 79:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
 			break;
+		case 80:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.len = VL53L5CX_XTALK_BUFFER_SIZE;
+			this->__vl53l5cx_send_xtalk_data(VL53L5CX_RESOLUTION_4X4);
+			MsgInfoToSend.pTxData = this->__comm_buffer;
+			break;
+		case 81:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 82:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.len = sizeof(VL53L5CX_DEFAULT_CONFIGURATION);
+			MsgInfoToSend.pTxData = (uint8_t*)VL53L5CX_DEFAULT_CONFIGURATION;
+			break;
+		case 83:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 84:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.I2C_MemAddr = this->__vl53l5cx_dci_write_data((uint8_t*)&pipe_ctrl,
+					VL53L5CX_DCI_PIPE_CONTROL, (uint16_t)sizeof(pipe_ctrl));
+			MsgInfoToSend.len = (uint16_t)sizeof(pipe_ctrl) + 12;
+			MsgInfoToSend.pTxData = this->__comm_buffer;
+			break;
+		case 85:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 86:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.I2C_MemAddr = this->__vl53l5cx_dci_write_data((uint8_t*)&single_range,
+					VL53L5CX_DCI_SINGLE_RANGE, (uint16_t)sizeof(single_range));
+			MsgInfoToSend.len = (uint16_t)sizeof(single_range) + 12;
+			MsgInfoToSend.pTxData = this->__comm_buffer;
+			break;
+		case 87:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+			/* Init ends here, now send start ranging command and set frequency*/
+		case 88:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			this->__vl53l5cx_start_ranging(&MsgInfoToSend);
+			MsgInfoToSend.I2C_MemAddr = this->__vl53l5cx_dci_write_data((uint8_t*)&(output), VL53L5CX_DCI_OUTPUT_LIST, (uint16_t)sizeof(output));
+			MsgInfoToSend.len = (uint16_t)sizeof(output) + 12;
+			MsgInfoToSend.pTxData = this->__comm_buffer;
+			break;
+		case 89:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 90:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.I2C_MemAddr = this->__vl53l5cx_dci_write_data((uint8_t*)&(header_config), VL53L5CX_DCI_OUTPUT_CONFIG, (uint16_t)sizeof(header_config));
+			MsgInfoToSend.len = (uint16_t)sizeof(header_config) + 12;
+			MsgInfoToSend.pTxData = this->__comm_buffer;
+			break;
+		case 91:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 92:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.I2C_MemAddr = this->__vl53l5cx_dci_write_data((uint8_t*)&(output_bh_enable), VL53L5CX_DCI_OUTPUT_CONFIG, (uint16_t)sizeof(output_bh_enable));
+			MsgInfoToSend.len = (uint16_t)sizeof(output_bh_enable) + 12;
+			MsgInfoToSend.pTxData = this->__comm_buffer;
+			break;
+		case 93:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 94 ... 96:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			break;
+		case 97:
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.len = sizeof(start_ranging_cmd);
+			MsgInfoToSend.pTxData = (uint8_t*)start_ranging_cmd;
+			break;
+		case 98:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 99:
+		/* Read ui range data content and compare if data size is the correct one */
+			/* Request data reading from FW */
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_TX;
+			MsgInfoToSend.len = sizeof(cmd);
+			this->__vl53l5cx_dci_read_data(cmd, 0x5440, 12);
+			(void)memcpy(this->__comm_buffer, cmd, sizeof(cmd));
+			MsgInfoToSend.pTxData = this->__comm_buffer;
+			break;
+		case 100:
+			this->__CheckInitPollingMessage(4, 1, 0xFF, 3, MsgInfo, &MsgInfoToSend);
+			break;
+		case 101:
+			/* Read new data sent (4 bytes header + data_size + 8 bytes footer) */
+			MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
+			MsgInfoToSend.len = 24;
+			MsgInfoToSend.pRxData = this->__comm_buffer;
+			break;
+		case 102:
+			SwapBuffer(this->__comm_buffer, 24);
+			/* Copy data from FW into input structure (-4 bytes to remove header) */
+			for(uint8_t i = 0 ; i < 24; i++){
+				this->__comm_buffer[i] = this->__comm_buffer[i + 4];
+			}
+			(void)memcpy(&tmp, &(this->__comm_buffer[0x8]), sizeof(tmp));
+			if(tmp != this->__data_count)
+			{
+				Error_Handler();
+			}
+			MsgInfoToSend.len = 0;
+			this->__Status = TOF_STATE_OK;
+			/* End Init sequence */
+			break;
+		default:
+			MsgInfoToSend.len = 0;
 		}
 		this->__InitSequenceID++;
 	}
@@ -299,6 +540,7 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 }
 
 HAL_StatusTypeDef VL53L5CX::CheckDataReady(void) {
+	return HAL_ERROR;
 }
 
 void VL53L5CX::__waitInit(uint32_t waitms) {
@@ -313,6 +555,8 @@ ToF_Status_t VL53L5CX::CheckSensorStatus(void) {
 			this->__Status = TOF_STATE_INIT_ONGOING;
 			this->SensorInit(NULL);
 		}
+		break;
+	default:
 		break;
 	}
 	return this->__Status;
@@ -421,5 +665,169 @@ uint8_t VL53L5CX::__vl53l5cx_send_offset_data(uint8_t resolution)
 	}
 
 	(void)memcpy(&(this->__comm_buffer[0x1E0]), footer, 8);
+	return status;
+}
+
+
+uint8_t VL53L5CX::__vl53l5cx_send_xtalk_data(uint8_t resolution)
+{
+	uint8_t status = VL53L5CX_STATUS_OK;
+	uint8_t res4x4[] = {0x0F, 0x04, 0x04, 0x17, 0x08, 0x10, 0x10, 0x07};
+	uint8_t dss_4x4[] = {0x00, 0x78, 0x00, 0x08, 0x00, 0x00, 0x00, 0x08};
+	uint8_t profile_4x4[] = {0xA0, 0xFC, 0x01, 0x00};
+	uint32_t signal_grid[64];
+	int8_t i, j;
+
+	(void)memcpy(this->__comm_buffer, (uint8_t*)VL53L5CX_DEFAULT_XTALK,
+		VL53L5CX_XTALK_BUFFER_SIZE);
+
+	/* Data extrapolation is required for 4X4 Xtalk */
+	if(resolution == (uint8_t)VL53L5CX_RESOLUTION_4X4)
+	{
+		(void)memcpy(&(this->__comm_buffer[0x8]),
+			res4x4, sizeof(res4x4));
+		(void)memcpy(&(this->__comm_buffer[0x020]),
+			dss_4x4, sizeof(dss_4x4));
+
+		SwapBuffer(this->__comm_buffer, VL53L5CX_XTALK_BUFFER_SIZE);
+		(void)memcpy(signal_grid, &(this->__comm_buffer[0x34]),
+			sizeof(signal_grid));
+
+		for (j = 0; j < (int8_t)4; j++)
+		{
+			for (i = 0; i < (int8_t)4 ; i++)
+			{
+				signal_grid[i+(4*j)] =
+				(signal_grid[(2*i)+(16*j)+0]
+				+ signal_grid[(2*i)+(16*j)+1]
+				+ signal_grid[(2*i)+(16*j)+8]
+				+ signal_grid[(2*i)+(16*j)+9])/(uint32_t)4;
+			}
+		}
+	    (void)memset(&signal_grid[0x10], 0, (uint32_t)192);
+	    (void)memcpy(&(this->__comm_buffer[0x34]),
+                  signal_grid, sizeof(signal_grid));
+	    SwapBuffer(this->__comm_buffer, VL53L5CX_XTALK_BUFFER_SIZE);
+	    (void)memcpy(&(this->__comm_buffer[0x134]),
+	    profile_4x4, sizeof(profile_4x4));
+	    (void)memset(&(this->__comm_buffer[0x078]),0 ,
+                         (uint32_t)4*sizeof(uint8_t));
+	}
+
+	return status;
+}
+
+
+uint16_t VL53L5CX::__vl53l5cx_dci_write_data(
+		uint8_t				*data,
+		uint32_t			index,
+		uint16_t			data_size)
+{
+	int16_t i;
+
+	uint8_t headers[] = { 0x00, 0x00, 0x00, 0x00 };
+	uint8_t footer[] = { 0x00, 0x00, 0x00, 0x0f, 0x05, 0x01,
+			(uint8_t) ((data_size + (uint16_t) 8) >> 8), (uint8_t) ((data_size
+					+ (uint16_t) 8) & (uint8_t) 0xFF) };
+
+	uint16_t address = (uint16_t) VL53L5CX_UI_CMD_END
+			- (data_size + (uint16_t) 12) + (uint16_t) 1;
+
+	headers[0] = (uint8_t) (index >> 8);
+	headers[1] = (uint8_t) (index & (uint32_t) 0xff);
+	headers[2] = (uint8_t) (((data_size & (uint16_t) 0xff0) >> 4));
+	headers[3] = (uint8_t) ((data_size & (uint16_t) 0xf) << 4);
+
+	/* Copy data from structure to FW format (+4 bytes to add header) */
+	SwapBuffer(data, data_size);
+	for (i = (int16_t) data_size - (int16_t) 1; i >= 0; i--) {
+		this->__comm_buffer[i + 4] = data[i];
+	}
+
+	/* Add headers and footer */
+	(void) memcpy(&this->__comm_buffer[0], headers, sizeof(headers));
+	(void) memcpy(&this->__comm_buffer[data_size + (uint16_t) 4], footer,
+			sizeof(footer));
+
+	SwapBuffer(data, data_size);
+
+	return address;
+}
+
+uint8_t VL53L5CX::__vl53l5cx_start_ranging(MessageInfoTypeDef* MsgInfoToSend)
+{
+	uint8_t resolution, status = VL53L5CX_STATUS_OK;
+	uint32_t i;
+
+	union Block_header *bh_ptr;
+
+	resolution = VL53L5CX_RESOLUTION_4X4;
+	this->__data_count = 0;
+
+	/* Enable selected outputs in the 'platform.h' file */
+#ifndef VL53L5CX_DISABLE_DISTANCE_MM
+	output_bh_enable[0] += (uint32_t)256;
+#endif
+#ifndef VL53L5CX_DISABLE_TARGET_STATUS
+	output_bh_enable[0] += (uint32_t)1024;
+#endif
+
+	/* Update data size */
+	for (i = 0; i < (uint32_t)(sizeof(output)/sizeof(uint32_t)); i++)
+	{
+		if ((output[i] == (uint8_t)0)
+                    || ((output_bh_enable[i/(uint32_t)32]
+                         &((uint32_t)1 << (i%(uint32_t)32))) == (uint32_t)0))
+		{
+			continue;
+		}
+
+		bh_ptr = (union Block_header *)&(output[i]);
+		if (((uint8_t)bh_ptr->type >= (uint8_t)0x1)
+                    && ((uint8_t)bh_ptr->type < (uint8_t)0x0d))
+		{
+			if ((bh_ptr->idx >= (uint16_t)0x54d0)
+                            && (bh_ptr->idx < (uint16_t)(0x54d0 + 960)))
+			{
+				bh_ptr->size = resolution;
+			}
+			else
+			{
+				bh_ptr->size = (uint16_t)((uint16_t)resolution
+                                  * (uint16_t)VL53L5CX_NB_TARGET_PER_ZONE);
+			}
+			this->__data_count += bh_ptr->type * bh_ptr->size;
+		}
+		else
+		{
+			this->__data_count += bh_ptr->size;
+		}
+		this->__data_count += (uint32_t)4;
+	}
+	this->__data_count += (uint32_t)24;
+
+	header_config[0] = this->__data_count;
+	header_config[1] = i + (uint32_t)1;
+
+	(void)memcpy(this->__comm_buffer, output, sizeof(output));
+	MsgInfoToSend->len = (uint16_t)sizeof(output);
+	MsgInfoToSend->pTxData = this->__comm_buffer;
+
+
+	return status;
+}
+
+uint8_t VL53L5CX::__vl53l5cx_dci_read_data(
+		uint8_t 			*_cmd,
+		uint32_t			index,
+		uint16_t			data_size)
+{
+	uint8_t status = VL53L5CX_STATUS_OK;
+	_cmd[0] = (uint8_t)(index >> 8);
+	_cmd[1] = (uint8_t)(index & (uint32_t)0xff);
+	_cmd[2] = (uint8_t)((data_size & (uint16_t)0xff0) >> 4);
+	_cmd[3] = (uint8_t)((data_size & (uint16_t)0xf) << 4);
+
+
 	return status;
 }
