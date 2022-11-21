@@ -13,7 +13,7 @@
 
 typedef enum  {vl53l5, vl53l1}e_ToF_Type;
 
-typedef enum  {FRONT_LEFT, FRONT_RIGHT}e_ToF_Position;
+typedef enum  {FRONT_LEFT=2, FRONT_RIGHT}e_ToF_Position;
 typedef enum {
 	TOF_STATE_OK = 0,
 	TOF_INIT_NOT_DONE,
@@ -39,9 +39,10 @@ protected:
 	e_ToF_Type ToF_Type;
 	CommManager *__CommunicationManager;
 	e_ToF_Position __pos;
+	static uint8_t __no_of_sensors;
 
 private:
-	static std::vector<ToF_Sensor*>  __ToFSensorPointer;
+	static ToF_Sensor*  __ToFSensorPointers[10];
 	static TaskHandle_t *__pTaskHandle;
 	static void __ToFSensorThread(void  *pvParameters);
 

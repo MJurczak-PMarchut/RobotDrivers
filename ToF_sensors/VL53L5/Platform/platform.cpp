@@ -97,19 +97,22 @@ uint8_t WrByte(
 {
 	uint8_t status = 0;
 	MessageInfoTypeDef MsgInfo = {0};
-
+	HAL_StatusTypeDef transmit_status = HAL_ERROR;
 	MsgInfo.I2C_Addr = p_platform->address;
 	MsgInfo.len = 1;
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pTxData = &value;
 	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
-
+	MsgInfo.TransactionStatus = &transmit_status;
 	do
 	{
 		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
 	} while(status!=0);
+	while(transmit_status != HAL_OK)
+	{
 
+	}
 	return status;
 }
 

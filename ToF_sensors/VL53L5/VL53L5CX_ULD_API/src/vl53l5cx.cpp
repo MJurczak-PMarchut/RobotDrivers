@@ -15,15 +15,9 @@
 #include "vl53l5cx_buffers.h"
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
-const static uint16_t __ToFX_SHUT_Pin[] = { XSHUT_3_Pin, XSHUT_3_Pin,
-XSHUT_3_Pin,
-XSHUT_4_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
-static GPIO_TypeDef *__ToFX_SHUT_Port[] = { XSHUT_3_GPIO_Port,
-XSHUT_3_GPIO_Port,
-XSHUT_3_GPIO_Port, XSHUT_4_GPIO_Port,
-XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port };
+const static uint16_t __ToFX_SHUT_Pin[] = { XSHUT_3_Pin, XSHUT_3_Pin, XSHUT_3_Pin,XSHUT_4_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
+static GPIO_TypeDef *__ToFX_SHUT_Port[] = { XSHUT_3_GPIO_Port, XSHUT_3_GPIO_Port, XSHUT_3_GPIO_Port, XSHUT_4_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port };
 
-uint8_t VL53L5CX::__sensor_nb = 0;
 uint8_t VL53L5CX::__sensor_init_tbd = 0;
 
 uint8_t VL53L5CX::null_data_sink = 0;
@@ -222,12 +216,10 @@ uint32_t output[] ={VL53L5CX_START_BH,
 uint8_t start_ranging_cmd[] = {0x00, 0x03, 0x00, 0x00};
 uint32_t header_config[2] = {0, 0};
 
-VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm) :
-		ToF_Sensor(vl53l5, position, comm), __InitSequenceID { 0 }, __wait_until_tick {
-				0 }, __Status { TOF_INIT_NOT_DONE }, __data_count{0} {
+VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *hi2c1) :
+		ToF_Sensor(vl53l5, position, comm), __hi2c1{hi2c1}, __InitSequenceID{0}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0} {
 
-	this->__sensor_index = __sensor_nb;
-	__sensor_nb++;
+	this->__sensor_index = __no_of_sensors - 1;
 	this->__sensor_conf.platform.__CommunicationManager = comm;
 	this->__sensor_conf.platform.address = DEFAULT_ADDR;
 
@@ -245,7 +237,7 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 	MessageInfoTypeDef MsgInfoToSend = { 0 };
 	uint32_t header_config[2] = {0, 0};
 	uint8_t pipe_ctrl[] = {VL53L5CX_NB_TARGET_PER_ZONE, 0x00, 0x01, 0x00};
-	uint32_t single_range = 0x01;
+	uint32_t single_range = 0x00;
 	uint8_t cmd[] = {0x00, 0x00, 0x00, 0x00,
 			0x00, 0x00, 0x00, 0x0f,
 			0x00, 0x02, 0x00, 0x08};
@@ -256,6 +248,7 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 	MsgInfoToSend.I2C_MemAddr = VL53L5CX_INIT_REGS[this->__InitSequenceID];
 	MsgInfoToSend.len = 1;
 	MsgInfoToSend.pTxData = &VL53L5CX_INIT_REG_VALUES[this->__InitSequenceID];
+	MsgInfoToSend.uCommInt.hi2c = this->__hi2c1;
 	//sink for rx
 	MsgInfoToSend.pRxData = &null_data_sink;
 	//Init sensor
@@ -515,11 +508,10 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(MessageInfoTypeDef* MsgInfo) {
 }
 
 HAL_StatusTypeDef VL53L5CX::SetI2CAddress() {
+	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
+			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_SET);
 	uint8_t ret = vl53l5cx_set_i2c_address(&this->__sensor_conf,
 			__ToFAddr[this->__sensor_index]);
-	while(this->__Status != TOF_STATE_INIT_ONGOING){
-		//Wait for address change
-	}
 	return (ret == 0) ? HAL_OK : HAL_ERROR;
 }
 

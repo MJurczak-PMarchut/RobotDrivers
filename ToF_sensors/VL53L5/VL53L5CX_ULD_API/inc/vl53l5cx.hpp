@@ -19,7 +19,7 @@
 class VL53L5CX: public ToF_Sensor {
 public:
 	VL53L5CX_ResultsData result;
-	VL53L5CX(e_ToF_Position position, CommManager *comm);
+	VL53L5CX(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *hi2c1);
 	HAL_StatusTypeDef CheckDataReady(void);
 	HAL_StatusTypeDef GetRangingData(void);
 	ToF_Status_t CheckSensorStatus(void);
@@ -57,6 +57,7 @@ private:
 			uint8_t 			*_cmd,
 			uint32_t			index,
 			uint16_t			data_size);
+	I2C_HandleTypeDef *__hi2c1;
 	uint16_t __InitSequenceID;
 	TickType_t __wait_until_tick;
 	static uint8_t __sensor_nb;

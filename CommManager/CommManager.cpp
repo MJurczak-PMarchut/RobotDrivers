@@ -366,6 +366,7 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(Handle *IntHand
 {
 	uint8_t VectorIndex;
 	MessageInfoTypeDef MsgInfo;
+	HAL_StatusTypeDef ret = HAL_ERROR;
 	//Find peripheral
 	for(VectorIndex = 0; VectorIndex < Queue->size(); VectorIndex++)
 	{
@@ -381,17 +382,22 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(Handle *IntHand
 //				auto size = (*Queue)[VectorIndex].MsgInfo.size();
 				MsgInfo =(*Queue)[VectorIndex].MsgInfo.front();
 				//send message
-				return this->__CheckIfFreeAndSendRecv(&MsgInfo, VectorIndex);
+				ret = this->__CheckIfFreeAndSendRecv(&MsgInfo, VectorIndex);
+				if(ret == HAL_ERROR)
+				{
+					//Unable to send
+					(*Queue)[VectorIndex].MsgInfo.pop();
+				}
 			}
 		}
 	}
-	return HAL_ERROR;
+	return ret;
 }
 
 HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex)
 {
 #if defined(SPI_USES_DMA) or defined(I2C_USES_DMA) or defined(UART_USES_DMA)
-	HAL_StatusTypeDef ret;
+	HAL_StatusTypeDef ret =HAL_BUSY;
 #endif
 	// Set Pins
 	switch(MsgInfo->eCommType)
@@ -412,7 +418,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 			{
 				//Queue empty and peripheral ready, send message
 				__CheckAndSetCSPins(MsgInfo, VectorIndex);
-				return HAL_I2C_Master_Receive_IT(MsgInfo->uCommInt.hi2c,MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_I2C_Master_Receive_IT(MsgInfo->uCommInt.hi2c,MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
 			}
 #elif defined I2C_USES_WAIT
 			if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
@@ -440,7 +446,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 			{
 				//Queue empty and peripheral ready, send message
 				__CheckAndSetCSPins(MsgInfo, VectorIndex);
-				return HAL_I2C_Mem_Read_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_I2C_Mem_Read_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
 			}
 #elif defined I2C_USES_WAIT
 			if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
@@ -468,7 +474,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 					{
 						//Queue empty and peripheral ready, send message
 						__CheckAndSetCSPins(MsgInfo, VectorIndex);
-						return HAL_I2C_Mem_Write_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pTxData, MsgInfo->len);
+						ret = HAL_I2C_Mem_Write_IT(MsgInfo->uCommInt.hi2c, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pTxData, MsgInfo->len);
 					}
 		#elif defined I2C_USES_WAIT
 					if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
@@ -496,7 +502,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 			{
 				//Queue empty and peripheral ready, send message
 				__CheckAndSetCSPins(MsgInfo, VectorIndex);
-				return HAL_I2C_Master_Transmit_IT(MsgInfo->uCommInt.hi2c,MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_I2C_Master_Transmit_IT(MsgInfo->uCommInt.hi2c,MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
 			}
 #elif defined I2C_USES_WAIT
 			if(MsgInfo->uCommInt.hi2c->State == HAL_I2C_STATE_READY)
@@ -524,7 +530,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 			{
 				//Queue empty and peripheral ready, send message
 				__CheckAndSetCSPins(MsgInfo, VectorIndex);
-				return HAL_SPI_TransmitReceive_IT(MsgInfo->uCommInt.hspi, MsgInfo->pTxData, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_SPI_TransmitReceive_IT(MsgInfo->uCommInt.hspi, MsgInfo->pTxData, MsgInfo->pRxData, MsgInfo->len);
 			}
 #elif defined SPI_USES_WAIT
 			if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
@@ -554,7 +560,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 			{
 				//Queue empty and peripheral ready, send message
 				__CheckAndSetCSPins(MsgInfo, VectorIndex);
-				return HAL_SPI_Receive_IT(MsgInfo->uCommInt.hspi, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_SPI_Receive_IT(MsgInfo->uCommInt.hspi, MsgInfo->pRxData, MsgInfo->len);
 			}
 #elif defined SPI_USES_WAIT
 			if((MsgInfo->uCommInt.hspi->State == HAL_SPI_STATE_READY))
@@ -577,7 +583,6 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 				__CheckAndSetCSPins(MsgInfo, VectorIndex);
 				ret = HAL_UART_Transmit_DMA(MsgInfo->uCommInt.huart, MsgInfo->pTxData, MsgInfo->len);
 				__HAL_DMA_DISABLE_IT(this->__huartQueueVect[VectorIndex].hdmaTx, DMA_IT_HT);
-				return ret;
 			}
 #elif defined UART_USES_IT
 			if((MsgInfo->uCommInt.huart->gState == HAL_UART_STATE_READY))
@@ -605,7 +610,6 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 				__CheckAndSetCSPins(MsgInfo, VectorIndex);
 				ret = HAL_UARTEx_ReceiveToIdle_DMA(MsgInfo->uCommInt.huart, MsgInfo->pRxData, MsgInfo->len);
 				__HAL_DMA_DISABLE_IT(this->__huartQueueVect[VectorIndex].hdmaRx, DMA_IT_HT);
-				return ret;
 			}
 #elif defined UART_USES_IT
 			if((MsgInfo->uCommInt.huart->gState == HAL_UART_STATE_READY))
@@ -629,7 +633,7 @@ HAL_StatusTypeDef CommManager::__CheckIfFreeAndSendRecv(MessageInfoTypeDef *MsgI
 			return HAL_ERROR;
 		}
 	}
-	return HAL_OK;
+	return ret;
 }
 
 HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef *MsgInfo, uint8_t VectorIndex)
