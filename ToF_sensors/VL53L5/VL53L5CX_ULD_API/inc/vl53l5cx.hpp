@@ -23,13 +23,17 @@ public:
 	HAL_StatusTypeDef CheckDataReady(void);
 	HAL_StatusTypeDef GetRangingData(void);
 	ToF_Status_t CheckSensorStatus(void);
+	void DataReceived(MessageInfoTypeDef *MsgInfo);
 	~VL53L5CX(void) {
 	}
 	;
 
 protected:
 	HAL_StatusTypeDef StopRanging(void);
-	HAL_StatusTypeDef SensorInit(MessageInfoTypeDef* MsgInfo);
+//	HAL_StatusTypeDef SensorInit(MessageInfoTypeDef* MsgInfo);
+	uint16_t GetSensorITPin(void);
+	HAL_StatusTypeDef __GetData(void);
+	HAL_StatusTypeDef SensorInit(void);
 	HAL_StatusTypeDef SetI2CAddress(void);
 	HAL_StatusTypeDef IsAlive(uint8_t *is_alive);
 	HAL_StatusTypeDef SetPowerMode(void);

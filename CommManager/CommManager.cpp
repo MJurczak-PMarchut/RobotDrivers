@@ -346,14 +346,14 @@ HAL_StatusTypeDef CommManager::__MsgReceivedCB(Handle *IntHandle, QueueVectTD *Q
 						{
 							Msg.pTxCompletedCB(&Msg);
 						}
-					if(Msg.pCB != 0)
-					{
-						Msg.pCB(&Msg);
-					}
 				}
 					break;
 				default:
 					break;
+			}
+			if(Msg.pCB != 0)
+			{
+				Msg.pCB(&Msg);
 			}
 			 return __CheckForNextCommRequestAndStart(IntHandle, Queue);
 		}

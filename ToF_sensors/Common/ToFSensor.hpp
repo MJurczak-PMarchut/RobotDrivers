@@ -18,6 +18,7 @@ typedef enum {
 	TOF_STATE_OK = 0,
 	TOF_INIT_NOT_DONE,
 	TOF_STATE_INIT_WAIT,
+	TOF_STATE_DATA_RDY,
 	TOF_STATE_ERROR,
 	TOF_STATE_BUSY,
 	TOF_STATE_INIT_ONGOING,
@@ -28,10 +29,15 @@ typedef enum {
 class ToF_Sensor {
 public:
 	ToF_Sensor(e_ToF_Type type, e_ToF_Position position, CommManager *comm);
-	virtual HAL_StatusTypeDef SensorInit(MessageInfoTypeDef* MsgInfo) = 0;
+//	virtual HAL_StatusTypeDef SensorInit(MessageInfoTypeDef* MsgInfo) = 0;
+	virtual HAL_StatusTypeDef SensorInit(void) = 0;
+	virtual uint16_t GetSensorITPin(void) = 0;
+	virtual HAL_StatusTypeDef GetRangingData(void) = 0;
 	virtual ToF_Status_t CheckSensorStatus(void) = 0;
 	e_ToF_Position getPosition(void) {return __pos;};
 	virtual HAL_StatusTypeDef SetI2CAddress(void) = 0;
+	virtual HAL_StatusTypeDef __GetData(void) = 0;
+	static void EXTI_Callback_func(uint16_t pin);
 	static void StartSensorTask(void);
 	virtual ~ToF_Sensor();
 

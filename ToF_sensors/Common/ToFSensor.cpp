@@ -29,11 +29,25 @@ void ToF_Sensor::StartSensorTask(void) {
 	{
 		SensorObj = __ToFSensorPointers[i];
 		SensorObj->SetI2CAddress();
+		SensorObj->SensorInit();
 	}
 //	Start task for monitoring and initialization of ToF sensors
-//	if (xTaskCreate(__ToFSensorThread, "ToF Thread", 1024, NULL, 1, ToF_Sensor::__pTaskHandle) != pdPASS) {
-//		Error_Handler();
-//	}
+	if (xTaskCreate(__ToFSensorThread, "ToF Thread", 1024, NULL, 1, ToF_Sensor::__pTaskHandle) != pdPASS) {
+		Error_Handler();
+	}
+}
+
+void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
+{
+	ToF_Sensor* SensorObj;
+		for (uint8_t i = 0; i < __no_of_sensors; i++)
+		{
+			SensorObj = __ToFSensorPointers[i];
+			if(SensorObj->GetSensorITPin() == pin)
+			{
+				SensorObj->__GetData();
+			}
+		}
 }
 
 ToF_Sensor::~ToF_Sensor() {
@@ -55,7 +69,6 @@ void ToF_Sensor::__ToFSensorThread(void *pvParameters) {
 				}
 					break;
 				case TOF_INIT_NOT_DONE: {
-
 				}
 					break;
 				case TOF_STATE_ERROR: {
@@ -78,12 +91,16 @@ void ToF_Sensor::__ToFSensorThread(void *pvParameters) {
 
 				}
 					break;
+				case TOF_STATE_DATA_RDY: {
+					SensorObj->GetRangingData();
+				}
+					break;
 				default: {
 
 				}
 					break;
 			}
 		}
-		vTaskDelay(50);
+		vTaskDelay(5);
 	}
 }

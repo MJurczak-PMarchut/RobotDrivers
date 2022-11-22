@@ -74,19 +74,26 @@ uint8_t RdByte(
 {
 	uint8_t status = 0;
 	MessageInfoTypeDef MsgInfo = {0};
-	
+	HAL_StatusTypeDef transmit_status = HAL_ERROR;
 	MsgInfo.I2C_Addr = p_platform->address;
 	MsgInfo.len = 1;
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pRxData = p_value;
 	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
+	MsgInfo.TransactionStatus = &transmit_status;
 
 	do
 	{
 		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while(status!=0);
+	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+	if(status == HAL_ERROR){
+		return status;
+	}
+	while(transmit_status != HAL_OK)
+	{
 
+	}
 	return status;
 }
 
@@ -108,7 +115,10 @@ uint8_t WrByte(
 	do
 	{
 		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while(status!=0);
+	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+	if(status == HAL_ERROR){
+		return status;
+	}
 	while(transmit_status != HAL_OK)
 	{
 
@@ -124,19 +134,25 @@ uint8_t WrMulti(
 {
 	uint8_t status = 0;
 	MessageInfoTypeDef MsgInfo = {0};
-
+	HAL_StatusTypeDef transmit_status = HAL_ERROR;
 	MsgInfo.I2C_Addr = p_platform->address;
 	MsgInfo.len = size;
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pTxData = p_values;
 	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
-
+	MsgInfo.TransactionStatus = &transmit_status;
 	do
 	{
 		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while(status!=0);
+	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+	if(status == HAL_ERROR){
+		return status;
+	}
+	while(transmit_status != HAL_OK)
+	{
 
+	}
 	return status;
 }
 
@@ -148,19 +164,25 @@ uint8_t RdMulti(
 {
 	uint8_t status = 0;
 	MessageInfoTypeDef MsgInfo = {0};
-	
+	HAL_StatusTypeDef transmit_status = HAL_ERROR;
 	MsgInfo.I2C_Addr = p_platform->address;
 	MsgInfo.len = size;
 	MsgInfo.uCommInt.hi2c = &hi2c1;
 	MsgInfo.pRxData = p_values;
 	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
 	MsgInfo.I2C_MemAddr = RegisterAdress;
-
+	MsgInfo.TransactionStatus = &transmit_status;
 	do
 	{
 		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while(status!=0);
+	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+	if(status == HAL_ERROR){
+		return status;
+	}
+	while(transmit_status != HAL_OK)
+	{
 
+	}
 	return status;
 }
 
