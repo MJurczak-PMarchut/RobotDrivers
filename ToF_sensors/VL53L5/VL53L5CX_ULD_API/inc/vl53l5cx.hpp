@@ -23,6 +23,8 @@ public:
 	HAL_StatusTypeDef CheckDataReady(void);
 	HAL_StatusTypeDef GetRangingData(void);
 	ToF_Status_t CheckSensorStatus(void);
+	uint16_t GetDataFromSensor(uint8_t x, uint8_t y);
+	uint8_t GetStatusFromSensor(uint8_t x, uint8_t y);
 	void DataReceived(MessageInfoTypeDef *MsgInfo);
 	~VL53L5CX(void) {
 	}

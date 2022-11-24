@@ -525,6 +525,30 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(void)
 //	return ret;
 //}
 
+uint16_t VL53L5CX::GetDataFromSensor(uint8_t x, uint8_t y)
+{
+	uint8_t index = (y*4)+x;
+	if(index < 16)
+	{
+		return this->result.distance_mm[index];
+	}
+	else{
+		return 0xFFFF;
+	}
+}
+
+uint8_t VL53L5CX::GetStatusFromSensor(uint8_t x, uint8_t y)
+{
+	uint8_t index = (y*4)+x;
+	if(index < 16)
+	{
+		return this->result.target_status[index];
+	}
+	else{
+		return 0xFF;
+	}
+}
+
 HAL_StatusTypeDef VL53L5CX::SetI2CAddress() {
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_SET);
@@ -552,6 +576,7 @@ void VL53L5CX::DataReceived(MessageInfoTypeDef* MsgInfo)
 		this->result.distance_mm[i] = (this->result.distance_mm[i] < 0)? 0 : this->result.distance_mm[i]/4;
 	}
 	SwapBuffer(this->result.target_status, (uint16_t)16);
+	this->__Status = TOF_STATE_OK;
 }
 
 HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
@@ -571,6 +596,7 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 		MsgInfoToSend.uCommInt.hi2c = this->__hi2c1;
 		MsgInfoToSend.pCB = std::bind(&VL53L5CX::DataReceived, this, std::placeholders::_1);
 		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+		this->__Status = TOF_STATE_DATA_RDY;
 	return (ret == 0) ? HAL_OK : HAL_ERROR;
 }
 

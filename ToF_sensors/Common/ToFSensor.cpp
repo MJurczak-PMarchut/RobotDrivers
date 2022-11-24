@@ -92,7 +92,6 @@ void ToF_Sensor::__ToFSensorThread(void *pvParameters) {
 				}
 					break;
 				case TOF_STATE_DATA_RDY: {
-					SensorObj->GetRangingData();
 				}
 					break;
 				default: {
