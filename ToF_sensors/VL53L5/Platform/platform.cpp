@@ -73,28 +73,30 @@ uint8_t RdByte(
 		uint8_t *p_value)
 {
 	uint8_t status = 0;
-	MessageInfoTypeDef MsgInfo = {0};
-	HAL_StatusTypeDef transmit_status = HAL_ERROR;
-	MsgInfo.I2C_Addr = p_platform->address;
-	MsgInfo.len = 1;
-	MsgInfo.uCommInt.hi2c = &hi2c1;
-	MsgInfo.pRxData = p_value;
-	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.TransactionStatus = &transmit_status;
-
-	do
-	{
-		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-	if(status == HAL_ERROR){
-		return status;
-	}
-	while(transmit_status != HAL_OK)
-	{
-
-	}
+//	MessageInfoTypeDef MsgInfo = {0};
+//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_value, 1, 150);
 	return status;
+//	MsgInfo.I2C_Addr = p_platform->address;
+//	MsgInfo.len = 1;
+//	MsgInfo.uCommInt.hi2c = &hi2c1;
+//	MsgInfo.pRxData = p_value;
+//	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
+//	MsgInfo.I2C_MemAddr = RegisterAdress;
+//	MsgInfo.TransactionStatus = &transmit_status;
+//
+//	do
+//	{
+//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+//	if(status == HAL_ERROR){
+//		return status;
+//	}
+//	while(transmit_status != HAL_OK)
+//	{
+//
+//	}
+//	return status;
 }
 
 uint8_t WrByte(
@@ -103,27 +105,30 @@ uint8_t WrByte(
 		uint8_t value)
 {
 	uint8_t status = 0;
-	MessageInfoTypeDef MsgInfo = {0};
-	HAL_StatusTypeDef transmit_status = HAL_ERROR;
-	MsgInfo.I2C_Addr = p_platform->address;
-	MsgInfo.len = 1;
-	MsgInfo.uCommInt.hi2c = &hi2c1;
-	MsgInfo.pTxData = &value;
-	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.TransactionStatus = &transmit_status;
-	do
-	{
-		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-	if(status == HAL_ERROR){
-		return status;
-	}
-	while(transmit_status != HAL_OK)
-	{
-
-	}
+//	MessageInfoTypeDef MsgInfo = {0};
+//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	uint8_t value_stat = value;
+	HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, &value_stat, 1, 150);
 	return status;
+//	MsgInfo.I2C_Addr = p_platform->address;
+//	MsgInfo.len = 1;
+//	MsgInfo.uCommInt.hi2c = &hi2c1;
+//	MsgInfo.pTxData = &value_stat;
+//	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
+//	MsgInfo.I2C_MemAddr = RegisterAdress;
+//	MsgInfo.TransactionStatus = &transmit_status;
+//	do
+//	{
+//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+//	if(status == HAL_ERROR){
+//		return status;
+//	}
+//	while(transmit_status != HAL_OK)
+//	{
+//
+//	}
+//	return status;
 }
 
 uint8_t WrMulti(
@@ -133,27 +138,29 @@ uint8_t WrMulti(
 		uint32_t size)
 {
 	uint8_t status = 0;
-	MessageInfoTypeDef MsgInfo = {0};
-	HAL_StatusTypeDef transmit_status = HAL_ERROR;
-	MsgInfo.I2C_Addr = p_platform->address;
-	MsgInfo.len = size;
-	MsgInfo.uCommInt.hi2c = &hi2c1;
-	MsgInfo.pTxData = p_values;
-	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.TransactionStatus = &transmit_status;
-	do
-	{
-		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-	if(status == HAL_ERROR){
-		return status;
-	}
-	while(transmit_status != HAL_OK)
-	{
-
-	}
+//	MessageInfoTypeDef MsgInfo = {0};
+//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 1000);
 	return status;
+//	MsgInfo.I2C_Addr = p_platform->address;
+//	MsgInfo.len = size;
+//	MsgInfo.uCommInt.hi2c = &hi2c1;
+//	MsgInfo.pTxData = p_values;
+//	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
+//	MsgInfo.I2C_MemAddr = RegisterAdress;
+//	MsgInfo.TransactionStatus = &transmit_status;
+//	do
+//	{
+//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+//	if(status == HAL_ERROR){
+//		return status;
+//	}
+//	while(transmit_status != HAL_OK)
+//	{
+//
+//	}
+//	return status;
 }
 
 uint8_t RdMulti(
@@ -163,27 +170,29 @@ uint8_t RdMulti(
 		uint32_t size)
 {
 	uint8_t status = 0;
-	MessageInfoTypeDef MsgInfo = {0};
-	HAL_StatusTypeDef transmit_status = HAL_ERROR;
-	MsgInfo.I2C_Addr = p_platform->address;
-	MsgInfo.len = size;
-	MsgInfo.uCommInt.hi2c = &hi2c1;
-	MsgInfo.pRxData = p_values;
-	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.TransactionStatus = &transmit_status;
-	do
-	{
-		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-	if(status == HAL_ERROR){
-		return status;
-	}
-	while(transmit_status != HAL_OK)
-	{
-
-	}
+//	MessageInfoTypeDef MsgInfo = {0};
+//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 250);
 	return status;
+//	MsgInfo.I2C_Addr = p_platform->address;
+//	MsgInfo.len = size;
+//	MsgInfo.uCommInt.hi2c = &hi2c1;
+//	MsgInfo.pRxData = p_values;
+//	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
+//	MsgInfo.I2C_MemAddr = RegisterAdress;
+//	MsgInfo.TransactionStatus = &transmit_status;
+//	do
+//	{
+//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
+//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
+//	if(status == HAL_ERROR){
+//		return status;
+//	}
+//	while(transmit_status != HAL_OK)
+//	{
+//
+//	}
+//	return status;
 }
 
 uint8_t Reset_Sensor(
@@ -231,12 +240,12 @@ uint8_t WaitMs(
 {
 	uint8_t status = 0;
 
-#ifdef USES_RTOS
-//Use vTaskDelay when RTOS is in use
-	vTaskDelay(TimeMs);
-#else
+//#ifdef USES_RTOS
+////Use vTaskDelay when RTOS is in use
+//	vTaskDelay(TimeMs);
+//#else
 	HAL_Delay(TimeMs);
-#endif
+//#endif
 	
 
 	return status;

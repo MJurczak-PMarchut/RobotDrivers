@@ -37,6 +37,7 @@ public:
 	e_ToF_Position getPosition(void) {return __pos;};
 	virtual HAL_StatusTypeDef SetI2CAddress(void) = 0;
 	virtual HAL_StatusTypeDef __GetData(void) = 0;
+	virtual HAL_StatusTypeDef DisableSensorComm(void)=0;
 	static void EXTI_Callback_func(uint16_t pin);
 	static void StartSensorTask(void);
 	virtual ~ToF_Sensor();

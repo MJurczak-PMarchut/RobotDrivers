@@ -367,6 +367,7 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(Handle *IntHand
 	uint8_t VectorIndex;
 	MessageInfoTypeDef MsgInfo;
 	HAL_StatusTypeDef ret = HAL_ERROR;
+
 	//Find peripheral
 	for(VectorIndex = 0; VectorIndex < Queue->size(); VectorIndex++)
 	{
@@ -375,7 +376,10 @@ HAL_StatusTypeDef CommManager::__CheckForNextCommRequestAndStart(Handle *IntHand
 			//Check if there are messages in queue
 			if((*Queue)[VectorIndex].MsgInfo.size() > MAX_MESSAGE_NO_IN_QUEUE)
 			{
-				Error_Handler(); //Ooops
+				if((*Queue)[VectorIndex].MsgInfo.empty())
+				{
+					return HAL_OK;
+				}
 			}
 			else if((*Queue)[VectorIndex].MsgInfo.size() > 0)
 			{
