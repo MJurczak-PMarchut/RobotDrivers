@@ -71,8 +71,11 @@
 	#define MOTOR_LEFT_NDIS_ENABLED (1<<5)
 	#define MOTOR_RIGHT_NDIS_ENABLED (1<<6)
 
-	#define __IN1_L_Pin GPIO_PIN_6
-	#define __IN1_L_GPIO_Port GPIOE
+	#define TOF_GPIO_1_Pin GPIO_PIN_5
+	#define TOF_GPIO_1_GPIO_Port GPIOE
+	#define TOF_GPIO_1_EXTI_IRQn EXTI9_5_IRQn
+	#define XSHUT_1_Pin GPIO_PIN_6
+	#define XSHUT_1_GPIO_Port GPIOE
 	#define V_LS1_Pin GPIO_PIN_4
 	#define V_LS1_GPIO_Port GPIOA
 	#define V_LS2_Pin GPIO_PIN_5
@@ -111,10 +114,11 @@
 	#define MD_DIS_1_GPIO_Port GPIOA
 	#define MD_CS_1_Pin GPIO_PIN_9
 	#define MD_CS_1_GPIO_Port GPIOA
-	#define __IN2_R_Pin GPIO_PIN_11
-	#define __IN2_R_GPIO_Port GPIOA
-	#define __IN1_R_Pin GPIO_PIN_12
-	#define __IN1_R_GPIO_Port GPIOA
+	#define TOF_GPIO_2_Pin GPIO_PIN_11
+	#define TOF_GPIO_2_GPIO_Port GPIOA
+	#define TOF_GPIO_2_EXTI_IRQn EXTI15_10_IRQn
+	#define XSHUT_2_Pin GPIO_PIN_12
+	#define XSHUT_2_GPIO_Port GPIOA
 	#define TOF_GPIO_5_Pin GPIO_PIN_10
 	#define TOF_GPIO_5_GPIO_Port GPIOC
 	#define TOF_GPIO_5_EXTI_IRQn EXTI15_10_IRQn
