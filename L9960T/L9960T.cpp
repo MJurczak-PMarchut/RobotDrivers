@@ -16,14 +16,16 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	__Channel{Channel}
 {
 	__InitMessageID = 0;
+#ifdef ROBOT_IS_TOMISLAW
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
+#else
+	if((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << MOTOR_RIGHT)) == 0))
+#endif
 	{
 		this->__IN1_PWM_PIN = MD_IN1_PWM_B_Pin;
 		this->__IN2_DIR_PIN = MD_IN2_DIR_B_Pin;
 		this->__IN1_PWM_PORT = MD_IN1_PWM_B_GPIO_Port;
 		this->__IN2_DIR_PORT = MD_IN2_DIR_B_GPIO_Port;
-		this->__Instantiated_sides |= (1 << MOTOR_LEFT);
-		this->__Instantiated_sides |= MOTOR_LEFT_NDIS_ENABLED;
 		this->__CS_Pin = MD_CS_2_Pin;
 		this->__CS_Port = MD_CS_2_GPIO_Port;
 		this->__DIS_PORT = MD_DIS_2_GPIO_Port;
@@ -34,14 +36,16 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 		this->__Direction = GPIO_PIN_SET;
 #endif
 	}
+#ifdef ROBOT_IS_TOMISLAW
 	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << MOTOR_RIGHT)) == 0))
+#else
+	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
+#endif
 	{
 		this->__IN1_PWM_PIN = MD_IN1_PWM_A_Pin;
 		this->__IN2_DIR_PIN = MD_IN2_DIR_A_Pin;
 		this->__IN1_PWM_PORT = MD_IN1_PWM_A_GPIO_Port;
 		this->__IN2_DIR_PORT = MD_IN2_DIR_A_GPIO_Port;
-		this->__Instantiated_sides |= (1 << MOTOR_RIGHT);
-		this->__Instantiated_sides |= MOTOR_RIGHT_NDIS_ENABLED;
 		this->__CS_Pin = MD_CS_1_Pin;
 		this->__CS_Port = MD_CS_1_GPIO_Port;
 		this->__DIS_PORT = MD_DIS_1_GPIO_Port;
@@ -53,6 +57,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 #endif
 	}
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
+	this->__Instantiated_sides |= (1 << this->__side);
 	this->__Instantiated_sides |=  ((1 << this->__side) << MOTOR_NDIS_OFFSET);
 	HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_SET);
 }

@@ -15,9 +15,15 @@
 #include "vl53l5cx_buffers.h"
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
+#ifdef ROBOT_IS_TOMISLAW
+const static uint16_t __ToFX_SHUT_Pin[] = {  XSHUT_3_Pin, XSHUT_6_Pin, XSHUT_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
+const static uint16_t __ToFX_GPIO_Pin[] = {  TOF_GPIO_3_Pin, TOF_GPIO_6_Pin, TOF_GPIO_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
+static GPIO_TypeDef *__ToFX_SHUT_Port[] = {  XSHUT_3_GPIO_Port, XSHUT_6_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port };
+#else
 const static uint16_t __ToFX_SHUT_Pin[] = {  XSHUT_4_Pin, XSHUT_2_Pin, XSHUT_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
 const static uint16_t __ToFX_GPIO_Pin[] = {  TOF_GPIO_4_Pin, TOF_GPIO_2_Pin, TOF_GPIO_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
 static GPIO_TypeDef *__ToFX_SHUT_Port[] = {  XSHUT_4_GPIO_Port, XSHUT_2_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port };
+#endif
 
 uint8_t VL53L5CX::__sensor_init_tbd = 0;
 
@@ -240,8 +246,8 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(void)
 	ret = vl53l5cx_init(&this->__sensor_conf);
 	ret |= vl53l5cx_set_ranging_mode(&this->__sensor_conf, VL53L5CX_RANGING_MODE_CONTINUOUS);
 	ret |= vl53l5cx_set_ranging_frequency_hz(&this->__sensor_conf, 60);
-	this->__Status = TOF_STATE_OK;
 	ret |= vl53l5cx_start_ranging(&this->__sensor_conf);
+	this->__Status = (ret)?TOF_STATE_ERROR:TOF_STATE_OK;
 	return (ret)?HAL_OK:HAL_ERROR;
 }
 

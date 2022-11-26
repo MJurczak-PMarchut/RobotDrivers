@@ -121,7 +121,6 @@
 	#define XSHUT_2_GPIO_Port GPIOA
 	#define TOF_GPIO_5_Pin GPIO_PIN_10
 	#define TOF_GPIO_5_GPIO_Port GPIOC
-	#define TOF_GPIO_5_EXTI_IRQn EXTI15_10_IRQn
 	#define XSHUT_5_Pin GPIO_PIN_11
 	#define XSHUT_5_GPIO_Port GPIOC
 	#define TOF_GPIO_6_Pin GPIO_PIN_12
@@ -129,6 +128,14 @@
 	#define TOF_GPIO_6_EXTI_IRQn EXTI15_10_IRQn
 	#define XSHUT_6_Pin GPIO_PIN_0
 	#define XSHUT_6_GPIO_Port GPIOD
+
+	#ifdef ROBOT_IS_TOMISLAW
+		#define STARTER_Pin TOF_GPIO_5_Pin
+		#define STARTER_Port TOF_GPIO_5_GPIO_Port
+	#else
+		#define STARTER_Pin TOF_GPIO_6_Pin
+		#define STARTER_Port TOF_GPIO_6_GPIO_Port
+	#endif
 #endif
 
 #endif /* ROBOTSPECIFICDEFINES_HPP_ */

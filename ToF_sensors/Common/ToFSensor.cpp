@@ -38,9 +38,9 @@ void ToF_Sensor::StartSensorTask(void) {
 	}
 
 //	Start task for monitoring and initialization of ToF sensors
-	if (xTaskCreate(__ToFSensorThread, "ToF Thread", 2000, NULL, 1, ToF_Sensor::__pTaskHandle) != pdPASS) {
-		Error_Handler();
-	}
+//	if (xTaskCreate(__ToFSensorThread, "ToF Thread", 2000, NULL, 1, ToF_Sensor::__pTaskHandle) != pdPASS) {
+//		Error_Handler();
+//	}
 }
 
 void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
