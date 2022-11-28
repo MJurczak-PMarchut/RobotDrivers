@@ -242,6 +242,49 @@ HAL_StatusTypeDef L9960T::StartPWM(void)
 	return HAL_TIM_PWM_Start(__htim, __Channel);
 }
 
+
+HAL_StatusTypeDef L9960T::CheckControllerState(void)
+{
+	uint16_t Message;
+	static HAL_StatusTypeDef transactionstatud = HAL_ERROR;
+	MessageInfoTypeDef MsgInfoToSend = {0};
+	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
+	MsgInfoToSend.GPIOx = this->__CS_Port;
+	MsgInfoToSend.context = 0;
+	MsgInfoToSend.eCommType = COMM_INT_SPI_TXRX;
+	MsgInfoToSend.len = 2;
+	MsgInfoToSend.pRxData = this->pRxData;
+	MsgInfoToSend.uCommInt.hspi = this->__hspi;
+	MsgInfoToSend.pTxData = pTxData;
+	MsgInfoToSend.TransactionStatus = &transactionstatud;
+	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
+	Message |= (~__builtin_parity(Message) & 1);
+	this->pTxData[1] = (Message & 0xFF);
+	this->pTxData[0] = ((Message >> 8) & 0xFF);
+	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	while(transactionstatud == HAL_BUSY){}
+	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_2 << MESSAGE_OFFSET);
+	Message |= (~__builtin_parity(Message) & 1);
+	this->pTxData[1] = (Message & 0xFF);
+	this->pTxData[0] = ((Message >> 8) & 0xFF);
+	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	while(transactionstatud == HAL_BUSY){}
+	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_3 << MESSAGE_OFFSET);
+	Message |= (~__builtin_parity(Message) & 1);
+	this->pTxData[1] = (Message & 0xFF);
+	this->pTxData[0] = ((Message >> 8) & 0xFF);
+	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	while(transactionstatud == HAL_BUSY){}
+	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
+	Message |= (~__builtin_parity(Message) & 1);
+	this->pTxData[1] = (Message & 0xFF);
+	this->pTxData[0] = ((Message >> 8) & 0xFF);
+	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	while(transactionstatud == HAL_BUSY){}
+
+
+
+}
 void L9960T::__delay_ms(uint32_t TimeMs)
 {
 #ifdef USES_RTOS
