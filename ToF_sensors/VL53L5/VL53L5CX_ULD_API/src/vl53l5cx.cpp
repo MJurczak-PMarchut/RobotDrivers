@@ -583,12 +583,13 @@ HAL_StatusTypeDef VL53L5CX::StartRanging(void) {
 
 void VL53L5CX::DataReceived(MessageInfoTypeDef* MsgInfo)
 {
-	SwapBuffer((uint8_t*)this->result.distance_mm, (uint16_t)32);
+	SwapBuffer((uint8_t*)this->__comm_buffer, (uint16_t)32);
 	for(uint8_t i = 0; i< 16; i++)
 	{
-		this->result.distance_mm[i] = (this->result.distance_mm[i] < 0)? 0 : this->result.distance_mm[i]/4;
+		this->result.distance_mm[i] = (((uint16_t*)this->__comm_buffer)[i] < 0)? 0 : ((uint16_t*)this->__comm_buffer)[i]/4;
 	}
-	SwapBuffer(this->result.target_status, (uint16_t)16);
+	SwapBuffer(this->__comm_buffer + 32, (uint16_t)16);
+	memcpy(this->result.target_status, this->__comm_buffer + 32, 16);
 	this->__Status = TOF_STATE_OK;
 }
 
@@ -599,13 +600,13 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 		MsgInfoToSend.I2C_Addr = this->__address;
 		MsgInfoToSend.I2C_MemAddr = 304;
 		MsgInfoToSend.len = 32;
-		MsgInfoToSend.pRxData = (uint8_t*)this->result.distance_mm;
+		MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
 		MsgInfoToSend.uCommInt.hi2c = this->__hi2c1;
 		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 		MsgInfoToSend.I2C_Addr = this->__address;
 		MsgInfoToSend.I2C_MemAddr = 360;
 		MsgInfoToSend.len = 16;
-		MsgInfoToSend.pRxData = this->result.target_status;
+		MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer + 32;
 		MsgInfoToSend.uCommInt.hi2c = this->__hi2c1;
 		MsgInfoToSend.pCB = std::bind(&VL53L5CX::DataReceived, this, std::placeholders::_1);
 		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);

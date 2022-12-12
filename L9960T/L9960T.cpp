@@ -157,14 +157,26 @@ void L9960T::Init(MessageInfoTypeDef* MsgInfo)
 			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfoToSend.context = (1 << this->__side) |
-							  (0 << CONTEXT_OFFSET) | //End Init
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
 							  (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfoToSend.pTxData = pTxData;
 			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->__InitMessageID++;
+			break;
+		case 5://Set current range
+			Message = (CONFIGURATION_ADDR(1) << ADDRESS_OFFSET) | (0x3 << CONFIGURATION_CL_OFFSET);
+			Message |= (~__builtin_parity(Message) & 1);
+			MsgInfoToSend.context = (1 << this->__side) |
+							  (0 << CONTEXT_OFFSET) | //End Init
+							  (this->__InitMessageID << 8);
+			this->pTxData[1] = (Message & 0xFF);
+			this->pTxData[0] = ((Message >> 8) & 0xFF);
+			MsgInfoToSend.pTxData = pTxData;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->StartPWM();
+			this->__InitMessageID++;
 			break;
 
 	}
