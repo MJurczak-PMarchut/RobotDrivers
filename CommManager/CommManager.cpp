@@ -117,7 +117,9 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 			case COMM_INT_SPI_RX:
 			{
 #if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
+				__disable_irq();
 				this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
+				__enable_irq();
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.hspi, &this->__hspiQueueVect);
 #else
 				return HAL_ERROR;
@@ -130,7 +132,9 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 			case COMM_INT_I2C_MEM_RX:
 			{
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
+				__disable_irq();
 				this->__hi2cQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
+				__enable_irq();
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.hi2c, &this->__hi2cQueueVect);
 #else
 				return HAL_ERROR;
@@ -140,7 +144,9 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 			case COMM_INT_UART_TX:
 			{
 #if defined(UART_USES_DMA) or defined(UART_USES_IT)
+				__disable_irq();
 				this->__huartQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
+				__enable_irq();
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, &this->__huartQueueVect);
 #elif defined(UART_USES_WAIT)
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, this->__huartQueueVect);
@@ -152,7 +158,9 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 			case COMM_INT_UART_RX:
 			{
 #if defined(UART_USES_DMA) or defined(UART_USES_IT)
+				__disable_irq();
 				this->__huartQueueVect[VectorIndex].MsgRx.push(*MsgInfo); //Queue not empty, push message back
+				__enable_irq();
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, &this->__huartQueueVect);
 #elif defined(UART_USES_WAIT)
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, this->__huartQueueVect);

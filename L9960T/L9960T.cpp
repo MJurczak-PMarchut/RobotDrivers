@@ -13,13 +13,14 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	__hspi{hspi},
 	__CommunicationManager{CommunicationManager},
 	__htim{htim},
-	__Channel{Channel}
+	__Channel{Channel},
+	_StatusSemaphore{NULL}
 {
 	__InitMessageID = 0;
 #ifdef ROBOT_IS_TOMISLAW
-	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
+	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << side)) == 0))
 #else
-	if((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << MOTOR_RIGHT)) == 0))
+	if((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << side)) == 0))
 #endif
 	{
 		this->__IN1_PWM_PIN = MD_IN1_PWM_B_Pin;
@@ -37,9 +38,9 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 #endif
 	}
 #ifdef ROBOT_IS_TOMISLAW
-	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << MOTOR_RIGHT)) == 0))
+	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << side)) == 0))
 #else
-	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << MOTOR_LEFT)) == 0))
+	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << side)) == 0))
 #endif
 	{
 		this->__IN1_PWM_PIN = MD_IN1_PWM_A_Pin;
@@ -60,6 +61,10 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	this->__Instantiated_sides |= (1 << this->__side);
 	this->__Instantiated_sides |=  ((1 << this->__side) << MOTOR_NDIS_OFFSET);
 	HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_SET);
+
+#ifdef USES_RTOS
+	_StatusSemaphore = xSemaphoreCreateBinaryStatic(&_pxSemphrMemory);
+#endif
 }
 
 void L9960T::Init(MessageInfoTypeDef* MsgInfo)
@@ -254,49 +259,72 @@ HAL_StatusTypeDef L9960T::StartPWM(void)
 	return HAL_TIM_PWM_Start(__htim, __Channel);
 }
 
-
+#ifdef USES_RTOS
+/*
+ * 	Should be called periodically to ensure that the controller is behaving correctly
+ */
 HAL_StatusTypeDef L9960T::CheckControllerState(void)
 {
+	static uint8_t state = 0;
 	uint16_t Message;
+	HAL_StatusTypeDef ret;
 	static HAL_StatusTypeDef transactionstatud = HAL_ERROR;
 	MessageInfoTypeDef MsgInfoToSend = {0};
+
+	//Get status info
+
+
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
 	MsgInfoToSend.context = 0;
 	MsgInfoToSend.eCommType = COMM_INT_SPI_TXRX;
 	MsgInfoToSend.len = 2;
-	MsgInfoToSend.pRxData = this->pRxData;
 	MsgInfoToSend.uCommInt.hspi = this->__hspi;
 	MsgInfoToSend.pTxData = pTxData;
 	MsgInfoToSend.TransactionStatus = &transactionstatud;
-	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
-	Message |= (~__builtin_parity(Message) & 1);
-	this->pTxData[1] = (Message & 0xFF);
-	this->pTxData[0] = ((Message >> 8) & 0xFF);
-	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-	while(transactionstatud == HAL_BUSY){}
-	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_2 << MESSAGE_OFFSET);
-	Message |= (~__builtin_parity(Message) & 1);
-	this->pTxData[1] = (Message & 0xFF);
-	this->pTxData[0] = ((Message >> 8) & 0xFF);
-	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-	while(transactionstatud == HAL_BUSY){}
-	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_3 << MESSAGE_OFFSET);
-	Message |= (~__builtin_parity(Message) & 1);
-	this->pTxData[1] = (Message & 0xFF);
-	this->pTxData[0] = ((Message >> 8) & 0xFF);
-	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-	while(transactionstatud == HAL_BUSY){}
-	Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
-	Message |= (~__builtin_parity(Message) & 1);
-	this->pTxData[1] = (Message & 0xFF);
-	this->pTxData[0] = ((Message >> 8) & 0xFF);
-	this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-	while(transactionstatud == HAL_BUSY){}
+	MsgInfoToSend.pCB = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
 
+	switch(state)
+	{
+		case 0:
+		{
+			MsgInfoToSend.pRxData = (uint8_t*)&this->_status_regs[2];
+			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
+		}
+		break;
 
+		case 1:
+		{
+			MsgInfoToSend.pRxData = (uint8_t*)&this->_status_regs[0];
+			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_2 << MESSAGE_OFFSET);
+		}
+		break;
 
+		case 2:
+		{
+			MsgInfoToSend.pRxData = (uint8_t*)&this->_status_regs[1];
+			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_3 << MESSAGE_OFFSET);
+
+		}
+		break;
+	}
+
+	Message |= (~__builtin_parity(Message) & 1);
+	this->pTxData[1] = (Message & 0xFF);
+	this->pTxData[0] = ((Message >> 8) & 0xFF);
+	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+
+	if(ret == HAL_OK)
+	{
+		state++;
+		if(state >=3) state = 0;
+	}
+	return HAL_OK; //dummy
 }
+
+
+#endif
+
 void L9960T::__delay_ms(uint32_t TimeMs)
 {
 #ifdef USES_RTOS
@@ -305,5 +333,4 @@ void L9960T::__delay_ms(uint32_t TimeMs)
 #else
 	HAL_Delay(TimeMs)
 #endif
-
 }

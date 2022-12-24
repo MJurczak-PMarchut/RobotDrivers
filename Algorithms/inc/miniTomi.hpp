@@ -1,15 +1,14 @@
 /*
  * miniTomi.hpp
  *
- *  Created on: 12 gru 2022
+ *  Created on: 19 gru 2022
  *      Author: Mateusz
  */
 
-#ifndef ALGORITHMS_INC_MINITOMI_HPP_
-#define ALGORITHMS_INC_MINITOMI_HPP_
+#ifndef ALGORITHMS_MINITOMI_HPP_
+#define ALGORITHMS_MINITOMI_HPP_
 #ifdef ROBOT_MT_V1
-#include "osapi_mortal_thread.h"
-#include "L9960T.hpp"
+#include "osapi.h"
 
 class miniTomi : public MortalThread
 {
@@ -24,4 +23,4 @@ private:
 
 
 #endif
-#endif /* ALGORITHMS_INC_MINITOMI_HPP_ */
+#endif /* ALGORITHMS_MINITOMI_HPP_ */

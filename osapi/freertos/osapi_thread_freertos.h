@@ -1,10 +1,6 @@
 #ifndef OSAPI_THREAD_FREERTOS_H
 #define OSAPI_THREAD_FREERTOS_H
 
-#include "osapi_thread_interface.h"
-#include "FreeRTOS.h"
-#include "semphr.h"
-
 /** Thread interface implementation for FreeRTOS. */
 class Thread : public ThreadInterface
 {
@@ -85,10 +81,10 @@ class Thread : public ThreadInterface
     private:
         static void threadFunction(void* argument);
         TaskHandle_t __taskHandle;
+        int __priority;
+        unsigned int __stackSize;
         Joinable __isJoinable;
         const char* __name;
-        unsigned int __stackSize;
-        int __priority;
         SemaphoreHandle_t  __xSemaphore;
 };
 

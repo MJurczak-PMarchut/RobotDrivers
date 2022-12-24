@@ -11,6 +11,10 @@
 #include "../../RobotDrivers/Motor Control/MotorControl.hpp"
 #include "../../RobotDrivers/RobotSpecificDefines.hpp"
 
+#ifdef USES_RTOS
+#include "osapi.h"
+#endif
+
 #define INIT_SEQUENCE_CONTEXT 3
 
 typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CURRENT_RANGE_3 = 3} L9960T_CurrentRange;
@@ -28,7 +32,6 @@ class L9960T : protected MCInterface{
 		HAL_StatusTypeDef Enable(void);
 		HAL_StatusTypeDef EmergencyStop(void);
 		HAL_StatusTypeDef CheckIfControllerInitializedOk(void);
-		HAL_StatusTypeDef CheckControllerState(void);
 		HAL_StatusTypeDef StartPWM(void);
 		void Init(MessageInfoTypeDef* MsgInfo);
 	private:
@@ -49,7 +52,17 @@ class L9960T : protected MCInterface{
 		uint32_t __Channel;
 		uint8_t pRxData[2];
 		uint8_t pTxData[2];
+		uint16_t _status_regs[3] = {0};
 		uint8_t __InitMessageID;
+#ifdef USES_RTOS
+public:
+		HAL_StatusTypeDef CheckControllerState(void);
+
+private:
+		void _ControllerStateCB(MessageInfoTypeDef* MsgInfo);
+		StaticSemaphore_t _pxSemphrMemory;
+		SemaphoreHandle_t _StatusSemaphore;
+#endif
 
 };
 

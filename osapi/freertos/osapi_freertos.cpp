@@ -1,16 +1,12 @@
+#include "osapi.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
-#include <csignal>
-#include "osapi_thread_freertos.h"
-
-
+namespace osapi {
 
 unsigned int getSystemTime() {
     return xTaskGetTickCount();
 }
 Thread::Thread(int priority, unsigned int stackSize, Joinable isJoinable, const char* name):
-    __taskHandle{0}, __isJoinable{isJoinable},  __name{name}, __stackSize{stackSize}, __priority{priority}
+    __taskHandle{0}, __priority{priority}, __stackSize{stackSize}, __isJoinable{isJoinable}, __name{name}
 {
     if(isJoinable == JOINABLE){
         this->__xSemaphore = xSemaphoreCreateBinary();
@@ -92,3 +88,5 @@ const char* Thread::getName()
 {
     return __name;
 }
+
+} // namespace osapi
