@@ -369,6 +369,9 @@ void L9960T::_ControllerStateCB(MessageInfoTypeDef* MsgInfo)
 			//We can call check again here, but for now lets exit, parent class task will call that function periodically
 		}
 		break;
+		default:
+		//Context not handled here
+			break;
 	}
 	this->_prev_context = MsgInfo->context;
 }
