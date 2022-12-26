@@ -24,6 +24,12 @@ class TLE5205 : protected MCInterface{
 		HAL_StatusTypeDef Brake(void);
 		void TimCB(void);
 		void TimCBPulse(void);
+		HAL_StatusTypeDef CheckIfControllerInitializedOk(void){return HAL_OK;};
+		HAL_StatusTypeDef CheckControllerState(void){
+			//No real reason to check them at this point
+			//TODO Implement this part
+			return HAL_OK;
+		};
 	private:
 		uint16_t __IN1_PIN;
 		uint16_t __IN2_PIN;

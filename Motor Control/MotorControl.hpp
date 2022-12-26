@@ -8,6 +8,8 @@
 #define SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
 #include "../../RobotDrivers/CommManager/CommManager.hpp"
 #include "../../RobotDrivers/Configuration.h"
+#include "osapi.h"
+
 #if (defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)) or (defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT))
 
 #include <queue>
@@ -25,16 +27,28 @@ typedef struct {
 	uint8_t array_index;
 }ActiveMotorControllerTypeDef;
 
-class MCInterface{
+class MCInterface
+
+#ifdef USES_RTOS
+: public MortalThread{
+#endif
 	public:
+		MCInterface();
+		~MCInterface(){};
 		virtual HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM) = 0;
 		virtual HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir) = 0;
 //		virtual HAL_StatusTypeDef SetMaxCurrent(uint32_t MaxCurrent_mA) = 0;
 		virtual HAL_StatusTypeDef Disable(void) = 0;
 		virtual HAL_StatusTypeDef Enable(void) = 0;
 		virtual HAL_StatusTypeDef EmergencyStop(void) = 0;
+		virtual HAL_StatusTypeDef CheckControllerState(void) = 0;
+		virtual HAL_StatusTypeDef CheckIfControllerInitializedOk(void) = 0;
+
 
 	private:
+		void loop();
+		static MCInterface*  _MCInterfacePointers[2];
+		static uint8_t NoOfControllers;
 	protected:
 		static uint8_t __Instantiated_sides;
 };

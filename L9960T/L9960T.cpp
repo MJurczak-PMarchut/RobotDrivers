@@ -12,6 +12,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	__side{side},
 	__hspi{hspi},
 	__CommunicationManager{CommunicationManager},
+	_prev_context{0},
 	__htim{htim},
 	__Channel{Channel},
 	_StatusSemaphore{NULL}
@@ -80,7 +81,11 @@ void L9960T::Init(MessageInfoTypeDef* MsgInfo)
 	MsgInfoToSend.len = 2;
 	MsgInfoToSend.pRxData = this->pRxData;
 	MsgInfoToSend.uCommInt.hspi = this->__hspi;
+#ifdef USES_RTOS
+	MsgInfoToSend.pCB = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
+#else
 	MsgInfoToSend.pCB = std::bind(&L9960T::Init, this, std::placeholders::_1);
+#endif
 	switch(this->__InitMessageID)
 	{
 		case 0://Reset SW
@@ -171,10 +176,13 @@ void L9960T::Init(MessageInfoTypeDef* MsgInfo)
 			this->__InitMessageID++;
 			break;
 		case 5://Set current range
-			Message = (CONFIGURATION_ADDR(1) << ADDRESS_OFFSET) | (0x3 << CONFIGURATION_CL_OFFSET);
+			Message = 	(CONFIGURATION_ADDR(1) << ADDRESS_OFFSET) 			|
+						(0x3 << CONFIGURATION_CL_OFFSET) | (1 << ISR_OFFSET)|
+						(1 << VSR_OFFSET) | (7 << TDIAG1_OFFSET) 			|
+						(1 << MD_ONE_CONF1_OFFSET) | (1 << DIAG_CLR_OFFSET);
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfoToSend.context = (1 << this->__side) |
-							  (0 << CONTEXT_OFFSET) | //End Init
+							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |
 							  (this->__InitMessageID << 8);
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
@@ -183,8 +191,11 @@ void L9960T::Init(MessageInfoTypeDef* MsgInfo)
 			this->StartPWM();
 			this->__InitMessageID++;
 			break;
-
+		default:
+			//this ends init
+			break;
 	}
+
 }
 
 HAL_StatusTypeDef L9960T::AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint32_t Channel)
@@ -271,38 +282,37 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 	static HAL_StatusTypeDef transactionstatud = HAL_ERROR;
 	MessageInfoTypeDef MsgInfoToSend = {0};
 
-	//Get status info
+	//Send status request
 
 
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
-	MsgInfoToSend.context = 0;
+	MsgInfoToSend.context = (STATUS_CHECK_CONTEXT << CONTEXT_OFFSET) | (state << 8);
 	MsgInfoToSend.eCommType = COMM_INT_SPI_TXRX;
 	MsgInfoToSend.len = 2;
 	MsgInfoToSend.uCommInt.hspi = this->__hspi;
 	MsgInfoToSend.pTxData = pTxData;
 	MsgInfoToSend.TransactionStatus = &transactionstatud;
 	MsgInfoToSend.pCB = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
+	MsgInfoToSend.pRxData = this->pRxData;
+
 
 	switch(state)
 	{
 		case 0:
 		{
-			MsgInfoToSend.pRxData = (uint8_t*)&this->_status_regs[2];
 			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
 		}
 		break;
 
 		case 1:
 		{
-			MsgInfoToSend.pRxData = (uint8_t*)&this->_status_regs[0];
 			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_2 << MESSAGE_OFFSET);
 		}
 		break;
 
 		case 2:
 		{
-			MsgInfoToSend.pRxData = (uint8_t*)&this->_status_regs[1];
 			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_3 << MESSAGE_OFFSET);
 
 		}
@@ -319,9 +329,49 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 		state++;
 		if(state >=3) state = 0;
 	}
+
+/*
+ * Handle errors here, but remember that reading the faults clears them if bit @DIAG_CLR_OFFSET is set to 1
+ */
+
+
 	return HAL_OK; //dummy
 }
 
+void L9960T::_ControllerStateCB(MessageInfoTypeDef* MsgInfo)
+{
+	if(((MsgInfo->context & 0xFF) >> CONTEXT_OFFSET) == STATUS_CHECK_CONTEXT) //redundant check
+	{
+		if((this->_status_regs[MsgInfo->context >> 8] >> ADDRESS_OFFSET) != STATUS_REQUEST_ADDR){
+			//this is different msg, can not be handled here
+			return;
+		}
+	}
+	//we can handle this message here
+	switch((this->_prev_context  & 0x0F) >> CONTEXT_OFFSET)
+	{
+		case 0:
+		{
+			//Init started, continue
+			this->Init(MsgInfo);
+		}
+		break;
+		case INIT_SEQUENCE_CONTEXT:
+		{
+			//Init Continue
+			this->Init(MsgInfo);
+		}
+		break;
+		case STATUS_CHECK_CONTEXT:
+		{
+			if((this->_prev_context >> 8) > 2) return;
+			this->_status_regs[this->_prev_context >> 8] = *this->pRxData;
+			//We can call check again here, but for now lets exit, parent class task will call that function periodically
+		}
+		break;
+	}
+	this->_prev_context = MsgInfo->context;
+}
 
 #endif
 
