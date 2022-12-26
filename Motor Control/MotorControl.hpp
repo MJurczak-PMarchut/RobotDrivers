@@ -37,7 +37,6 @@ class MCInterface
 		~MCInterface(){};
 		virtual HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM) = 0;
 		virtual HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir) = 0;
-//		virtual HAL_StatusTypeDef SetMaxCurrent(uint32_t MaxCurrent_mA) = 0;
 		virtual HAL_StatusTypeDef Disable(void) = 0;
 		virtual HAL_StatusTypeDef Enable(void) = 0;
 		virtual HAL_StatusTypeDef EmergencyStop(void) = 0;

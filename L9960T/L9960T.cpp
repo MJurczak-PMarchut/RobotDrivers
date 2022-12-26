@@ -262,7 +262,7 @@ HAL_StatusTypeDef L9960T::Enable(void)
 
 HAL_StatusTypeDef L9960T::CheckIfControllerInitializedOk(void)
 {
-	return (__InitMessageID == 5)? HAL_OK : HAL_ERROR;
+	return (__InitMessageID >= 5)? HAL_OK : HAL_ERROR;
 }
 
 HAL_StatusTypeDef L9960T::StartPWM(void)
