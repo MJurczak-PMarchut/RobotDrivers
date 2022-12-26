@@ -1,9 +1,6 @@
 #ifndef OSAPI_MORTAL_THREAD_H
 #define OSAPI_MORTAL_THREAD_H
 
-#include "osapi.h"
-using namespace osapi;
-
 class MortalThread : public Thread
 {
   public:
@@ -21,20 +18,23 @@ class MortalThread : public Thread
     }
                 
   protected:
-        virtual void begin(void)
-        {
-        }
+        virtual void begin(void) {};
+
         virtual void loop(void) = 0;
-        virtual void end(void)
-        {
-        }
+
+        virtual void end(void) {};
   private:
       sig_atomic_t killSignal;
+
+
     /** Implementation of the job method */
     virtual void job(void) {
+
       this->begin();
-        while(!this->killSignal) this->loop();
-       this->end();
+
+      while(!this->killSignal) this->loop();
+
+      this->end();
     }           
 };
  

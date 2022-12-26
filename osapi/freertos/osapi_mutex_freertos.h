@@ -1,8 +1,6 @@
 #ifndef OSAPI_MUTEX_FREERTOS_H
 #define OSAPI_MUTEX_FREERTOS_H
 
-#include "osapi_mutex_interface.h"
-#include "semphr.h"
 
 class Mutex : public MutexInterface
 {

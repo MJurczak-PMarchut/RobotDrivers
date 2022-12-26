@@ -1,5 +1,6 @@
 #ifndef OSAPI_RECURSIVE_MUTEX_FREERTOS_H
 #define OSAPI_RECURSIVE_MUTEX_FREERTOS_H
+
 class RecursiveMutex : public MutexInterface
 {
 public:

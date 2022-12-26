@@ -1,7 +1,5 @@
 #include "osapi.h"
 
-namespace osapi {
-
 unsigned int getSystemTime() {
     return xTaskGetTickCount();
 }
@@ -89,4 +87,3 @@ const char* Thread::getName()
     return __name;
 }
 
-} // namespace osapi
