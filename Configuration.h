@@ -9,6 +9,7 @@
 #define CONFIGURATION_H_
 
 #include "main.h"
+#include "SpecialTypes.hpp"
 
 #define EMERGENCY_STOP_AXIS 4
 #define EMERGENCY_STOP_TIME_TRESHOLD_TICK 30

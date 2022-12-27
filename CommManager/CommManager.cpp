@@ -13,6 +13,7 @@
 #define MAX_MESSAGE_NO_IN_QUEUE 5
 #endif
 
+
 #define VECTOR_NOT_FOUND 0xFF
 
 CommManager::CommManager()
@@ -20,82 +21,59 @@ CommManager::CommManager()
 
 }
 
-
-#if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
-#ifdef I2C_USES_DMA
-HAL_StatusTypeDef CommManager::AttachCommInt(I2C_HandleTypeDef *hi2c, DMA_HandleTypeDef *hdma)
-#else
-HAL_StatusTypeDef CommManager::AttachCommInt(I2C_HandleTypeDef *hi2c)
-#endif
+HAL_StatusTypeDef CommManager::_PushObjToVect(CommInterface<I2C_HandleTypeDef>* hint)
 {
-	CommQueue<I2C_HandleTypeDef*> Init = {0};
-	for(CommQueue<I2C_HandleTypeDef*> handleQueueVect : this->__hi2cQueueVect)
+	for(auto instance : this->_comm_I2C_vect)
 	{
-		if(hi2c == handleQueueVect.handle)
+		if(instance->CheckIfSameInstance(hint->GetInstance()) == HAL_OK)
 		{
-			return HAL_ERROR;
+			this->_comm_I2C_vect.push_back(hint);
+			return HAL_OK;
 		}
 	}
-	Init.handle = hi2c;
-#ifdef I2C_USES_DMA
-	Init.hdma = hdma;
-#endif
-	this->__hi2cQueueVect.push_back(Init);
-	return HAL_OK;
+	return HAL_ERROR;
 }
-#endif
 
-
-
-#if defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT)
-#ifdef SPI_USES_DMA
-HAL_StatusTypeDef CommManager::AttachCommInt(SPI_HandleTypeDef *hspi, DMA_HandleTypeDef *hdma)
-#else
-HAL_StatusTypeDef CommManager::AttachCommInt(SPI_HandleTypeDef *hspi)
-#endif
+HAL_StatusTypeDef CommManager::_PushObjToVect(CommInterface<SPI_HandleTypeDef>* hint)
 {
-	CommQueue<SPI_HandleTypeDef*> Init = {0};
-	for(CommQueue<SPI_HandleTypeDef*> handleQueueVect : this->__hspiQueueVect)
+	for(auto instance : this->_comm_SPI_vect)
 	{
-		if(hspi == handleQueueVect.handle)
+		if(instance->CheckIfSameInstance(hint->GetInstance()) == HAL_OK)
 		{
-			return HAL_ERROR;
+			this->_comm_SPI_vect.push_back(hint);
+			return HAL_OK;
 		}
 	}
-	Init.handle = hspi;
-#ifdef SPI_USES_DMA
-	Init.hdma = hdma;
-#endif
-	this->__hspiQueueVect.push_back(Init);
-	return HAL_OK;
+	return HAL_ERROR;
 }
-#endif
 
-#if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
-#ifdef UART_USES_DMA
-HAL_StatusTypeDef CommManager::AttachCommInt(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
-#else
-HAL_StatusTypeDef CommManager::AttachCommInt(UART_HandleTypeDef *huart)
-#endif
+HAL_StatusTypeDef CommManager::_PushObjToVect(CommInterface<UART_HandleTypeDef>* hint)
 {
-	CommQueue<UART_HandleTypeDef*> Init = {0};
-	for(CommQueue<UART_HandleTypeDef*> handleQueueVect : this->__huartQueueVect)
+	for(auto instance : this->_comm_UART_vect)
 	{
-		if(huart == handleQueueVect.handle)
+		if(instance->CheckIfSameInstance(hint->GetInstance()) == HAL_OK)
 		{
-			return HAL_ERROR;
+			this->_comm_UART_vect.push_back(hint);
+			return HAL_OK;
 		}
 	}
-	Init.handle = huart;
-#ifdef UART_USES_DMA
-	Init.hdmaRx = hdmaRx;
-	Init.hdmaTx = hdmaTx;
-#endif
-	this->__huartQueueVect.push_back(Init);
-	return HAL_OK;
+	return HAL_ERROR;
 }
-#endif
 
+CommInterface<I2C_HandleTypeDef>* CommManager::_GetObj(I2C_HandleTypeDef *hint)
+{
+	return new CommI2C();
+}
+
+CommInterface<SPI_HandleTypeDef>* CommManager::_GetObj(SPI_HandleTypeDef *hint)
+{
+	return new CommSPI();
+}
+
+CommInterface<UART_HandleTypeDef>* CommManager::_GetObj(UART_HandleTypeDef *hint)
+{
+	return new CommUART();
+}
 
 HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo)
 {
@@ -121,8 +99,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				this->__hspiQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
 				__enable_irq();
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.hspi, &this->__hspiQueueVect);
-#else
-				return HAL_ERROR;
 #endif
 			}
 				break;
@@ -136,8 +112,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				this->__hi2cQueueVect[VectorIndex].MsgInfo.push(*MsgInfo); //Queue not empty, push message back
 				__enable_irq();
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.hi2c, &this->__hi2cQueueVect);
-#else
-				return HAL_ERROR;
 #endif
 			}
 				break;
@@ -150,8 +124,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, &this->__huartQueueVect);
 #elif defined(UART_USES_WAIT)
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, this->__huartQueueVect);
-#else
-				return HAL_ERROR;
 #endif
 			}
 				break;
@@ -164,8 +136,6 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgI
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, &this->__huartQueueVect);
 #elif defined(UART_USES_WAIT)
 				return this->__CheckForNextCommRequestAndStart(MsgInfo->uCommInt.huart, this->__huartQueueVect);
-#else
-				return HAL_ERROR;
 #endif
 			}
 				break;
