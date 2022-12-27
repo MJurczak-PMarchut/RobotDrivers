@@ -63,10 +63,12 @@ class CommManager
 		HAL_StatusTypeDef _PushObjToVect(CommInterface<SPI_HandleTypeDef>* hint);
 		HAL_StatusTypeDef _PushObjToVect(CommInterface<UART_HandleTypeDef>* hint);
 
+		template<typename T>
+		CommInterface<T>* _GetObj(T *hint);
 
-		CommInterface<I2C_HandleTypeDef>* 	_GetObj(I2C_HandleTypeDef *hint);
-		CommInterface<SPI_HandleTypeDef>* 	_GetObj(SPI_HandleTypeDef *hint);
-		CommInterface<UART_HandleTypeDef>* 	_GetObj(UART_HandleTypeDef *hint);
+//		CommInterface<I2C_HandleTypeDef>* 	_GetObj(I2C_HandleTypeDef *hint);
+//		CommInterface<SPI_HandleTypeDef>* 	_GetObj(SPI_HandleTypeDef *hint);
+//		CommInterface<UART_HandleTypeDef>* 	_GetObj(UART_HandleTypeDef *hint);
 
 		template<typename Handle, typename QueueVectTD>
 		HAL_StatusTypeDef __MsgReceivedCB(Handle *IntHandle, QueueVectTD *Queue);

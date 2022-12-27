@@ -60,21 +60,6 @@ HAL_StatusTypeDef CommManager::_PushObjToVect(CommInterface<UART_HandleTypeDef>*
 	return HAL_ERROR;
 }
 
-CommInterface<I2C_HandleTypeDef>* CommManager::_GetObj(I2C_HandleTypeDef *hint)
-{
-	return new CommI2C();
-}
-
-CommInterface<SPI_HandleTypeDef>* CommManager::_GetObj(SPI_HandleTypeDef *hint)
-{
-	return new CommSPI();
-}
-
-CommInterface<UART_HandleTypeDef>* CommManager::_GetObj(UART_HandleTypeDef *hint)
-{
-	return new CommUART();
-}
-
 HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo)
 {
 	uint8_t VectorIndex;

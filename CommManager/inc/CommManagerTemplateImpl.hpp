@@ -45,7 +45,26 @@ HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx,
 	return HAL_OK;
 }
 
-
+template<typename T>
+CommInterface<T>* CommManager::_GetObj(T *hint)
+{
+	if(std::is_same_v<T, I2C_HandleTypeDef>)
+	{
+		return reinterpret_cast<CommInterface<T>*>(new CommI2C());
+	}
+	else if(std::is_same_v<T, SPI_HandleTypeDef>)
+	{
+		return reinterpret_cast<CommInterface<T>*>(new CommSPI());
+	}
+	else if(std::is_same_v<T, UART_HandleTypeDef>)
+	{
+		return reinterpret_cast<CommInterface<T>*>(new CommUART());
+	}
+	else
+	{
+		return NULL;
+	}
+}
 
 
 #endif /* COMMMANAGER_COMMMANAGERTEMPLATEIMPL_HPP_ */
