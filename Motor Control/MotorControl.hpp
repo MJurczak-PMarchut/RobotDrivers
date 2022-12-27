@@ -6,7 +6,7 @@
  */
 #ifndef SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
 #define SUMODRIVERS_MOTOR_CONTROL_MOTORCONTROL_HPP_
-#include "../../RobotDrivers/CommManager/CommManager.hpp"
+#include "CommManager.hpp"
 #include "../../RobotDrivers/Configuration.h"
 #include "osapi.h"
 

@@ -1,7 +1,7 @@
 #ifndef _VESCUART_h
 #define _VESCUART_h
 
-#include "../../RobotDrivers/CommManager/CommManager.hpp"
+#include "CommManager.hpp"
 #include "../../RobotDrivers/Configuration.h"
 #include "../../RobotDrivers/VESC/buffer.h"
 #include "../../RobotDrivers/VESC/crc.h"

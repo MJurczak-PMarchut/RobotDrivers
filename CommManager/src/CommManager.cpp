@@ -4,7 +4,7 @@
  *  Created on: Nov 13, 2021
  *      Author: Mateusz
  */
-#include "../../RobotDrivers/CommManager/CommManager.hpp"
+#include "CommManager.hpp"
 
 #include "vector"
 

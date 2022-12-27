@@ -48,5 +48,6 @@ struct MessageInfoTypeDef{
 	HAL_StatusTypeDef* TransactionStatus;
 };
 
+typedef enum {COMM_INT, COMM_WAIT, COMM_DMA}CommTypeAllowed_t;
 
 #endif /* SPECIALTYPES_HPP_ */

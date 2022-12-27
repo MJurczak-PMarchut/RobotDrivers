@@ -41,6 +41,7 @@ HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx,
 			return HAL_ERROR;
 		}
 	}
+	this->_PushObjToVect(Init);
 	return HAL_OK;
 }
 

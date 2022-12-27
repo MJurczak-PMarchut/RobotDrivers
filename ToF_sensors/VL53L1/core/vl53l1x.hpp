@@ -10,7 +10,7 @@
 
 #include "VL53L1X_api.hpp"
 #include "../../Configuration.h"
-#include "../../CommManager/CommManager.hpp"
+#include "CommManager.hpp"
 
 #define TOF_DEFAULT_ADDRESS 0x52
 #define TIMING_BUDGET_MS         100U
