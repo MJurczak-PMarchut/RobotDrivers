@@ -21,45 +21,6 @@ CommManager::CommManager()
 
 }
 
-HAL_StatusTypeDef CommManager::_PushObjToVect(CommInterface<I2C_HandleTypeDef>* hint)
-{
-	for(auto instance : this->_comm_I2C_vect)
-	{
-		if(instance->CheckIfSameInstance(hint->GetInstance()) == HAL_OK)
-		{
-			this->_comm_I2C_vect.push_back(hint);
-			return HAL_OK;
-		}
-	}
-	return HAL_ERROR;
-}
-
-HAL_StatusTypeDef CommManager::_PushObjToVect(CommInterface<SPI_HandleTypeDef>* hint)
-{
-	for(auto instance : this->_comm_SPI_vect)
-	{
-		if(instance->CheckIfSameInstance(hint->GetInstance()) == HAL_OK)
-		{
-			this->_comm_SPI_vect.push_back(hint);
-			return HAL_OK;
-		}
-	}
-	return HAL_ERROR;
-}
-
-HAL_StatusTypeDef CommManager::_PushObjToVect(CommInterface<UART_HandleTypeDef>* hint)
-{
-	for(auto instance : this->_comm_UART_vect)
-	{
-		if(instance->CheckIfSameInstance(hint->GetInstance()) == HAL_OK)
-		{
-			this->_comm_UART_vect.push_back(hint);
-			return HAL_OK;
-		}
-	}
-	return HAL_ERROR;
-}
-
 HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef *MsgInfo)
 {
 	uint8_t VectorIndex;

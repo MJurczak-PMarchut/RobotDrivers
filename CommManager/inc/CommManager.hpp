@@ -59,9 +59,11 @@ class CommManager
 
 	private:
 
-		HAL_StatusTypeDef _PushObjToVect(CommInterface<I2C_HandleTypeDef>* hint);
-		HAL_StatusTypeDef _PushObjToVect(CommInterface<SPI_HandleTypeDef>* hint);
-		HAL_StatusTypeDef _PushObjToVect(CommInterface<UART_HandleTypeDef>* hint);
+		template<typename T>
+		HAL_StatusTypeDef _PushObjToVect(T hint);
+//		HAL_StatusTypeDef _PushObjToVect(CommInterface<I2C_HandleTypeDef>* hint);
+//		HAL_StatusTypeDef _PushObjToVect(CommInterface<SPI_HandleTypeDef>* hint);
+//		HAL_StatusTypeDef _PushObjToVect(CommInterface<UART_HandleTypeDef>* hint);
 
 		template<typename T>
 		CommInterface<T>* _GetObj(T *hint);
@@ -85,7 +87,7 @@ class CommManager
 		std::vector<CommInterface<SPI_HandleTypeDef>*> _comm_SPI_vect;
 		std::vector<CommInterface<UART_HandleTypeDef>*> _comm_UART_vect;
 
-
+// ToDo should be moved to objects
 #if defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)
 
 		std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;

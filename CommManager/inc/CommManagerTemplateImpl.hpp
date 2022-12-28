@@ -16,7 +16,7 @@
 template<typename T>
 HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
 {
-	CommInterface<T> *Init = _GetObj(hint);
+	CommInterface<T>* Init = _GetObj(hint);
 	if(Init == NULL)
 	{
 		return HAL_ERROR;
@@ -64,6 +64,40 @@ CommInterface<T>* CommManager::_GetObj(T *hint)
 	{
 		return NULL;
 	}
+}
+
+template<typename T>
+HAL_StatusTypeDef CommManager::_PushObjToVect(T hint)
+{
+	std::vector<T> *Vect;
+	if(std::is_same_v<T, CommInterface<I2C_HandleTypeDef>*>)
+	{
+		Vect = reinterpret_cast<std::vector<T>*>(&this->_comm_I2C_vect);
+	}
+	else if(std::is_same_v<T, CommInterface<SPI_HandleTypeDef>*>)
+	{
+		Vect = reinterpret_cast<std::vector<T>*>(&this->_comm_SPI_vect);
+	}
+	else if(std::is_same_v<T, CommInterface<UART_HandleTypeDef>*>)
+	{
+		Vect = reinterpret_cast<std::vector<T>*>(&this->_comm_UART_vect);
+	}
+	else
+	{
+		return HAL_ERROR;
+	}
+
+
+	for(auto instance : *Vect)
+	{
+		if(instance->CheckIfSameInstance(hint->GetInstance()) == HAL_OK)
+		{
+			return HAL_ERROR;
+		}
+	}
+
+	Vect->push_back(hint);
+	return HAL_ERROR;
 }
 
 
