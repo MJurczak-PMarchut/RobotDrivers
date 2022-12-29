@@ -17,7 +17,7 @@ public:
 	HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *pIntStruct){return HAL_ERROR;};
 	HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma){return HAL_ERROR;};
 
-	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef *MsgInfo) {return HAL_ERROR;};
+	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo) {return HAL_ERROR;};
 	void CheckForNextCommRequestAndStart(void) {};
 	HAL_StatusTypeDef CheckIfSameInstance(const I2C_HandleTypeDef *pIntStruct){return HAL_ERROR;};
 	const I2C_HandleTypeDef* GetInstance(void) {return NULL;};

@@ -9,20 +9,13 @@
 #define SPECIALTYPES_HPP_
 #include <functional>
 
-typedef struct MessageInfoTypeDef MessageInfoTypeDef;
+//typedef struct MessageInfoTypeDef MessageInfoTypeDef;
 
 typedef enum {
-	COMM_INT_SPI_TXRX = 0,
-	COMM_INT_SPI_RX,
+	COMM_INT_TXRX = 0,
+	COMM_INT_RX,
+	COMM_INT_TX
 
-	COMM_INT_UART_TX,
-	COMM_INT_UART_RX,
-
-	COMM_INT_I2C_TX,
-	COMM_INT_I2C_RX,
-
-	COMM_INT_I2C_MEM_TX,
-	COMM_INT_I2C_MEM_RX
 }CommIntTypeDef;
 
 typedef union {
@@ -31,9 +24,10 @@ typedef union {
 	I2C_HandleTypeDef *hi2c;
 }CommIntUnionTypeDef;
 
+template<typename T>
 struct MessageInfoTypeDef{
-	CommIntUnionTypeDef uCommInt;
 	CommIntTypeDef eCommType;
+	T IntHandle;
 	uint16_t GPIO_PIN;
 	GPIO_TypeDef *GPIOx;
 	uint16_t len;

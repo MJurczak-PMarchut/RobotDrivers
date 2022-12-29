@@ -101,4 +101,5 @@ HAL_StatusTypeDef CommManager::_PushObjToVect(T hint)
 }
 
 
+
 #endif /* COMMMANAGER_COMMMANAGERTEMPLATEIMPL_HPP_ */

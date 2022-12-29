@@ -17,7 +17,7 @@ public:
 	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct){return HAL_ERROR;};
 	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma){return HAL_ERROR;};
 
-	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef *MsgInfo) {return HAL_ERROR;};
+	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo) {return HAL_ERROR;};
 	void CheckForNextCommRequestAndStart(void) {};
 	HAL_StatusTypeDef CheckIfSameInstance(const UART_HandleTypeDef *pIntStruct){return HAL_ERROR;};
 	const UART_HandleTypeDef* GetInstance(void) {return NULL;};

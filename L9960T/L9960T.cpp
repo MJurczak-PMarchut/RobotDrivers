@@ -71,7 +71,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 void L9960T::Init(MessageInfoTypeDef* MsgInfo)
 {
 	uint16_t Message;
-	MessageInfoTypeDef MsgInfoToSend = {0};
+	MessageInfoTypeDef<SPI_HandleTypeDef> MsgInfoToSend = {0};
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
 	MsgInfoToSend.context = (1 << this->__side) |
