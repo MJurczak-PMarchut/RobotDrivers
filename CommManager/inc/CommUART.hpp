@@ -9,27 +9,18 @@
 #define COMMMANAGER_COMMUART_HPP_
 
 #include <CommBaseClass.hpp>
-#include "queue"
 
 class CommUART : public CommBaseClass<UART_HandleTypeDef>
 {
 public:
-
-	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
-	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
-
-	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo) {return HAL_ERROR;};
-	void CheckForNextCommRequestAndStart(void) {};
-	HAL_StatusTypeDef CheckIfSameInstance(const UART_HandleTypeDef *pIntStruct){return HAL_ERROR;};
-	const UART_HandleTypeDef* GetInstance(void) {return NULL;};
+	CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx);
 
 protected:
 	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo);
 
 
 private:
-
-	uint8_t CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntTypeDef eCommIntType){return 0;};
+	DMA_HandleTypeDef *_hdmaTx;
 
 };
 

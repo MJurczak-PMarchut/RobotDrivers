@@ -13,6 +13,11 @@
 #define MAX_MESSAGE_NO_IN_QUEUE 5
 #endif
 
+#include "CommI2C.hpp"
+#include "CommSPI.hpp"
+#include "CommUART.hpp"
+
+
 
 #define VECTOR_NOT_FOUND 0xFF
 
@@ -21,34 +26,54 @@ CommManager::CommManager()
 
 }
 
-
-HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)
+template<typename T>
+HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
 {
-	for(auto instance : _comm_SPI_vect)
+	CommBaseClass<T>* Init = NULL;
+	std::vector<CommBaseClass<T>*>* vect = _GetVector(hint);
+	if(this->_MatchInstance(vect, hint) != NULL)
 	{
-		if(instance->CheckIfSameInstance(&MsgInfo->IntHandle) == HAL_OK)
+		return HAL_ERROR;
+	}
+	// ToDo check if args are correct
+	Init = _GetObj(hint, hdmaRx, hdmaTx);
+	if(Init == NULL)
+	{
+		return HAL_ERROR;
+	}
+	if(hdmaRx == NULL){
+		if(Init->AttachCommInt(hint) != HAL_OK)
 		{
-			return instance->PushMessageIntoQueue(MsgInfo);
+			return HAL_ERROR;
 		}
 	}
-	return HAL_ERROR;
-}
-
-HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
-{
-	for(auto instance : _comm_I2C_vect)
+	else if (hdmaTx == NULL)
 	{
-		if(instance->CheckIfSameInstance(&MsgInfo->IntHandle) == HAL_OK)
+		if(Init->AttachCommInt(hint, hdmaRx) != HAL_OK)
 		{
-			return instance->PushMessageIntoQueue(MsgInfo);
+			return HAL_ERROR;
 		}
 	}
-	return HAL_ERROR;
+	else
+	{
+		if(Init->AttachCommInt(hint, hdmaRx, hdmaTx) != HAL_OK)
+		{
+			return HAL_ERROR;
+		}
+	}
+	vect->push_back(Init);
+	return HAL_OK;
 }
 
-HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
+template<typename T>
+HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
 {
-	for(auto instance : _comm_UART_vect)
+	std::vector<CommBaseClass<T>*>* vect = _GetVector(&MsgInfo->IntHandle);
+	if(vect == NULL)
+	{
+		return HAL_ERROR;
+	}
+	for(auto instance : *vect)
 	{
 		if(instance->CheckIfSameInstance(&MsgInfo->IntHandle) == HAL_OK)
 		{
@@ -63,39 +88,15 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart, uint16_t
 	return HAL_ERROR;
 }
 
-HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart)
+template<typename T>
+HAL_StatusTypeDef CommManager::MsgReceivedCB(T *hint)
 {
 	HAL_StatusTypeDef ret_value = HAL_ERROR;
-	CommBaseClass<UART_HandleTypeDef>* uart_inst;
-	uart_inst = this->_MatchInstance(&_comm_UART_vect, huart);
-	if(uart_inst != NULL)
+	CommBaseClass<T>* handle_inst;
+	handle_inst = this->_MatchInstance(_GetVector(hint), hint);
+	if(handle_inst != NULL)
 	{
-		ret_value = uart_inst->MsgReceivedCB(huart);
-	}
-	return ret_value;
-}
-
-HAL_StatusTypeDef CommManager::MsgReceivedCB(SPI_HandleTypeDef *hspi)
-{
-	HAL_StatusTypeDef ret_value = HAL_ERROR;
-	CommBaseClass<SPI_HandleTypeDef>* spi_inst;
-	spi_inst = this->_MatchInstance(&_comm_SPI_vect, hspi);
-	if(spi_inst != NULL)
-	{
-		ret_value = spi_inst->MsgReceivedCB(hspi);
-	}
-	return ret_value;
-}
-
-
-HAL_StatusTypeDef CommManager::MsgReceivedCB(I2C_HandleTypeDef *hi2c)
-{
-	HAL_StatusTypeDef ret_value = HAL_ERROR;
-	CommBaseClass<I2C_HandleTypeDef>* i2c_inst;
-	i2c_inst = this->_MatchInstance(&_comm_I2C_vect, hi2c);
-	if(i2c_inst != NULL)
-	{
-		ret_value = i2c_inst->MsgReceivedCB(hi2c);
+		ret_value = handle_inst->MsgReceivedCB(hint);
 	}
 	return ret_value;
 }
@@ -142,6 +143,42 @@ CommBaseClass<T>* CommManager::_MatchInstance(queue *VectQueue, T *hint)
 		}
 	}
 	return NULL;
+}
+
+template<>
+std::vector<CommBaseClass<I2C_HandleTypeDef>*>* CommManager::_GetVector(I2C_HandleTypeDef *hint)
+{
+	return &_comm_I2C_vect;
+}
+
+template<>
+std::vector<CommBaseClass<SPI_HandleTypeDef>*>* CommManager::_GetVector(SPI_HandleTypeDef *hint)
+{
+	return &_comm_SPI_vect;
+}
+
+template<>
+std::vector<CommBaseClass<UART_HandleTypeDef>*>* CommManager::_GetVector(UART_HandleTypeDef *hint)
+{
+	return &_comm_UART_vect;
+}
+
+template<>
+CommBaseClass<UART_HandleTypeDef>* CommManager::_GetObj(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
+{
+	return new CommUART(hint, hdmaRx, hdmaTx);
+}
+
+template<>
+CommBaseClass<SPI_HandleTypeDef>* CommManager::_GetObj(SPI_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
+{
+	return new CommSPI(hint, hdmaRx);
+}
+
+template<>
+CommBaseClass<I2C_HandleTypeDef>* CommManager::_GetObj(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
+{
+	return new CommI2C(hint, hdmaRx);
 }
 
 #endif

@@ -8,10 +8,13 @@
 #include "CommI2C.hpp"
 
 
+CommI2C::CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma)
+:CommBaseClass(hint, hdma)
+{}
 
 HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
-	HAL_StatusTypeDef ret =HAL_BUSY;
+	HAL_StatusTypeDef ret = HAL_BUSY;
 	if(_Handle->State != HAL_I2C_STATE_READY)
 	{
 		return ret;
@@ -51,18 +54,18 @@ HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_Handl
 			if(_commType == COMM_DMA)
 			{
 				//Queue empty and peripheral ready, send message
-				ret = HAL_I2C_Master_Transmit_DMA(_Handle, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_I2C_Master_Transmit_DMA(_Handle, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len);
 				__HAL_DMA_DISABLE_IT(hdmaRx, DMA_IT_HT);
 			}
 			else if(_commType == COMM_INTERRUPT)
 			{
 				//Queue empty and peripheral ready, send message
-				ret = HAL_I2C_Master_Transmit_IT=(_Handle, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_I2C_Master_Transmit_IT(_Handle, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len);
 			}
 			else if(_commType == COMM_WAIT)
 			{
 				//Queue empty and peripheral ready, send message
-				ret = HAL_I2C_Master_Transmit(_Handle, MsgInfo->I2C_Addr, MsgInfo->pRxData, MsgInfo->len, 1000);
+				ret = HAL_I2C_Master_Transmit(_Handle, MsgInfo->I2C_Addr, MsgInfo->pTxData, MsgInfo->len, 1000);
 			}
 			else
 			{

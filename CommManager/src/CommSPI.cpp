@@ -7,7 +7,9 @@
 
 #include "CommSPI.hpp"
 
-
+CommSPI::CommSPI(SPI_HandleTypeDef *hint, DMA_HandleTypeDef *hdma)
+:CommBaseClass(hint, hdma)
+{}
 
 HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)
 {
@@ -51,18 +53,18 @@ HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_Handl
 			if(_commType == COMM_DMA)
 			{
 				//Queue empty and peripheral ready, send message
-				ret = HAL_SPI_Transmit_DMA(_Handle, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_SPI_Transmit_DMA(_Handle, MsgInfo->pTxData, MsgInfo->len);
 				__HAL_DMA_DISABLE_IT(hdmaRx, DMA_IT_HT);
 			}
 			else if(_commType == COMM_INTERRUPT)
 			{
 				//Queue empty and peripheral ready, send message
-				ret = HAL_SPI_Transmit_IT(_Handle, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_SPI_Transmit_IT(_Handle, MsgInfo->pTxData, MsgInfo->len);
 			}
 			else if(_commType == COMM_WAIT)
 			{
 				//Queue empty and peripheral ready, send message
-				ret = HAL_SPI_Transmit(_Handle, MsgInfo->pRxData, MsgInfo->len, 1000);
+				ret = HAL_SPI_Transmit(_Handle, MsgInfo->pTxData, MsgInfo->len, 1000);
 			}
 			else
 			{

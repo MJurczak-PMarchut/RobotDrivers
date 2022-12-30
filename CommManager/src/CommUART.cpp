@@ -7,7 +7,9 @@
 
 #include "CommUART.hpp"
 
-
+CommUART::CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
+:CommBaseClass(hint, hdmaRx), _hdmaTx{hdmaTx}
+{}
 
 HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
 {

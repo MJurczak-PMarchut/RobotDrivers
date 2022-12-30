@@ -10,24 +10,14 @@
 
 #include <CommBaseClass.hpp>
 
-class CommI2C : protected CommBaseClass<I2C_HandleTypeDef>
+class CommI2C : public CommBaseClass<I2C_HandleTypeDef>
 {
 public:
-
-	HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *pIntStruct, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
-	HAL_StatusTypeDef AttachCommInt(I2C_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
-
-	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo) {return HAL_ERROR;};
-	void CheckForNextCommRequestAndStart(void) {};
-	HAL_StatusTypeDef CheckIfSameInstance(const I2C_HandleTypeDef *pIntStruct){return HAL_ERROR;};
-	const I2C_HandleTypeDef* GetInstance(void) {return NULL;};
+	CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma);
 
 protected:
 	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
-private:
-
-	uint8_t CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntTypeDef eCommIntType){return 0;};
 
 };
 

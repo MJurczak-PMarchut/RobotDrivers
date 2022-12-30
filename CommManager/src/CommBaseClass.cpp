@@ -7,6 +7,32 @@
 #include "CommBaseClass.hpp"
 
 template<typename T>
+CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx)
+:_Handle{hint}, hdmaRx{hdmaRx}
+{}
+
+template<typename T>
+HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
+{
+	if(MsgInfo->TransactionStatus !=0)
+	{
+		*MsgInfo->TransactionStatus = HAL_BUSY;
+	}
+	if(MsgInfo->IntHandle.Instance != this->_Handle.Instance)
+	{
+		return HAL_ERROR;
+	}
+	if(_MsgQueue.size() >= MAX_MESSAGE_NO_IN_QUEUE)
+	{
+		return HAL_ERROR;
+	}
+	__disable_irq();
+	this->_MsgQueue.push(*MsgInfo); //Queue not empty, push message back
+	__enable_irq();
+	return this->__CheckForNextCommRequestAndStart();
+}
+
+template<typename T>
 HAL_StatusTypeDef CommBaseClass<T>::MsgReceivedCB(T *hint)
 {
 	//Find message
@@ -112,4 +138,10 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckAndSetCSPinsGeneric(MessageInfoTypeDe
 			return HAL_OK;
 		}
 
+}
+
+template<typename T>
+HAL_StatusTypeDef CommBaseClass<T>::CheckIfSameInstance(const T *pIntStruct)
+{
+	return (this->_Handle->Instance == pIntStruct->Instance)? HAL_OK : HAL_ERROR;
 }
