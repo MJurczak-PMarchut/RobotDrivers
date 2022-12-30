@@ -15,8 +15,14 @@ typedef enum {
 	COMM_INT_TXRX = 0,
 	COMM_INT_RX,
 	COMM_INT_TX
-
 }CommIntTypeDef;
+
+typedef enum {
+	COMM_DMA = 0,
+	COMM_INTERRUPT,
+	COMM_WAIT,
+	COMM_DUMMY
+}CommModeTypeDef;
 
 typedef union {
 	UART_HandleTypeDef *huart;
@@ -42,6 +48,5 @@ struct MessageInfoTypeDef{
 	HAL_StatusTypeDef* TransactionStatus;
 };
 
-typedef enum {COMM_INT, COMM_WAIT, COMM_DMA}CommTypeAllowed_t;
 
 #endif /* SPECIALTYPES_HPP_ */

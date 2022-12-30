@@ -8,14 +8,14 @@
 #ifndef COMMMANAGER_COMMSPI_HPP_
 #define COMMMANAGER_COMMSPI_HPP_
 
-#include "CommInterface.hpp"
+#include <CommBaseClass.hpp>
 
-class CommSPI : public CommInterface<SPI_HandleTypeDef>
+class CommSPI : public CommBaseClass<SPI_HandleTypeDef>
 {
 public:
 
-	HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *pIntStruct){return HAL_ERROR;};
-	HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma){return HAL_ERROR;};
+	HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *pIntStruct, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
+	HAL_StatusTypeDef AttachCommInt(SPI_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
 
 	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo) {return HAL_ERROR;};
 	void CheckForNextCommRequestAndStart(void) {};

@@ -16,7 +16,7 @@
 template<typename T>
 HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
 {
-	CommInterface<T>* Init = _GetObj(hint);
+	CommBaseClass<T>* Init = _GetObj(hint);
 	if(Init == NULL)
 	{
 		return HAL_ERROR;
@@ -46,19 +46,19 @@ HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx,
 }
 
 template<typename T>
-CommInterface<T>* CommManager::_GetObj(T *hint)
+CommBaseClass<T>* CommManager::_GetObj(T *hint)
 {
 	if(std::is_same_v<T, I2C_HandleTypeDef>)
 	{
-		return reinterpret_cast<CommInterface<T>*>(new CommI2C());
+		return reinterpret_cast<CommBaseClass<T>*>(new CommI2C());
 	}
 	else if(std::is_same_v<T, SPI_HandleTypeDef>)
 	{
-		return reinterpret_cast<CommInterface<T>*>(new CommSPI());
+		return reinterpret_cast<CommBaseClass<T>*>(new CommSPI());
 	}
 	else if(std::is_same_v<T, UART_HandleTypeDef>)
 	{
-		return reinterpret_cast<CommInterface<T>*>(new CommUART());
+		return reinterpret_cast<CommBaseClass<T>*>(new CommUART());
 	}
 	else
 	{
@@ -70,15 +70,15 @@ template<typename T>
 HAL_StatusTypeDef CommManager::_PushObjToVect(T hint)
 {
 	std::vector<T> *Vect;
-	if(std::is_same_v<T, CommInterface<I2C_HandleTypeDef>*>)
+	if(std::is_same_v<T, CommBaseClass<I2C_HandleTypeDef>*>)
 	{
 		Vect = reinterpret_cast<std::vector<T>*>(&this->_comm_I2C_vect);
 	}
-	else if(std::is_same_v<T, CommInterface<SPI_HandleTypeDef>*>)
+	else if(std::is_same_v<T, CommBaseClass<SPI_HandleTypeDef>*>)
 	{
 		Vect = reinterpret_cast<std::vector<T>*>(&this->_comm_SPI_vect);
 	}
-	else if(std::is_same_v<T, CommInterface<UART_HandleTypeDef>*>)
+	else if(std::is_same_v<T, CommBaseClass<UART_HandleTypeDef>*>)
 	{
 		Vect = reinterpret_cast<std::vector<T>*>(&this->_comm_UART_vect);
 	}

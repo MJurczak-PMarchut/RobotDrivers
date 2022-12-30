@@ -13,7 +13,7 @@
 #include "vector"
 #include "queue"
 #include <functional>
-#include "CommInterface.hpp"
+#include <CommBaseClass.hpp>
 
 class CommManager
 {
@@ -37,12 +37,11 @@ class CommManager
 		template<typename T>
 		HAL_StatusTypeDef _PushObjToVect(T hint);
 
+		template<typename queue, typename T>
+		CommBaseClass<T>* _MatchInstance(queue *VectQueue, T *hint);
 
 		template<typename T>
-		CommInterface<T>* _GetObj(T *hint);
-
-		template<typename Handle, typename QueueVectTD>
-		HAL_StatusTypeDef __MsgReceivedCB(Handle *IntHandle, QueueVectTD *Queue);
+		CommBaseClass<T>* _GetObj(T *hint);
 
 		template<typename T>
 		HAL_StatusTypeDef __CheckAndSetCSPins(MessageInfoTypeDef<T> *MsgInfo, uint8_t VectorIndex);
@@ -51,9 +50,9 @@ class CommManager
 		HAL_StatusTypeDef __CheckAndSetCSPinsGeneric(queue *VectQueue, uint8_t VectorIndex, MessageInfoTypeDef<T> *MsgInfo);
 
 
-		std::vector<CommInterface<I2C_HandleTypeDef>*> _comm_I2C_vect;
-		std::vector<CommInterface<SPI_HandleTypeDef>*> _comm_SPI_vect;
-		std::vector<CommInterface<UART_HandleTypeDef>*> _comm_UART_vect;
+		std::vector<CommBaseClass<I2C_HandleTypeDef>*> _comm_I2C_vect;
+		std::vector<CommBaseClass<SPI_HandleTypeDef>*> _comm_SPI_vect;
+		std::vector<CommBaseClass<UART_HandleTypeDef>*> _comm_UART_vect;
 
 
 };

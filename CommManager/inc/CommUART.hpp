@@ -8,19 +8,22 @@
 #ifndef COMMMANAGER_COMMUART_HPP_
 #define COMMMANAGER_COMMUART_HPP_
 
-#include "CommInterface.hpp"
+#include <CommBaseClass.hpp>
+#include "queue"
 
-class CommUART : public CommInterface<UART_HandleTypeDef>
+class CommUART : public CommBaseClass<UART_HandleTypeDef>
 {
 public:
 
-	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct){return HAL_ERROR;};
-	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma){return HAL_ERROR;};
+	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
+	HAL_StatusTypeDef AttachCommInt(UART_HandleTypeDef *pIntStruct, DMA_HandleTypeDef *hdma, CommModeTypeDef commType = COMM_DUMMY){return HAL_ERROR;};
 
 	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo) {return HAL_ERROR;};
 	void CheckForNextCommRequestAndStart(void) {};
 	HAL_StatusTypeDef CheckIfSameInstance(const UART_HandleTypeDef *pIntStruct){return HAL_ERROR;};
 	const UART_HandleTypeDef* GetInstance(void) {return NULL;};
+
+	std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
 
 private:
 

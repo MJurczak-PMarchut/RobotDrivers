@@ -21,6 +21,7 @@ CommManager::CommManager()
 
 }
 
+
 HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)
 {
 	for(auto instance : _comm_SPI_vect)
@@ -64,88 +65,41 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart, uint16_t
 
 HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart)
 {
-//	return __MsgReceivedCB(huart, &this->__huartQueueVect);
-	return HAL_ERROR;
+	HAL_StatusTypeDef ret_value = HAL_ERROR;
+	CommBaseClass<UART_HandleTypeDef>* uart_inst;
+	uart_inst = this->_MatchInstance(&_comm_UART_vect, huart);
+	if(uart_inst != NULL)
+	{
+		ret_value = uart_inst->MsgReceivedCB(huart);
+	}
+	return ret_value;
 }
 
 HAL_StatusTypeDef CommManager::MsgReceivedCB(SPI_HandleTypeDef *hspi)
 {
-//	return __MsgReceivedCB(hspi, &this->__hspiQueueVect);
-	return HAL_ERROR;
+	HAL_StatusTypeDef ret_value = HAL_ERROR;
+	CommBaseClass<SPI_HandleTypeDef>* spi_inst;
+	spi_inst = this->_MatchInstance(&_comm_SPI_vect, hspi);
+	if(spi_inst != NULL)
+	{
+		ret_value = spi_inst->MsgReceivedCB(hspi);
+	}
+	return ret_value;
 }
 
 
 HAL_StatusTypeDef CommManager::MsgReceivedCB(I2C_HandleTypeDef *hi2c)
 {
-//	return __MsgReceivedCB(hi2c, &this->__hi2cQueueVect);
-	return HAL_ERROR;
+	HAL_StatusTypeDef ret_value = HAL_ERROR;
+	CommBaseClass<I2C_HandleTypeDef>* i2c_inst;
+	i2c_inst = this->_MatchInstance(&_comm_I2C_vect, hi2c);
+	if(i2c_inst != NULL)
+	{
+		ret_value = i2c_inst->MsgReceivedCB(hi2c);
+	}
+	return ret_value;
 }
 
-template<typename Handle, typename QueueVectTD>
-HAL_StatusTypeDef CommManager::__MsgReceivedCB(Handle *IntHandle, QueueVectTD *Queue)
-{
-	//Find message
-	uint8_t u8Iter;
-	MessageInfoTypeDef<Handle> Msg;
-	//Find peripheral
-	for(u8Iter = 0; u8Iter < (*Queue).size(); u8Iter++)
-	{
-		if(IntHandle->Instance == (*Queue)[u8Iter].handle->Instance)
-		{
-			//Call CB functions if any
-			Msg = (*Queue)[u8Iter].MsgInfo.front();
-			//remove item from queue
-			(*Queue)[u8Iter].MsgInfo.pop();
-			//Clear CS Pin if any
-			if(Msg.GPIOx != 0){
-				HAL_GPIO_WritePin(Msg.GPIOx, Msg.GPIO_PIN, CSn_INACTIVE_PIN_STATE);
-			}
-			//Set transaction status
-			if(Msg.TransactionStatus != 0){
-				*Msg.TransactionStatus = HAL_OK;
-			}
-			switch(Msg.eCommType)
-			{
-				case COMM_INT_RX:
-				{
-					if(Msg.pRxCompletedCB != 0)
-						{
-							Msg.pRxCompletedCB(&Msg);
-						}
-				}
-					break;
-				case COMM_INT_TX:
-				{
-					if(Msg.pTxCompletedCB != 0)
-						{
-							Msg.pTxCompletedCB(&Msg);
-						}
-				}
-					break;
-				case COMM_INT_TXRX:
-				{
-					if(Msg.pRxCompletedCB != 0)
-						{
-							Msg.pRxCompletedCB(&Msg);
-						}
-					if(Msg.pTxCompletedCB != 0)
-						{
-							Msg.pTxCompletedCB(&Msg);
-						}
-				}
-					break;
-				default:
-					break;
-			}
-			if(Msg.pCB != 0)
-			{
-				Msg.pCB(&Msg);
-			}
-			 return __CheckForNextCommRequestAndStart(IntHandle, Queue);
-		}
-	}
-	return HAL_ERROR;
-}
 
 template<typename T>
 HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef<T> *MsgInfo, uint8_t VectorIndex)
@@ -175,6 +129,19 @@ HAL_StatusTypeDef CommManager::__CheckAndSetCSPinsGeneric(queue *VectQueue, uint
 			return HAL_OK;
 		}
 
+}
+
+template<typename queue, typename T>
+CommBaseClass<T>* CommManager::_MatchInstance(queue *VectQueue, T *hint)
+{
+	for(auto instance : *VectQueue)
+	{
+		if(instance->CheckIfSameInstance(hint) == HAL_OK)
+		{
+			return instance;
+		}
+	}
+	return NULL;
 }
 
 #endif
