@@ -22,6 +22,9 @@ public:
 	HAL_StatusTypeDef CheckIfSameInstance(const SPI_HandleTypeDef *pIntStruct){return HAL_ERROR;};
 	const SPI_HandleTypeDef* GetInstance(void) {return NULL;};
 
+protected:
+	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo);
+
 private:
 
 	uint8_t CheckIfCommIntIsAttachedAndHasFreeSpace(CommIntTypeDef eCommIntType){return 0;};

@@ -23,7 +23,9 @@ public:
 	HAL_StatusTypeDef CheckIfSameInstance(const UART_HandleTypeDef *pIntStruct){return HAL_ERROR;};
 	const UART_HandleTypeDef* GetInstance(void) {return NULL;};
 
-	std::vector<CommQueue<UART_HandleTypeDef*>> __huartQueueVect;
+protected:
+	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo);
+
 
 private:
 
