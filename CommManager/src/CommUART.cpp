@@ -7,8 +7,8 @@
 
 #include "CommUART.hpp"
 
-CommUART::CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
-:CommBaseClass(hint, hdmaRx), _hdmaTx{hdmaTx}
+CommUART::CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx, CommModeTypeDef CommMode)
+:CommBaseClass(hint, hdmaRx, CommMode), _hdmaTx{hdmaTx}
 {}
 
 HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
@@ -74,7 +74,60 @@ HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_Han
 	return ret;
 }
 
-
+HAL_StatusTypeDef CommUART::MsgReceivedCB(UART_HandleTypeDef *hint, uint16_t len)
+{
+	MessageInfoTypeDef<UART_HandleTypeDef> Msg = _MsgQueue.front();
+	//remove item from queue
+	_MsgQueue.pop();
+	//Clear CS Pin if any
+	if(Msg.GPIOx != 0){
+		HAL_GPIO_WritePin(Msg.GPIOx, Msg.GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+	}
+	//Set transaction status
+	if(Msg.TransactionStatus != 0){
+		*Msg.TransactionStatus = HAL_OK;
+	}
+	//set len
+	Msg.len = len;
+	switch(Msg.eCommType)
+	{
+		case COMM_INT_RX:
+		{
+			if(Msg.pRxCompletedCB != 0)
+				{
+					Msg.pRxCompletedCB(&Msg);
+				}
+		}
+			break;
+		case COMM_INT_TX:
+		{
+			if(Msg.pTxCompletedCB != 0)
+				{
+					Msg.pTxCompletedCB(&Msg);
+				}
+		}
+			break;
+		case COMM_INT_TXRX:
+		{
+			if(Msg.pRxCompletedCB != 0)
+				{
+					Msg.pRxCompletedCB(&Msg);
+				}
+			if(Msg.pTxCompletedCB != 0)
+				{
+					Msg.pTxCompletedCB(&Msg);
+				}
+		}
+			break;
+		default:
+			break;
+	}
+	if(Msg.pCB != 0)
+	{
+		Msg.pCB(&Msg);
+	}
+	return __CheckForNextCommRequestAndStart();
+}
 
 /*
  * CommUART.cpp

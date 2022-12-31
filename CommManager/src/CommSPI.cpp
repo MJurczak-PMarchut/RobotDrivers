@@ -7,8 +7,8 @@
 
 #include "CommSPI.hpp"
 
-CommSPI::CommSPI(SPI_HandleTypeDef *hint, DMA_HandleTypeDef *hdma)
-:CommBaseClass(hint, hdma)
+CommSPI::CommSPI(SPI_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeDef CommMode)
+:CommBaseClass(hint, hdma, CommMode)
 {}
 
 HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)

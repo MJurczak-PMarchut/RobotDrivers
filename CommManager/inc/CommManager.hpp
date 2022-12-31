@@ -32,7 +32,7 @@ class CommManager
 		HAL_StatusTypeDef MsgReceivedCB(T *hint);
 
 		template<typename T>
-		HAL_StatusTypeDef AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx = NULL, DMA_HandleTypeDef *hdmaTx = NULL);
+		HAL_StatusTypeDef AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx = NULL, DMA_HandleTypeDef *hdmaTx = NULL, CommModeTypeDef CommMode = COMM_DUMMY);
 
 	private:
 
@@ -43,19 +43,11 @@ class CommManager
 		std::vector<CommBaseClass<T>*>* _GetVector(T *hint);
 
 		template<typename T>
-		CommBaseClass<T>* _GetObj(T *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx);
-
-		template<typename T>
-		HAL_StatusTypeDef __CheckAndSetCSPins(MessageInfoTypeDef<T> *MsgInfo, uint8_t VectorIndex);
-
-		template<typename queue, typename T>
-		HAL_StatusTypeDef __CheckAndSetCSPinsGeneric(queue *VectQueue, uint8_t VectorIndex, MessageInfoTypeDef<T> *MsgInfo);
+		CommBaseClass<T>* _GetObj(T *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx, CommModeTypeDef CommMode);
 
 		std::vector<CommBaseClass<I2C_HandleTypeDef>*> _comm_I2C_vect;
 		std::vector<CommBaseClass<SPI_HandleTypeDef>*> _comm_SPI_vect;
 		std::vector<CommBaseClass<UART_HandleTypeDef>*> _comm_UART_vect;
-
-
 
 
 };

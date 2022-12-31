@@ -8,8 +8,8 @@
 #include "CommI2C.hpp"
 
 
-CommI2C::CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma)
-:CommBaseClass(hint, hdma)
+CommI2C::CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeDef CommMode)
+:CommBaseClass(hint, hdma, CommMode)
 {}
 
 HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)

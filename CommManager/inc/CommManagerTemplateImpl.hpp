@@ -10,6 +10,25 @@
 
 #include "CommManager.hpp"
 
+template<typename T>
+HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx, CommModeTypeDef CommMode)
+{
+	CommBaseClass<T>* Init = NULL;
+	std::vector<CommBaseClass<T>*>* vect = _GetVector(hint);
+	if(this->_MatchInstance(vect, hint) != NULL)
+	{
+		return HAL_ERROR;
+	}
+	// ToDo check if args are correct
+	Init = _GetObj(hint, hdmaRx, hdmaTx, CommMode);
+	if(Init == NULL)
+	{
+		return HAL_ERROR;
+	}
+	vect->push_back(Init);
+	return HAL_OK;
+}
+
 template<class T>
 HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
 {

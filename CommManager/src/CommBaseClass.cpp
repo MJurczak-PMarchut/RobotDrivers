@@ -7,8 +7,8 @@
 #include "CommBaseClass.hpp"
 
 template<typename T>
-CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx)
-:_Handle{hint}, hdmaRx{hdmaRx}
+CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode)
+:_Handle{hint}, hdmaRx{hdmaRx}, _commType{CommMode}
 {}
 
 
@@ -137,6 +137,13 @@ HAL_StatusTypeDef CommBaseClass<T>::MsgReceivedCB(T *hint)
 	}
 	return __CheckForNextCommRequestAndStart();
 }
+
+template<typename T>
+HAL_StatusTypeDef CommBaseClass<T>::CheckIfSameInstance(const T *pIntStruct)
+{
+	return (this->_Handle->Instance == pIntStruct->Instance)? HAL_OK : HAL_ERROR;
+}
+
 
 //These Interfaces are supported
 template class CommBaseClass<SPI_HandleTypeDef>;

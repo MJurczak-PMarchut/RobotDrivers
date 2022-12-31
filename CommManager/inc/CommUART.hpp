@@ -13,8 +13,8 @@
 class CommUART : public CommBaseClass<UART_HandleTypeDef>
 {
 public:
-	CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx);
-
+	CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx, CommModeTypeDef CommMode);
+	HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *hint, uint16_t len);
 protected:
 	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo);
 

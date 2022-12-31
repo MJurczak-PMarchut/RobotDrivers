@@ -32,7 +32,7 @@ typedef union {
 	I2C_HandleTypeDef *hi2c;
 }CommIntUnionTypeDef;
 
-template<class T>
+template<typename T>
 struct MessageInfoTypeDef{
 	uint16_t context;
 	CommIntTypeDef eCommType;

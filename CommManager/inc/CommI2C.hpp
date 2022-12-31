@@ -13,7 +13,7 @@
 class CommI2C : public CommBaseClass<I2C_HandleTypeDef>
 {
 public:
-	CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma);
+	CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeDef CommMode);
 
 protected:
 	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
