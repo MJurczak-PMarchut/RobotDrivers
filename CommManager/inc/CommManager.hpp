@@ -15,6 +15,10 @@
 #include <functional>
 #include <CommBaseClass.hpp>
 
+#define SPI SPI_HandleTypeDef
+#define I2C I2C_HandleTypeDef
+#define UART UART_HandleTypeDef
+
 class CommManager
 {
 	public:
@@ -56,6 +60,6 @@ class CommManager
 
 };
 #endif
-
+#include "CommManagerTemplateImpl.hpp"
 
 #endif /* SUMODRIVERS_COMMMANAGER_COMMMANAGER_HPP_ */

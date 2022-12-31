@@ -153,7 +153,7 @@ private:
 	static const uint16_t __default_addr = {0x52};
 	GPIO_TypeDef *__GPIOx;
 	uint16_t __GPIO_Pin;
-	MessageInfoTypeDef __MsgInfo;
+	MessageInfoTypeDef<I2C_HandleTypeDef> __MsgInfo;
 	VL53L1X_ERROR VL53L1X_ClearInterrupt();
 	VL53L1X_ERROR VL53L1X_SetI2CAddress();
 public:
@@ -167,48 +167,48 @@ public:
  * @brief This function returns the current interrupt polarity\n
  * 1=active high (default), 0=active low
  */
-VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pIntPol, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pIntPol, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 /**
  * @brief This function starts the ranging distance operation\n
  * The ranging operation is continuous. The clear interrupt has to be done after each get data to allow the interrupt to raise when the next data is ready\n
  * 1=active high (default), 0=active low, use SetInterruptPolarity() to change the interrupt polarity if required.
  */
-VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 /**
  * @brief This function stops the ranging.
  */
-VL53L1X_ERROR VL53L1X_StopRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_StopRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 /**
  * @brief This function checks if the new ranging data is available by polling the dedicated register.
  * @param : isDataReady==0 -> not ready; isDataReady==1 -> ready
  */
-VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 /**
  * @brief This function programs the timing budget in ms.
  * Predefined values = 15, 20, 33, 50, 100(default), 200, 500.
  */
-VL53L1X_ERROR VL53L1X_SetTimingBudgetInMs(uint16_t dev, uint16_t TimingBudgetInMs, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_SetTimingBudgetInMs(uint16_t dev, uint16_t TimingBudgetInMs, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 /**
  * @brief This function programs the distance mode (1=short, 2=long(default)).
  * Short mode max distance is limited to 1.3 m but better ambient immunity.\n
  * Long mode can range up to 4 m in the dark with 200 ms timing budget.
  */
-VL53L1X_ERROR VL53L1X_SetDistanceMode(uint16_t dev, uint16_t DistanceMode, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_SetDistanceMode(uint16_t dev, uint16_t DistanceMode, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 /**
  * @brief This function returns the distance measured by the sensor in mm
  */
-VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 /**
  * @brief This function returns measurements and the range status in a single read access
  */
-VL53L1X_ERROR VL53L1X_GetResult(uint16_t dev, VL53L1X_Result_t *pResult, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo);
+VL53L1X_ERROR VL53L1X_GetResult(uint16_t dev, VL53L1X_Result_t *pResult, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 
 
 #endif

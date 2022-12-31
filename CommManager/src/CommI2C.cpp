@@ -73,6 +73,54 @@ HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_Handl
 			}
 		}
 		break;
+		case COMM_INT_MEM_RX:
+		{
+			if(_commType == COMM_DMA)
+			{
+				//Queue empty and peripheral ready, send message
+				ret = HAL_I2C_Mem_Read_DMA(_Handle, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+				__HAL_DMA_DISABLE_IT(hdmaRx, DMA_IT_HT);
+			}
+			else if(_commType == COMM_INTERRUPT)
+			{
+				//Queue empty and peripheral ready, send message
+				ret = HAL_I2C_Mem_Read_IT(_Handle, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len);
+			}
+			else if(_commType == COMM_WAIT)
+			{
+				//Queue empty and peripheral ready, send message
+				ret = HAL_I2C_Mem_Read(_Handle, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pRxData, MsgInfo->len, 1000);
+			}
+			else
+			{
+				ret = HAL_ERROR;
+			}
+		}
+		break;
+		case COMM_INT_MEM_TX:
+		{
+			if(_commType == COMM_DMA)
+			{
+				//Queue empty and peripheral ready, send message
+				ret = HAL_I2C_Mem_Write_DMA(_Handle, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pTxData, MsgInfo->len);
+				__HAL_DMA_DISABLE_IT(hdmaRx, DMA_IT_HT);
+			}
+			else if(_commType == COMM_INTERRUPT)
+			{
+				//Queue empty and peripheral ready, send message
+				ret = HAL_I2C_Mem_Write_IT(_Handle, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pTxData, MsgInfo->len);
+			}
+			else if(_commType == COMM_WAIT)
+			{
+				//Queue empty and peripheral ready, send message
+				ret = HAL_I2C_Mem_Write(_Handle, MsgInfo->I2C_Addr, MsgInfo->I2C_MemAddr, I2C_MEMADD_SIZE_16BIT, MsgInfo->pTxData, MsgInfo->len, 1000);
+			}
+			else
+			{
+				ret = HAL_ERROR;
+			}
+		}
+		break;
 		default:
 			ret = HAL_ERROR;
 			break;

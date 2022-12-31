@@ -14,7 +14,9 @@
 typedef enum {
 	COMM_INT_TXRX = 0,
 	COMM_INT_RX,
-	COMM_INT_TX
+	COMM_INT_TX,
+	COMM_INT_MEM_TX,
+	COMM_INT_MEM_RX
 }CommIntTypeDef;
 
 typedef enum {
@@ -30,16 +32,16 @@ typedef union {
 	I2C_HandleTypeDef *hi2c;
 }CommIntUnionTypeDef;
 
-template<typename T>
+template<class T>
 struct MessageInfoTypeDef{
+	uint16_t context;
 	CommIntTypeDef eCommType;
-	T IntHandle;
+	T *IntHandle;
 	uint16_t GPIO_PIN;
 	GPIO_TypeDef *GPIOx;
 	uint16_t len;
 	uint8_t *pRxData;
 	uint8_t *pTxData;
-	uint16_t context;
 	uint16_t I2C_Addr;
 	uint16_t I2C_MemAddr;
 	std::function<void(MessageInfoTypeDef* MsgInfo)> pCB;

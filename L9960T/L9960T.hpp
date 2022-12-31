@@ -7,9 +7,9 @@
 
 #ifndef SUMODRIVERS_L9960T_L9960T_HPP_
 #define SUMODRIVERS_L9960T_L9960T_HPP_
-#include "../../RobotDrivers/L9960T/L9960_regs.hpp"
-#include "../../RobotDrivers/Motor Control/MotorControl.hpp"
-#include "../../RobotDrivers/RobotSpecificDefines.hpp"
+#include "L9960_regs.hpp"
+#include "MotorControl.hpp"
+#include "RobotSpecificDefines.hpp"
 
 #ifdef USES_RTOS
 #include "osapi.h"
@@ -34,7 +34,7 @@ class L9960T : protected MCInterface{
 		HAL_StatusTypeDef EmergencyStop(void);
 		HAL_StatusTypeDef CheckIfControllerInitializedOk(void);
 		HAL_StatusTypeDef StartPWM(void);
-		void Init(MessageInfoTypeDef* MsgInfo);
+		void Init(MessageInfoTypeDef<SPI>* MsgInfo);
 	private:
 		void __delay_ms(uint32_t TimeMs);
 		MotorSideTypeDef __side;
@@ -61,7 +61,7 @@ public:
 		HAL_StatusTypeDef CheckControllerState(void);
 
 private:
-		void _ControllerStateCB(MessageInfoTypeDef* MsgInfo);
+		void _ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo);
 		StaticSemaphore_t _pxSemphrMemory;
 		SemaphoreHandle_t _StatusSemaphore;
 #endif

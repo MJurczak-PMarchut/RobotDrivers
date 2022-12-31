@@ -262,7 +262,7 @@ VL53L1X_ERROR VL53L1X::VL53L1X_ClearInterrupt()
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
 	uint8_t Temp;
 	VL53L1X_ERROR status = 0;
@@ -275,7 +275,7 @@ VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPola
 	return status;
 }
 
-VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
 	VL53L1X_ERROR status = 0;
 	status |= VL53L1_WrByte(dev, SYSTEM__MODE_START, &start_ranging_const, CommunicationManager, MsgInfo);	/* Enable VL53L1X */
@@ -290,7 +290,7 @@ VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManag
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
 	uint8_t Temp;
 	uint8_t IntPol;
@@ -413,7 +413,7 @@ VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, Comm
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
 	uint16_t Temp;
 	VL53L1X_ERROR status = 0;
@@ -548,7 +548,7 @@ VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget,
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo)
+VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
 	VL53L1X_ERROR status = 0;
 

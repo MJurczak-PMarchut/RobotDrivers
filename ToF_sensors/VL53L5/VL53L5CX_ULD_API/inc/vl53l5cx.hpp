@@ -25,7 +25,7 @@ public:
 	ToF_Status_t CheckSensorStatus(void);
 	uint16_t GetDataFromSensor(uint8_t x, uint8_t y);
 	uint8_t GetStatusFromSensor(uint8_t x, uint8_t y);
-	void DataReceived(MessageInfoTypeDef *MsgInfo);
+	void DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 	~VL53L5CX(void) {
 	}
 	;
@@ -52,12 +52,12 @@ private:
 			uint8_t					pos,
 			uint8_t					mask,
 			uint8_t					expected_value,
-			MessageInfoTypeDef* 	MsgInfo,
-			MessageInfoTypeDef*		MsgInfoToSend);
-	uint8_t __vl53l5cx_poll_for_mcu_boot(MessageInfoTypeDef* MsgInfoToSend);
+			MessageInfoTypeDef<I2C_HandleTypeDef>* 	MsgInfo,
+			MessageInfoTypeDef<I2C_HandleTypeDef>*		MsgInfoToSend);
+	uint8_t __vl53l5cx_poll_for_mcu_boot(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfoToSend);
 	uint8_t __vl53l5cx_send_offset_data(uint8_t resolution);
 	uint8_t __vl53l5cx_send_xtalk_data(uint8_t resolution);
-	uint8_t __vl53l5cx_start_ranging(MessageInfoTypeDef* MsgInfoToSend);
+	uint8_t __vl53l5cx_start_ranging(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfoToSend);
 	uint16_t __vl53l5cx_dci_write_data(uint8_t *data, uint32_t index, uint16_t data_size);
 	uint8_t __vl53l5cx_dci_read_data(
 			uint8_t 			*_cmd,

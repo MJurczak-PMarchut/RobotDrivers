@@ -13,11 +13,9 @@
 #define MAX_MESSAGE_NO_IN_QUEUE 5
 #endif
 
-#include "CommI2C.hpp"
-#include "CommSPI.hpp"
 #include "CommUART.hpp"
-
-
+#include "CommSPI.hpp"
+#include "CommI2C.hpp"
 
 #define VECTOR_NOT_FOUND 0xFF
 
@@ -65,42 +63,10 @@ HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx,
 	return HAL_OK;
 }
 
-template<typename T>
-HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
-{
-	std::vector<CommBaseClass<T>*>* vect = _GetVector(&MsgInfo->IntHandle);
-	if(vect == NULL)
-	{
-		return HAL_ERROR;
-	}
-	for(auto instance : *vect)
-	{
-		if(instance->CheckIfSameInstance(&MsgInfo->IntHandle) == HAL_OK)
-		{
-			return instance->PushMessageIntoQueue(MsgInfo);
-		}
-	}
-	return HAL_ERROR;
-}
-
 HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart, uint16_t len)
 {
 	return HAL_ERROR;
 }
-
-template<typename T>
-HAL_StatusTypeDef CommManager::MsgReceivedCB(T *hint)
-{
-	HAL_StatusTypeDef ret_value = HAL_ERROR;
-	CommBaseClass<T>* handle_inst;
-	handle_inst = this->_MatchInstance(_GetVector(hint), hint);
-	if(handle_inst != NULL)
-	{
-		ret_value = handle_inst->MsgReceivedCB(hint);
-	}
-	return ret_value;
-}
-
 
 template<typename T>
 HAL_StatusTypeDef CommManager::__CheckAndSetCSPins(MessageInfoTypeDef<T> *MsgInfo, uint8_t VectorIndex)
@@ -130,19 +96,6 @@ HAL_StatusTypeDef CommManager::__CheckAndSetCSPinsGeneric(queue *VectQueue, uint
 			return HAL_OK;
 		}
 
-}
-
-template<typename queue, typename T>
-CommBaseClass<T>* CommManager::_MatchInstance(queue *VectQueue, T *hint)
-{
-	for(auto instance : *VectQueue)
-	{
-		if(instance->CheckIfSameInstance(hint) == HAL_OK)
-		{
-			return instance;
-		}
-	}
-	return NULL;
 }
 
 template<>

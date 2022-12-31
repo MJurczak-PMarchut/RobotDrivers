@@ -9,13 +9,14 @@
 #include "Configuration.h"
 #include <Queue>
 
-template <typename T>
+template <class T>
 class CommBaseClass
 {
 	public:
 		CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx);
 		HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo);
-		HAL_StatusTypeDef CheckIfSameInstance(const T *pIntStruct);
+		HAL_StatusTypeDef CheckIfSameInstance(const T *pIntStruct)
+		{return (this->_Handle->Instance == pIntStruct->Instance)? HAL_OK : HAL_ERROR;};
 		HAL_StatusTypeDef MsgReceivedCB(T *hint);
 
 	protected:
@@ -32,8 +33,5 @@ class CommBaseClass
 		GPIO_TypeDef *GPIOx;
 		std::queue<MessageInfoTypeDef<T>> _MsgQueue;
 };
-
-
-
 
 #endif /* COMMMANAGER_COMMINTERFACE_HPP_ */

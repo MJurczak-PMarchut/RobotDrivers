@@ -33,7 +33,7 @@ int8_t VL53L1_WriteMulti( uint16_t dev,
 		uint8_t *pdata,
 		uint16_t count,
 		CommManager *CommunicationManager,
-		MessageInfoTypeDef *MsgInfo);
+		MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 /** @brief VL53L1_ReadMulti() definition.\n
  * To be implemented by the developer
  */
@@ -50,7 +50,7 @@ int8_t VL53L1_WrByte(
 		uint16_t      index,
 		uint8_t*       data,
 		CommManager *CommunicationManager,
-		MessageInfoTypeDef *MsgInfo);
+		MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 /** @brief VL53L1_WrWord() definition.\n
  * To be implemented by the developer
  */
@@ -73,7 +73,7 @@ int8_t VL53L1_RdByte(
 		uint16_t      index,
 		uint8_t      *pdata,
 		CommManager *CommunicationManager,
-		MessageInfoTypeDef *MsgInfo);
+		MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 /** @brief VL53L1_RdWord() definition.\n
  * To be implemented by the developer
  */
@@ -82,7 +82,7 @@ int8_t VL53L1_RdWord(
 		uint16_t      index,
 		uint16_t     *pdata,
 		CommManager *CommunicationManager,
-		MessageInfoTypeDef *MsgInfo);
+		MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 /** @brief VL53L1_RdDWord() definition.\n
  * To be implemented by the developer
  */

@@ -42,10 +42,10 @@ static uint8_t _data[MESSAGE_LENGTH];
 uint8_t _data_receiveL[MESSAGE_LENGTH];
 uint8_t _data_receiveR[MESSAGE_LENGTH];
 
-int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint16_t count, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
+int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint16_t count, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo) {
 	int8_t status = 0;
 	MsgInfo->I2C_Addr = dev;
-	MsgInfo->eCommType = COMM_INT_I2C_MEM_TX;
+	MsgInfo->eCommType = COMM_INT_MEM_TX;
 	MsgInfo->I2C_MemAddr = index;
 	MsgInfo->pTxData = pdata;
 	MsgInfo->len = count;
@@ -60,10 +60,10 @@ int8_t VL53L1_ReadMulti(uint16_t dev, uint16_t index, uint8_t *pdata, uint32_t c
 	return 0; // to be implemented
 }
 
-int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
+int8_t VL53L1_WrByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo) {
 	int8_t status = 0;
 	MsgInfo->I2C_Addr = dev;
-	MsgInfo->eCommType = COMM_INT_I2C_MEM_TX;
+	MsgInfo->eCommType = COMM_INT_MEM_TX;
 	MsgInfo->I2C_MemAddr = index;
 	MsgInfo->pTxData = data;
 	MsgInfo->len = 1;
@@ -84,7 +84,7 @@ int8_t VL53L1_WrDWord(uint16_t dev, uint16_t index, uint32_t data) {
 	return 0; // to be implemented
 }
 
-int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
+int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo) {
 	int8_t status = 0;
 	_data[0] = (uint8_t) index >> 8;
 	_data[1] = (uint8_t) index & 0xff;
@@ -92,7 +92,7 @@ int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *C
 
 	MsgInfo->I2C_Addr = dev;
 	MsgInfo->I2C_MemAddr = index;
-	MsgInfo->eCommType = COMM_INT_I2C_MEM_RX;
+	MsgInfo->eCommType = COMM_INT_MEM_RX;
 	MsgInfo->len = 1;
 	if(dev == TOF5_Addr)
 	{
@@ -116,7 +116,7 @@ int8_t VL53L1_RdByte(uint16_t dev, uint16_t index, uint8_t *data, CommManager *C
 	return status;
 }
 
-int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data, CommManager *CommunicationManager, MessageInfoTypeDef *MsgInfo) {
+int8_t VL53L1_RdWord(uint16_t dev, uint16_t index, uint16_t *data, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo) {
 	int8_t status = 0;
 	_data[0] = (uint8_t) index >> 8;
 	_data[1] = (uint8_t) index & 0xff;

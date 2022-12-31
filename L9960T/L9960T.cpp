@@ -5,7 +5,7 @@
  *      Author: Mateusz
  */
 
-#include "../../RobotDrivers/L9960T/L9960T.hpp"
+#include "L9960T.hpp"
 
 
 L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim):
@@ -68,19 +68,19 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 #endif
 }
 
-void L9960T::Init(MessageInfoTypeDef* MsgInfo)
+void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 {
 	uint16_t Message;
-	MessageInfoTypeDef<SPI_HandleTypeDef> MsgInfoToSend = {0};
+	MessageInfoTypeDef<SPI> MsgInfoToSend = {0};
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
 	MsgInfoToSend.context = (1 << this->__side) |
 					  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) | //Tis a Init sequence!
 			          (this->__InitMessageID << 8);
-	MsgInfoToSend.eCommType = COMM_INT_SPI_TXRX;
+	MsgInfoToSend.eCommType = COMM_INT_TXRX;
 	MsgInfoToSend.len = 2;
 	MsgInfoToSend.pRxData = this->pRxData;
-	MsgInfoToSend.uCommInt.hspi = this->__hspi;
+	MsgInfoToSend.IntHandle = this->__hspi;
 #ifdef USES_RTOS
 	MsgInfoToSend.pCB = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
 #else
@@ -280,7 +280,7 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 	uint16_t Message;
 	HAL_StatusTypeDef ret;
 	static HAL_StatusTypeDef transactionstatud = HAL_ERROR;
-	MessageInfoTypeDef MsgInfoToSend = {0};
+	MessageInfoTypeDef<SPI> MsgInfoToSend = {0};
 
 	//Send status request
 
@@ -288,9 +288,9 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
 	MsgInfoToSend.context = (STATUS_CHECK_CONTEXT << CONTEXT_OFFSET) | (state << 8);
-	MsgInfoToSend.eCommType = COMM_INT_SPI_TXRX;
+	MsgInfoToSend.eCommType = COMM_INT_TXRX;
 	MsgInfoToSend.len = 2;
-	MsgInfoToSend.uCommInt.hspi = this->__hspi;
+	MsgInfoToSend.IntHandle = this->__hspi;
 	MsgInfoToSend.pTxData = pTxData;
 	MsgInfoToSend.TransactionStatus = &transactionstatud;
 	MsgInfoToSend.pCB = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
@@ -338,7 +338,7 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 	return HAL_OK; //dummy
 }
 
-void L9960T::_ControllerStateCB(MessageInfoTypeDef* MsgInfo)
+void L9960T::_ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo)
 {
 	if(((MsgInfo->context & 0xFF) >> CONTEXT_OFFSET) == STATUS_CHECK_CONTEXT) //redundant check
 	{

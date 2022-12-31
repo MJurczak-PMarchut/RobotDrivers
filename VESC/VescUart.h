@@ -102,8 +102,8 @@ class VescUart
 		 */
 		int packSendPayload(uint8_t * payload, int lenPay);
 
-		void RxCompletedCB(struct MessageInfoTypeDef* MsgInfo);
-		void TxCompletedCB(struct MessageInfoTypeDef* MsgInfo);
+		void RxCompletedCB(struct MessageInfoTypeDef<UART_HandleTypeDef>* MsgInfo);
+		void TxCompletedCB(struct MessageInfoTypeDef<UART_HandleTypeDef>* MsgInfo);
 
 	private:
 

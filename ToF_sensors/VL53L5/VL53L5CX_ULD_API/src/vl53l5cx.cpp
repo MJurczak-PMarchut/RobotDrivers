@@ -581,7 +581,7 @@ HAL_StatusTypeDef VL53L5CX::StartRanging(void) {
 	return (ret == 0) ? HAL_OK : HAL_ERROR;
 }
 
-void VL53L5CX::DataReceived(MessageInfoTypeDef* MsgInfo)
+void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 {
 	SwapBuffer((uint8_t*)this->__comm_buffer, (uint16_t)32);
 	for(uint8_t i = 0; i< 16; i++)
@@ -595,19 +595,19 @@ void VL53L5CX::DataReceived(MessageInfoTypeDef* MsgInfo)
 
 HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 		HAL_StatusTypeDef ret = HAL_OK;
-		MessageInfoTypeDef MsgInfoToSend = { 0 };
-		MsgInfoToSend.eCommType = COMM_INT_I2C_MEM_RX;
+		MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
+		MsgInfoToSend.eCommType = COMM_INT_RX;
 		MsgInfoToSend.I2C_Addr = this->__address;
 		MsgInfoToSend.I2C_MemAddr = 304;
 		MsgInfoToSend.len = 32;
 		MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
-		MsgInfoToSend.uCommInt.hi2c = this->__hi2c1;
+		MsgInfoToSend.IntHandle = this->__hi2c1;
 		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 		MsgInfoToSend.I2C_Addr = this->__address;
 		MsgInfoToSend.I2C_MemAddr = 360;
 		MsgInfoToSend.len = 16;
 		MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer + 32;
-		MsgInfoToSend.uCommInt.hi2c = this->__hi2c1;
+		MsgInfoToSend.IntHandle = this->__hi2c1;
 		MsgInfoToSend.pCB = std::bind(&VL53L5CX::DataReceived, this, std::placeholders::_1);
 		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 		this->__Status = TOF_STATE_DATA_RDY;
@@ -650,8 +650,8 @@ HAL_StatusTypeDef VL53L5CX::__CheckInitPollingMessage(
 		uint8_t					pos,
 		uint8_t					mask,
 		uint8_t					expected_value,
-		MessageInfoTypeDef* 	MsgInfo,
-		MessageInfoTypeDef*		MsgInfoToSend)
+		MessageInfoTypeDef<I2C_HandleTypeDef>* 	MsgInfo,
+		MessageInfoTypeDef<I2C_HandleTypeDef>*		MsgInfoToSend)
 {
 	//Received data
 	if((this->__comm_buffer[pos] & mask) == expected_value){
@@ -663,7 +663,7 @@ HAL_StatusTypeDef VL53L5CX::__CheckInitPollingMessage(
 
 	//keep polling
 	MsgInfoToSend->pRxData = this->__comm_buffer;
-	MsgInfoToSend->eCommType = COMM_INT_I2C_MEM_RX;
+	MsgInfoToSend->eCommType = COMM_INT_RX;
 	this->__InitSequenceID--;
 	//We don't want to actually callback this function, we can wait 10ms
 	MsgInfoToSend->pCB = 0;
@@ -672,7 +672,7 @@ HAL_StatusTypeDef VL53L5CX::__CheckInitPollingMessage(
 }
 
 
-uint8_t VL53L5CX::__vl53l5cx_poll_for_mcu_boot(MessageInfoTypeDef* MsgInfoToSend)
+uint8_t VL53L5CX::__vl53l5cx_poll_for_mcu_boot(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfoToSend)
 {
 	if((MsgInfoToSend != NULL) && (MsgInfoToSend->context == this->__InitSequenceID)){
 		if((this->__comm_buffer[0] & (uint8_t)0x80) != (uint8_t)0){
@@ -686,7 +686,7 @@ uint8_t VL53L5CX::__vl53l5cx_poll_for_mcu_boot(MessageInfoTypeDef* MsgInfoToSend
 		}
 	}
 	MsgInfoToSend->pRxData = this->__comm_buffer;
-	MsgInfoToSend->eCommType = COMM_INT_I2C_MEM_RX;
+	MsgInfoToSend->eCommType = COMM_INT_RX;
 	MsgInfoToSend->len = 2;
 	this->__InitSequenceID--;
 	MsgInfoToSend->pCB = 0;
@@ -839,7 +839,7 @@ uint16_t VL53L5CX::__vl53l5cx_dci_write_data(
 	return address;
 }
 
-uint8_t VL53L5CX::__vl53l5cx_start_ranging(MessageInfoTypeDef* MsgInfoToSend)
+uint8_t VL53L5CX::__vl53l5cx_start_ranging(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfoToSend)
 {
 	uint8_t resolution, status = VL53L5CX_STATUS_OK;
 	uint32_t i;
