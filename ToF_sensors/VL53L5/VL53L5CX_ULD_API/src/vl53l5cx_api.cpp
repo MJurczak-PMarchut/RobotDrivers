@@ -299,6 +299,7 @@ uint8_t vl53l5cx_init(
 	p_dev->default_configuration = (uint8_t*)VL53L5CX_DEFAULT_CONFIGURATION;
 
 	/* SW reboot sequence */
+	status |= WaitMs(&(p_dev->platform), 1);//15
 	status |= WrByte(&(p_dev->platform), 0x7fff, 0x00);//0
 	status |= WrByte(&(p_dev->platform), 0x0009, 0x04);
 	status |= WrByte(&(p_dev->platform), 0x000F, 0x40);

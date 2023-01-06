@@ -10,6 +10,7 @@
 
 #include "CommManager.hpp"
 #include "Configuration.h"
+#include "osapi.h"
 
 typedef enum  {vl53l5, vl53l1}e_ToF_Type;
 
@@ -27,6 +28,8 @@ typedef enum {
 	TOF_READING_DATA
 }ToF_Status_t;
 
+
+
 class ToF_Sensor {
 public:
 	ToF_Sensor(e_ToF_Type type, e_ToF_Position position, CommManager *comm);
@@ -39,9 +42,12 @@ public:
 	virtual HAL_StatusTypeDef SetI2CAddress(void) = 0;
 	virtual HAL_StatusTypeDef __GetData(void) = 0;
 	virtual HAL_StatusTypeDef DisableSensorComm(void)=0;
+	static uint8_t GetNoOfSensors(void);
+	static ToF_Sensor* GetSensorPointer(uint8_t);
 	static void EXTI_Callback_func(uint16_t pin);
 	static void StartSensorTask(void);
 	virtual ~ToF_Sensor();
+
 
 protected:
 	e_ToF_Type ToF_Type;
@@ -50,9 +56,21 @@ protected:
 	static uint8_t __no_of_sensors;
 
 private:
+
+	class ToF_SensorMortalThread : public MortalThread
+	{
+	public:
+		ToF_SensorMortalThread() : MortalThread(3, 512) {
+		}
+	private:
+		virtual void begin();
+		virtual void loop();
+		virtual void end();
+	};
+	static void __ToFSensorThread(void  *pvParameters);
 	static ToF_Sensor*  __ToFSensorPointers[10];
 	static TaskHandle_t *__pTaskHandle;
-	static void __ToFSensorThread(void  *pvParameters);
+	static ToF_SensorMortalThread Thread;
 
 };
 

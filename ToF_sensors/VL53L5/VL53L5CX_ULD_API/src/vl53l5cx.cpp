@@ -15,7 +15,7 @@
 #include "vl53l5cx_buffers.h"
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
-#ifdef ROBOT_IS_TOMISLAW
+#ifdef ROBOT_MT_V1
 const static uint16_t __ToFX_SHUT_Pin[] = {  XSHUT_3_Pin, XSHUT_6_Pin, XSHUT_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
 const static uint16_t __ToFX_GPIO_Pin[] = {  TOF_GPIO_3_Pin, TOF_GPIO_6_Pin, TOF_GPIO_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
 static GPIO_TypeDef *__ToFX_SHUT_Port[] = {  XSHUT_3_GPIO_Port, XSHUT_6_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port };
