@@ -40,6 +40,11 @@ ToF_Sensor::ToF_Sensor(e_ToF_Type type, e_ToF_Position position, CommManager *co
 }
 
 
+bool ToF_Sensor::CheckInitializationCplt(void)
+{
+	return Thread.isInitCompleted();
+}
+
 
 void ToF_Sensor::StartSensorTask(void) {
 	Thread.run();

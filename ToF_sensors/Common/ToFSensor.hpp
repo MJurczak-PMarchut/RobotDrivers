@@ -43,6 +43,7 @@ public:
 	virtual HAL_StatusTypeDef __GetData(void) = 0;
 	virtual HAL_StatusTypeDef DisableSensorComm(void)=0;
 	static uint8_t GetNoOfSensors(void);
+	static bool CheckInitializationCplt(void);
 	static ToF_Sensor* GetSensorPointer(uint8_t);
 	static void EXTI_Callback_func(uint16_t pin);
 	static void StartSensorTask(void);
@@ -60,7 +61,7 @@ private:
 	class ToF_SensorMortalThread : public MortalThread
 	{
 	public:
-		ToF_SensorMortalThread() : MortalThread(3, 512) {
+		ToF_SensorMortalThread() : MortalThread(tskIDLE_PRIORITY, 1024) {
 		}
 	private:
 		virtual void begin();

@@ -32,7 +32,7 @@ class CommManager
 		HAL_StatusTypeDef MsgReceivedCB(T *hint);
 
 		template<typename T>
-		HAL_StatusTypeDef AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx = NULL, DMA_HandleTypeDef *hdmaTx = NULL, CommModeTypeDef CommMode = COMM_DUMMY);
+		HAL_StatusTypeDef AttachCommInt(T *hint, CommModeTypeDef CommMode, DMA_HandleTypeDef *hdmaRx = NULL, DMA_HandleTypeDef *hdmaTx = NULL);
 
 	private:
 

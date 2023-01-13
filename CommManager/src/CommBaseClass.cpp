@@ -8,7 +8,7 @@
 
 template<typename T>
 CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode)
-:_Handle{hint}, hdmaRx{hdmaRx}, _commType{CommMode}
+:_Handle{hint}, hdmaRx{hdmaRx}, _commType{CommMode}, GPIO_PIN{0}, GPIOx{NULL}
 {}
 
 
@@ -25,7 +25,10 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckAndSetCSPinsGeneric(MessageInfoTypeDe
 		else
 		{
 			//if not reset pin states and set new ones
-			HAL_GPIO_WritePin(GPIOx, GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+			if(GPIOx != NULL)
+			{
+				HAL_GPIO_WritePin(GPIOx, GPIO_PIN, CSn_INACTIVE_PIN_STATE);
+			}
 			if(MsgInfo->GPIOx == 0)
 			{
 				return HAL_OK;

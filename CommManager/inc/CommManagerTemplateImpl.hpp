@@ -11,7 +11,7 @@
 #include "CommManager.hpp"
 
 template<typename T>
-HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx, CommModeTypeDef CommMode)
+HAL_StatusTypeDef CommManager::AttachCommInt(T *hint, CommModeTypeDef CommMode, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx)
 {
 	CommBaseClass<T>* Init = NULL;
 	std::vector<CommBaseClass<T>*>* vect = _GetVector(hint);

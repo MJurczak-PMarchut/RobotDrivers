@@ -22,7 +22,7 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 
 static VL53L5CX Sensors[] ={ VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1), VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1) };
 
-miniTomi::miniTomi():MortalThread(tskIDLE_PRIORITY, 512)
+miniTomi::miniTomi():MortalThread(tskIDLE_PRIORITY, 1024)
 {
 }
 
@@ -31,15 +31,20 @@ void miniTomi::begin(void)
 	ToF_Sensor::StartSensorTask();
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
-	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
-	{}
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
+	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
+	{taskYIELD();}
 	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
-	{}
+	{taskYIELD();}
+	while(ToF_Sensor::CheckInitializationCplt() != true)
+	{taskYIELD();}
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
 }
 
 void miniTomi::loop(void)
 {
+	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(100);
 	//algorithm goes here
 }
 
@@ -52,7 +57,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == TOF_GPIO_6_Pin || GPIO_Pin == TOF_GPIO_5_Pin || GPIO_Pin == TOF_GPIO_4_Pin || GPIO_Pin == TOF_GPIO_3_Pin || GPIO_Pin == TOF_GPIO_2_Pin)
 	{
-		ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
+		if(ToF_Sensor::CheckInitializationCplt())
+		{
+			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
+		}
 	}
 }
 

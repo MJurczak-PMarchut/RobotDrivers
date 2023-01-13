@@ -240,12 +240,12 @@ uint8_t WaitMs(
 {
 	uint8_t status = 0;
 
-//#ifdef USES_RTOS
-////Use vTaskDelay when RTOS is in use
-//	vTaskDelay(TimeMs);
-//#else
+#ifdef USES_RTOS
+//Use vTaskDelay when RTOS is in use
+	vTaskDelay(TimeMs);
+#else
 	HAL_Delay(TimeMs);
-//#endif
+#endif
 	
 
 	return status;
