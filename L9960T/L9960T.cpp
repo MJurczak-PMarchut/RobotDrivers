@@ -18,7 +18,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	_StatusSemaphore{NULL}
 {
 	__InitMessageID = 0;
-#ifdef ROBOT_IS_TOMISLAW
+#ifdef ROBOT_MT_V1
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << side)) == 0))
 #else
 	if((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << side)) == 0))
@@ -38,7 +38,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 		this->__Direction = GPIO_PIN_SET;
 #endif
 	}
-#ifdef ROBOT_IS_TOMISLAW
+#ifdef ROBOT_MT_V1
 	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << side)) == 0))
 #else
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << side)) == 0))
@@ -164,7 +164,11 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			}
 			break;
 		case 4://Clear Communication Check bit and start timers
+#ifndef USES_RTOS
 			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
+#else
+			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
+#endif
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfoToSend.context = (1 << this->__side) |
 							  (INIT_SEQUENCE_CONTEXT << CONTEXT_OFFSET) |

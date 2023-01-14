@@ -27,11 +27,7 @@ typedef struct {
 	uint8_t array_index;
 }ActiveMotorControllerTypeDef;
 
-class MCInterface
-
-#ifdef USES_RTOS
-: public MortalThread{
-#endif
+class MCInterface{
 	public:
 		MCInterface();
 		~MCInterface(){};
@@ -42,12 +38,15 @@ class MCInterface
 		virtual HAL_StatusTypeDef EmergencyStop(void) = 0;
 		virtual HAL_StatusTypeDef CheckControllerState(void) = 0;
 		virtual HAL_StatusTypeDef CheckIfControllerInitializedOk(void) = 0;
+		static void run(void);
 
 
 	private:
-		void loop();
+
+		static void _check_state(void* pvParam);
 		static MCInterface*  _MCInterfacePointers[2];
 		static uint8_t NoOfControllers;
+		static TaskHandle_t xHandle;
 	protected:
 		static uint8_t __Instantiated_sides;
 };

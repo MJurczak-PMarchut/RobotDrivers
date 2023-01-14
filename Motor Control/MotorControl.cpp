@@ -12,9 +12,6 @@ MCInterface*  MCInterface::_MCInterfacePointers[2] = {0};
 uint8_t MCInterface::NoOfControllers = 0;
 
 MCInterface::MCInterface()
-#ifdef USES_RTOS
-: MortalThread(tskIDLE_PRIORITY, 512)
-#endif
 {
 	_MCInterfacePointers[NoOfControllers] = this;
 	NoOfControllers++;
@@ -22,15 +19,39 @@ MCInterface::MCInterface()
 
 
 #ifdef USES_RTOS
-void MCInterface::loop()
+
+TaskHandle_t MCInterface::xHandle = {NULL};
+
+void MCInterface::run(void)
 {
-	for(uint8_t u8Iter = 0; u8Iter < NoOfControllers; u8Iter++)
+	BaseType_t xReturned;
+	if(NoOfControllers > 0)
 	{
-		if(_MCInterfacePointers[u8Iter]->CheckIfControllerInitializedOk() == HAL_OK){
-			_MCInterfacePointers[u8Iter]->CheckControllerState();
-		}
+		xReturned = xTaskCreate(MCInterface::_check_state,
+								"MC Status check",
+								512,
+								NULL,
+								tskIDLE_PRIORITY,
+								&xHandle);
 	}
-	sleep(5);
+	if(xReturned != pdTRUE)
+	{
+		Error_Handler();
+	}
+}
+
+
+void MCInterface::_check_state(void* pvParam)
+{
+	while(true){
+		for(uint8_t u8Iter = 0; u8Iter < NoOfControllers; u8Iter++)
+		{
+			if(_MCInterfacePointers[u8Iter]->CheckIfControllerInitializedOk() == HAL_OK){
+				_MCInterfacePointers[u8Iter]->CheckControllerState();
+			}
+		}
+		vTaskDelay(25);
+	}
 }
 #endif
 
