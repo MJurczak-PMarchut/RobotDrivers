@@ -144,7 +144,8 @@ void ToF_Sensor::ToF_SensorMortalThread::begin()
 
 	for(uint8_t worketstate = 0; worketstate < worker; worketstate++)
 	{
-		xSemaphoreTake(xSemaphore[worketstate], -1);
+		xSemaphoreTake(xSemaphore[worketstate], -1); 	// wait till task completed
+		vSemaphoreDelete(xSemaphore[worketstate]); 		//delete its semaphore
 	}
 
 }
