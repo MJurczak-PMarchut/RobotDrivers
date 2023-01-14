@@ -80,6 +80,7 @@ void PlatformSetMutex(osapi::Mutex *pMutex)
 void lock_interface()
 {
 	if(_pmutex != NULL){
+		__disable_irq();
 		_pmutex->lock(-1);
 	}
 }
@@ -88,6 +89,7 @@ void unlock_interface()
 {
 	if(_pmutex != NULL){
 		_pmutex->unlock();
+		__enable_irq();
 	}
 }
 

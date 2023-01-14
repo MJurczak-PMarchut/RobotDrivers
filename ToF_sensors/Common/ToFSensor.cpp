@@ -75,7 +75,9 @@ void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 			SensorObj = __ToFSensorPointers[i];
 			if(SensorObj->GetSensorITPin() == pin)
 			{
-				SensorObj->GetRangingData();
+				if(SensorObj->CheckSensorStatus() == TOF_STATE_OK){
+					SensorObj->GetRangingData();
+				}
 			}
 		}
 }

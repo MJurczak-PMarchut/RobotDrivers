@@ -596,7 +596,7 @@ void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 		HAL_StatusTypeDef ret = HAL_OK;
 		MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
-		MsgInfoToSend.eCommType = COMM_INT_RX;
+		MsgInfoToSend.eCommType = COMM_INT_MEM_RX;
 		MsgInfoToSend.I2C_Addr = this->__address;
 		MsgInfoToSend.I2C_MemAddr = 304;
 		MsgInfoToSend.len = 32;
@@ -626,10 +626,7 @@ void VL53L5CX::__waitInit(uint32_t waitms) {
 ToF_Status_t VL53L5CX::CheckSensorStatus(void) {
 	switch (this->__Status) {
 	case TOF_STATE_INIT_WAIT:
-		if (xTaskGetTickCount() >= this->__wait_until_tick) {
-			this->__Status = TOF_STATE_INIT_ONGOING;
-			this->SensorInit();
-		}
+
 		break;
 	default:
 		break;
