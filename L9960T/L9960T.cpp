@@ -167,7 +167,7 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 #ifndef USES_RTOS
 			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
 #else
-			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
+			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (1 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
 #endif
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfoToSend.context = (1 << this->__side) |
