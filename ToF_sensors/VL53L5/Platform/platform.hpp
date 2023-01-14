@@ -69,6 +69,7 @@
 #include <string.h>
 #include "../Configuration.h"
 #include "CommManager.hpp"
+#include "osapi.h"
 
 #if defined(I2C_USES_DMA) or defined(I2C_USES_IT) or defined(I2C_USES_WAIT)
 
@@ -222,6 +223,10 @@ uint8_t WaitMs(
 		uint32_t TimeMs);
 
 
+
+#ifdef USES_RTOS
+void PlatformSetMutex(osapi::Mutex *pMutex);
+#endif
 
 #endif
 

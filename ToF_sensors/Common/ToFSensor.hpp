@@ -51,10 +51,12 @@ public:
 
 
 protected:
+
 	e_ToF_Type ToF_Type;
 	CommManager *__CommunicationManager;
 	e_ToF_Position __pos;
 	static uint8_t __no_of_sensors;
+	virtual void SetMutex(osapi::Mutex *pmutex) = 0;
 
 private:
 
@@ -64,15 +66,16 @@ private:
 		ToF_SensorMortalThread() : MortalThread(tskIDLE_PRIORITY, 1024) {
 		}
 	private:
+		static void InitWorkerThread(void *pvParametes);
 		virtual void begin();
 		virtual void loop();
 		virtual void end();
 	};
+	static ToF_Sensor* GetSensorPointerFromPool();
 	static void __ToFSensorThread(void  *pvParameters);
 	static ToF_Sensor*  __ToFSensorPointers[10];
 	static TaskHandle_t *__pTaskHandle;
 	static ToF_SensorMortalThread Thread;
-
 };
 
 #endif /* TOF_SENSORS_COMMON_TOFSENSOR_HPP_ */

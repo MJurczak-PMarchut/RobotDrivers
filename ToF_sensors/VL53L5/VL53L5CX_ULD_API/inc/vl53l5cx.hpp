@@ -26,6 +26,7 @@ public:
 	uint16_t GetDataFromSensor(uint8_t x, uint8_t y);
 	uint8_t GetStatusFromSensor(uint8_t x, uint8_t y);
 	void DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
+	void SetMutex(osapi::Mutex *pmutex);
 	~VL53L5CX(void) {
 	}
 	;

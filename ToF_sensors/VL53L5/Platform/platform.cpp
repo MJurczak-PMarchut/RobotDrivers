@@ -67,36 +67,51 @@
 extern I2C_HandleTypeDef hi2c1;
 
 
+
+#ifdef USES_RTOS
+static osapi::Mutex *_pmutex = NULL;
+
+void PlatformSetMutex(osapi::Mutex *pMutex)
+{
+
+	_pmutex = pMutex;
+}
+
+void lock_interface()
+{
+	if(_pmutex != NULL){
+		_pmutex->lock(-1);
+	}
+}
+
+void unlock_interface()
+{
+	if(_pmutex != NULL){
+		_pmutex->unlock();
+	}
+}
+
+#else
+void lock_interface()
+{
+}
+
+void unlock_interface()
+{
+}
+#endif
+
 uint8_t RdByte(
 		VL53L5CX_Platform *p_platform,
 		uint16_t RegisterAdress,
 		uint8_t *p_value)
 {
 	uint8_t status = 0;
-//	MessageInfoTypeDef MsgInfo = {0};
-//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	lock_interface();
 	HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_value, 1, 150);
+	unlock_interface();
 	return status;
-//	MsgInfo.I2C_Addr = p_platform->address;
-//	MsgInfo.len = 1;
-//	MsgInfo.uCommInt.hi2c = &hi2c1;
-//	MsgInfo.pRxData = p_value;
-//	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
-//	MsgInfo.I2C_MemAddr = RegisterAdress;
-//	MsgInfo.TransactionStatus = &transmit_status;
-//
-//	do
-//	{
-//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-//	if(status == HAL_ERROR){
-//		return status;
-//	}
-//	while(transmit_status != HAL_OK)
-//	{
-//
-//	}
-//	return status;
+
 }
 
 uint8_t WrByte(
@@ -105,30 +120,12 @@ uint8_t WrByte(
 		uint8_t value)
 {
 	uint8_t status = 0;
-//	MessageInfoTypeDef MsgInfo = {0};
-//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
 	uint8_t value_stat = value;
+	lock_interface();
 	HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, &value_stat, 1, 150);
+	unlock_interface();
 	return status;
-//	MsgInfo.I2C_Addr = p_platform->address;
-//	MsgInfo.len = 1;
-//	MsgInfo.uCommInt.hi2c = &hi2c1;
-//	MsgInfo.pTxData = &value_stat;
-//	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
-//	MsgInfo.I2C_MemAddr = RegisterAdress;
-//	MsgInfo.TransactionStatus = &transmit_status;
-//	do
-//	{
-//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-//	if(status == HAL_ERROR){
-//		return status;
-//	}
-//	while(transmit_status != HAL_OK)
-//	{
-//
-//	}
-//	return status;
+
 }
 
 uint8_t WrMulti(
@@ -138,29 +135,11 @@ uint8_t WrMulti(
 		uint32_t size)
 {
 	uint8_t status = 0;
-//	MessageInfoTypeDef MsgInfo = {0};
-//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	lock_interface();
 	HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 1000);
+	unlock_interface();
 	return status;
-//	MsgInfo.I2C_Addr = p_platform->address;
-//	MsgInfo.len = size;
-//	MsgInfo.uCommInt.hi2c = &hi2c1;
-//	MsgInfo.pTxData = p_values;
-//	MsgInfo.eCommType = COMM_INT_I2C_MEM_TX;
-//	MsgInfo.I2C_MemAddr = RegisterAdress;
-//	MsgInfo.TransactionStatus = &transmit_status;
-//	do
-//	{
-//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-//	if(status == HAL_ERROR){
-//		return status;
-//	}
-//	while(transmit_status != HAL_OK)
-//	{
-//
-//	}
-//	return status;
+
 }
 
 uint8_t RdMulti(
@@ -170,29 +149,11 @@ uint8_t RdMulti(
 		uint32_t size)
 {
 	uint8_t status = 0;
-//	MessageInfoTypeDef MsgInfo = {0};
-//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+	lock_interface();
 	HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 250);
+	unlock_interface();
 	return status;
-//	MsgInfo.I2C_Addr = p_platform->address;
-//	MsgInfo.len = size;
-//	MsgInfo.uCommInt.hi2c = &hi2c1;
-//	MsgInfo.pRxData = p_values;
-//	MsgInfo.eCommType = COMM_INT_I2C_MEM_RX;
-//	MsgInfo.I2C_MemAddr = RegisterAdress;
-//	MsgInfo.TransactionStatus = &transmit_status;
-//	do
-//	{
-//		status = p_platform->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfo);
-//	} while((status == HAL_BUSY) || (status == HAL_TIMEOUT));
-//	if(status == HAL_ERROR){
-//		return status;
-//	}
-//	while(transmit_status != HAL_OK)
-//	{
-//
-//	}
-//	return status;
+
 }
 
 uint8_t Reset_Sensor(

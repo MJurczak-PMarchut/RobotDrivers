@@ -916,3 +916,8 @@ uint8_t VL53L5CX::__vl53l5cx_dci_read_data(
 
 	return status;
 }
+
+void VL53L5CX::SetMutex(osapi::Mutex *pmutex)
+{
+	PlatformSetMutex(pmutex);
+}
