@@ -70,16 +70,21 @@ void ToF_Sensor::StartSensorTask(void) {
 void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 {
 	ToF_Sensor* SensorObj;
-		for (uint8_t i = 0; i < __no_of_sensors; i++)
+	// Guard against use of comm manager while Init is in progress
+	if(!ToF_Sensor::Thread.isInitCompleted())
+	{
+		return;
+	}
+	for (uint8_t i = 0; i < __no_of_sensors; i++)
+	{
+		SensorObj = __ToFSensorPointers[i];
+		if(SensorObj->GetSensorITPin() == pin)
 		{
-			SensorObj = __ToFSensorPointers[i];
-			if(SensorObj->GetSensorITPin() == pin)
-			{
-				if(SensorObj->CheckSensorStatus() == TOF_STATE_OK){
-					SensorObj->GetRangingData();
-				}
+			if(SensorObj->CheckSensorStatus() == TOF_STATE_OK){
+				SensorObj->GetRangingData();
 			}
 		}
+	}
 }
 
 ToF_Sensor::~ToF_Sensor() {
