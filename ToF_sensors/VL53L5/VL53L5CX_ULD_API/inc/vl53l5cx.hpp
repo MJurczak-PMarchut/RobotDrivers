@@ -77,6 +77,7 @@ private:
 	static uint8_t null_data_sink;
 	uint8_t __comm_buffer[VL53L5CX_TEMPORARY_BUFFER_SIZE];
 	uint8_t __offset_buffer[VL53L5CX_OFFSET_BUFFER_SIZE];
+	uint32_t last_update_tick;
 };
 
 #endif /* TOF_SENSORS_VL53L5_VL53L5CX_ULD_API_INC_VL53L5CX_HPP_ */

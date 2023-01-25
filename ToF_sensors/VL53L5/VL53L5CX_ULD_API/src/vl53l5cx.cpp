@@ -232,6 +232,7 @@ VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef
 
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
+	last_update_tick = HAL_GetTick();
 }
 
 uint16_t VL53L5CX::GetSensorITPin(void)
@@ -248,6 +249,7 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(void)
 	ret |= vl53l5cx_set_ranging_frequency_hz(&this->__sensor_conf, 60);
 	ret |= vl53l5cx_start_ranging(&this->__sensor_conf);
 	this->__Status = (ret)?TOF_STATE_ERROR:TOF_STATE_OK;
+	this->last_update_tick = HAL_GetTick();
 	return (ret)?HAL_OK:HAL_ERROR;
 }
 
@@ -627,6 +629,15 @@ ToF_Status_t VL53L5CX::CheckSensorStatus(void) {
 	switch (this->__Status) {
 	case TOF_STATE_INIT_WAIT:
 
+		break;
+	case TOF_STATE_OK:
+		if((HAL_GetTick() - last_update_tick) > 100)//no update since 100ms;
+		{
+			if(GetRangingData() == HAL_ERROR)
+			{
+				this->__Status = TOF_STATE_ERROR;
+			}
+		}
 		break;
 	default:
 		break;
