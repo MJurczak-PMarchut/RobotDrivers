@@ -58,6 +58,7 @@ public:
 		MsgInfo.len = count;
 		MsgInfo.pTxData = pTempCharArray;
 		MsgInfo.pCB=std::bind(&VescStream::Callback, this, std::placeholders::_1);
+		_CommManager->PushCommRequestIntoQueue(&MsgInfo);
 	}
 private:
 	std::queue<uint8_t> data;
