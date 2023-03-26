@@ -4,11 +4,12 @@
  *  Created on: 12 gru 2022
  *      Author: Mateusz
  */
-#ifdef ROBOT_MT_V1
-#include "miniTomi.hpp"
+#ifdef ROBOT_STD_V1
+#include "StandardTomi.hpp"
 #include "vl53l5cx.hpp"
-#include "L9960T.hpp"
+#include "VESC.hpp"
 
+extern UART_HandleTypeDef huart7;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern I2C_HandleTypeDef hi2c1;
@@ -16,9 +17,9 @@ extern SPI_HandleTypeDef hspi2;
 extern CommManager MainCommManager;
 
 //config
-static  L9960T MOTOR_CONTROLLERS[] = {
-		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, TIM_CHANNEL_1, &htim3),
-		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, TIM_CHANNEL_3, &htim4)};
+static  VESC MOTOR_CONTROLLERS[] = {
+		[MOTOR_LEFT] = VESC(MOTOR_LEFT, &huart7, &MainCommManager),
+		[MOTOR_RIGHT] = VESC(MOTOR_RIGHT, &huart7, &MainCommManager)};
 
 static VL53L5CX Sensors[] ={ VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1), VL53L5CX(FRONT_RIGHT, &MainCommManager, &hi2c1) };
 
@@ -44,15 +45,11 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 1024)
 void Robot::begin(void)
 {
 	ToF_Sensor::StartSensorTask();
-	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
-	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
-	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
-	{taskYIELD();}
-	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
-	{taskYIELD();}
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
+	sleep(1000); //Wait for VESC
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Init();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init();
 	MCInterface::run();
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();

@@ -10,7 +10,7 @@
 #ifdef ROBOT_MT_V1
 #include "osapi.h"
 
-class miniTomi : public MortalThread
+class Robot : public MortalThread
 {
 public:
 	miniTomi();
