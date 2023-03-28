@@ -138,7 +138,6 @@ HAL_StatusTypeDef CommUART::__CheckForNextRxCommRequestAndStart()
 
 HAL_StatusTypeDef CommUART::MsgReceivedRxCB(UART_HandleTypeDef *hint)
 {
-	auto size = _RxMsgQueue.size();
 	MessageInfoTypeDef<UART_HandleTypeDef> Msg = _RxMsgQueue.front();
 	return this->MsgReceivedCB(hint, Msg.len);
 }
