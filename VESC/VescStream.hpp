@@ -15,10 +15,13 @@
 class VescStream
 {
 public:
-	VescStream(CommManager *comm, UART_HandleTypeDef *Uart)
+	VescStream(CommManager *comm, UART_HandleTypeDef *Uart):
+		_UART(Uart),
+		_CommManager(comm)
+	{}
+
+	void Start(void)
 	{
-		_UART = Uart;
-		_CommManager = comm;
 		MessageInfoTypeDef<UART> MsgInfo;
 		//Start receiving
 		Vesc_memset(&MsgInfo, 0, sizeof(MsgInfo));

@@ -5,7 +5,7 @@
  *      Author: Mateusz
  */
 #ifdef ROBOT_STD_V1
-#include "StandardTomi.hpp"
+#include "Algo.hpp"
 #include "vl53l5cx.hpp"
 #include "VESC.hpp"
 
@@ -44,15 +44,25 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 1024)
 
 void Robot::begin(void)
 {
-	ToF_Sensor::StartSensorTask();
-	while(ToF_Sensor::CheckInitializationCplt() != true)
-	{taskYIELD();}
-	sleep(1000); //Wait for VESC
+//	ToF_Sensor::StartSensorTask();
+//	while(ToF_Sensor::CheckInitializationCplt() != true)
+//	{taskYIELD();}
+	sleep(5000); //Wait for VESC
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init();
 	MCInterface::run();
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
+	MOTOR_CONTROLLERS[0].SetMotorDirection(MOTOR_DIR_FORWARD);
+
+	while(1)
+	{
+		for(uint16_t speed = 100; speed < 200; speed++){
+
+			MOTOR_CONTROLLERS[0].SetMotorPowerPWM(speed);
+			sleep(100);
+		}
+	}
 }
 
 void Robot::loop(void)

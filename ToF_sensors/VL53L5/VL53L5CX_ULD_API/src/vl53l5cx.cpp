@@ -13,17 +13,13 @@
 
 #include "vl53l5cx.hpp"
 #include "vl53l5cx_buffers.h"
+#include "RobotSpecificDefines.hpp"
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
-#ifdef ROBOT_MT_V1
-const static uint16_t __ToFX_SHUT_Pin[] = {  XSHUT_3_Pin, XSHUT_6_Pin, XSHUT_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
-const static uint16_t __ToFX_GPIO_Pin[] = {  TOF_GPIO_3_Pin, TOF_GPIO_6_Pin, TOF_GPIO_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
-static GPIO_TypeDef *__ToFX_SHUT_Port[] = {  XSHUT_3_GPIO_Port, XSHUT_6_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port };
-#else
-const static uint16_t __ToFX_SHUT_Pin[] = {  XSHUT_4_Pin, XSHUT_2_Pin, XSHUT_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
-const static uint16_t __ToFX_GPIO_Pin[] = {  TOF_GPIO_4_Pin, TOF_GPIO_2_Pin, TOF_GPIO_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin };
-static GPIO_TypeDef *__ToFX_SHUT_Port[] = {  XSHUT_4_GPIO_Port, XSHUT_2_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port };
-#endif
+
+const static uint16_t __ToFX_SHUT_Pin[] = XSHUT_PINS;
+const static uint16_t __ToFX_GPIO_Pin[] = TOFx_GPIO_PINS;
+static GPIO_TypeDef *__ToFX_SHUT_Port[] = TOFx_XSHUT_PORTS;
 
 uint8_t VL53L5CX::__sensor_init_tbd = 0;
 

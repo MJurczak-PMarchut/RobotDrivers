@@ -31,7 +31,8 @@ HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_Han
 			else if(_commType == COMM_INTERRUPT)
 			{
 				//Queue empty and peripheral ready, send message
-				ret = HAL_UARTEx_ReceiveToIdle_IT(_Handle, MsgInfo->pRxData, MsgInfo->len);
+//				ret = HAL_UARTEx_ReceiveToIdle_IT(_Handle, MsgInfo->pRxData, MsgInfo->len);
+				ret = HAL_UART_Receive_IT(_Handle, MsgInfo->pRxData, MsgInfo->len);
 			}
 			else if(_commType == COMM_WAIT)
 			{
@@ -43,6 +44,7 @@ HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_Han
 				ret = HAL_ERROR;
 			}
 		}
+		break;
 		case COMM_INT_TX:
 		{
 			if(_commType == COMM_DMA)
@@ -74,11 +76,78 @@ HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_Han
 	return ret;
 }
 
+HAL_StatusTypeDef CommUART::PushMessageIntoQueue(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
+{
+	std::queue<MessageInfoTypeDef<UART_HandleTypeDef>> *pMsgQueue;
+	if(MsgInfo->eCommType == COMM_INT_RX){
+		pMsgQueue = &this->_RxMsgQueue;
+	}
+	else{
+		pMsgQueue = &this->_MsgQueue;
+	}
+
+	if(MsgInfo->TransactionStatus !=0)
+	{
+		*MsgInfo->TransactionStatus = HAL_BUSY;
+	}
+	if(MsgInfo->IntHandle->Instance != this->_Handle->Instance)
+	{
+		return HAL_ERROR;
+	}
+	if(pMsgQueue->size() >= MAX_MESSAGE_NO_IN_QUEUE)
+	{
+		return HAL_ERROR;
+	}
+	__disable_irq();
+	pMsgQueue->push(*MsgInfo); //Queue not empty, push message back
+	__enable_irq();
+	if(MsgInfo->eCommType == COMM_INT_RX){
+		return this->__CheckForNextRxCommRequestAndStart();
+	}
+	else{
+		return this->__CheckForNextCommRequestAndStart();
+	}
+
+}
+
+HAL_StatusTypeDef CommUART::__CheckForNextRxCommRequestAndStart()
+{
+	HAL_StatusTypeDef ret = HAL_OK;
+	MessageInfoTypeDef<UART_HandleTypeDef> Msg;
+	if(_RxMsgQueue.size() > MAX_MESSAGE_NO_IN_QUEUE)
+	{
+		if(_RxMsgQueue.empty())
+		{
+			return HAL_OK;
+		}
+	}
+	else if(_RxMsgQueue.size() > 0)
+	{
+		//				auto size = (*Queue)[VectorIndex].MsgInfo.size();
+		Msg =_RxMsgQueue.front();
+		//send message
+		ret = this->__CheckIfFreeAndSendRecv(&Msg);
+		if(ret == HAL_ERROR)
+		{
+			//Unable to send
+			_RxMsgQueue.pop();
+		}
+	}
+	return ret;
+}
+
+HAL_StatusTypeDef CommUART::MsgReceivedRxCB(UART_HandleTypeDef *hint)
+{
+	auto size = _RxMsgQueue.size();
+	MessageInfoTypeDef<UART_HandleTypeDef> Msg = _RxMsgQueue.front();
+	return this->MsgReceivedCB(hint, Msg.len);
+}
+
 HAL_StatusTypeDef CommUART::MsgReceivedCB(UART_HandleTypeDef *hint, uint16_t len)
 {
-	MessageInfoTypeDef<UART_HandleTypeDef> Msg = _MsgQueue.front();
+	MessageInfoTypeDef<UART_HandleTypeDef> Msg = _RxMsgQueue.front();
 	//remove item from queue
-	_MsgQueue.pop();
+	_RxMsgQueue.pop();
 	//Clear CS Pin if any
 	if(Msg.GPIOx != 0){
 		HAL_GPIO_WritePin(Msg.GPIOx, Msg.GPIO_PIN, CSn_INACTIVE_PIN_STATE);
@@ -126,7 +195,13 @@ HAL_StatusTypeDef CommUART::MsgReceivedCB(UART_HandleTypeDef *hint, uint16_t len
 	{
 		Msg.pCB(&Msg);
 	}
-	return __CheckForNextCommRequestAndStart();
+
+	if(Msg.eCommType == COMM_INT_RX){
+		return this->__CheckForNextRxCommRequestAndStart();
+	}
+	else{
+		return this->__CheckForNextCommRequestAndStart();
+	}
 }
 
 /*

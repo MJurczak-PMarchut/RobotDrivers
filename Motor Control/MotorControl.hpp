@@ -45,9 +45,9 @@ class MCInterface{
 
 		static void _check_state(void* pvParam);
 		static MCInterface*  _MCInterfacePointers[2];
-		static uint8_t NoOfControllers;
 		static TaskHandle_t xHandle;
 	protected:
+		static uint8_t NoOfControllers;
 		static uint8_t __Instantiated_sides;
 };
 

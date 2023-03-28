@@ -5,22 +5,21 @@
  *      Author: Mateusz
  */
 
-#ifndef ALGORITHMS_INC_ALGO_HPP_
-#define ALGORITHMS_INC_ALGO_HPP_
-#ifdef ROBOT_MT_V1
+#ifndef ALGORITHMS_INC_ALGO_THR_HPP_
+#define ALGORITHMS_INC_ALGO_THR_HPP_
 #include "osapi.h"
 
-class Algorithm : public MortalThread
+class Robot : public MortalThread
 {
 public:
-	Algorithm():MortalThread(tskIDLE_PRIORITY, 512){};
+	Robot();
 protected:
-    virtual void begin(void){};
-    virtual void loop(void){}
-    virtual void end(void){}
+    void begin(void);
+    void loop(void);
+    void end(void);
 private:
 };
 
 
-#endif
-#endif /* ALGORITHMS_INC_ALGO_HPP_ */
+
+#endif /* ALGORITHMS_INC_ALGO_THR_HPP_ */

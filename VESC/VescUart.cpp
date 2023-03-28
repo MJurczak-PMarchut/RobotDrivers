@@ -88,6 +88,10 @@ int VescUart::receiveUartMessage(uint8_t * payloadReceived) {
 				break; // Exit if end of message is reached, even if there is still more data in the buffer.
 			}
 		}
+		if(messageRead == false)
+		{
+			taskYIELD();
+		}
 	}
 	if(messageRead == false && debugPort != NULL ) {
 		debugPort->println("Timeout");

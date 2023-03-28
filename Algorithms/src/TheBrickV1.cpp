@@ -4,7 +4,7 @@
  *  Created on: 12 gru 2022
  *      Author: Mateusz
  */
-#ifdef ROBOT_MT_V1
+#ifdef ROBOT_BRCK_V1
 #include "Algo.hpp"
 #include "vl53l5cx.hpp"
 #include "L9960T.hpp"
@@ -17,10 +17,10 @@ extern CommManager MainCommManager;
 
 //config
 static  L9960T MOTOR_CONTROLLERS[] = {
-		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, TIM_CHANNEL_1, &htim3),
-		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, TIM_CHANNEL_3, &htim4)};
+		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR),
+		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR)};
 
-static VL53L5CX Sensors[] ={ VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1), VL53L5CX(FRONT_RIGHT, &MainCommManager, &hi2c1) };
+static VL53L5CX Sensors[] ={ VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1), VL53L5CX(FRONT_RIGHT, &MainCommManager, &hi2c1), VL53L5CX(FRONT, &MainCommManager, &hi2c1)  };
 
 
 /*
@@ -56,6 +56,13 @@ void Robot::begin(void)
 	MCInterface::run();
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
+	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
+
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(75);
+	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(75);
+	sleep(500);
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 }
 
 void Robot::loop(void)
@@ -195,5 +202,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		}
 	}
 }
+
 
 #endif

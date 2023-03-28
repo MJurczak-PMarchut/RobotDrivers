@@ -50,7 +50,7 @@ void MCInterface::_check_state(void* pvParam)
 				_MCInterfacePointers[u8Iter]->CheckControllerState();
 			}
 		}
-		vTaskDelay(25);
+		vTaskDelay(50);
 	}
 }
 #endif

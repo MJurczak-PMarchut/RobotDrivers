@@ -14,14 +14,15 @@ class CommBaseClass
 {
 	public:
 		CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode);
-		HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo);
+		virtual HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo);
 		HAL_StatusTypeDef CheckIfSameInstance(const T *pIntStruct);
 		HAL_StatusTypeDef MsgReceivedCB(T *hint);
 		virtual HAL_StatusTypeDef MsgReceivedCB(T *hint, uint16_t len){return HAL_ERROR;};
+		virtual HAL_StatusTypeDef MsgReceivedRxCB(T *hint){return HAL_ERROR;};
 
 	protected:
 		virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<T> *MsgInfo) = 0;
-		HAL_StatusTypeDef __CheckForNextCommRequestAndStart();
+		virtual HAL_StatusTypeDef __CheckForNextCommRequestAndStart();
 		HAL_StatusTypeDef __CheckAndSetCSPinsGeneric(MessageInfoTypeDef<T> *MsgInfo);
 
 		T *_Handle;

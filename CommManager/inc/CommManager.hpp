@@ -28,6 +28,8 @@ class CommManager
 		HAL_StatusTypeDef PushCommRequestIntoQueue(MessageInfoTypeDef<T> *MsgInfo);
 
 		HAL_StatusTypeDef MsgReceivedCB(UART_HandleTypeDef *huart, uint16_t len);
+		HAL_StatusTypeDef MsgReceivedRxCB(UART_HandleTypeDef *hint);
+
 		template<typename T>
 		HAL_StatusTypeDef MsgReceivedCB(T *hint);
 

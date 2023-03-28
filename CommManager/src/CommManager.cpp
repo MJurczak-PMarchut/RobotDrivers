@@ -36,6 +36,18 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(UART_HandleTypeDef *huart, uint16_t
 	return ret_value;
 }
 
+HAL_StatusTypeDef CommManager::MsgReceivedRxCB(UART_HandleTypeDef *huart)
+{
+	HAL_StatusTypeDef ret_value = HAL_ERROR;
+	CommBaseClass<UART_HandleTypeDef>* handle_inst;
+	handle_inst = this->_MatchInstance(&_comm_UART_vect, huart);
+	if(handle_inst != NULL)
+	{
+		ret_value = handle_inst->MsgReceivedRxCB(huart);
+	}
+	return ret_value;
+}
+
 template<>
 std::vector<CommBaseClass<I2C_HandleTypeDef>*>* CommManager::_GetVector(I2C_HandleTypeDef *hint)
 {

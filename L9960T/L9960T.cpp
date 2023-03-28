@@ -18,7 +18,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	_StatusSemaphore{NULL}
 {
 	__InitMessageID = 0;
-#ifdef ROBOT_MT_V1
+#ifdef MOTOR_INVERTED_SIDE
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << side)) == 0))
 #else
 	if((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << side)) == 0))
@@ -38,7 +38,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 		this->__Direction = GPIO_PIN_SET;
 #endif
 	}
-#ifdef ROBOT_MT_V1
+#ifdef MOTOR_INVERTED_SIDE
 	else if ((side == MOTOR_RIGHT) && ((__Instantiated_sides & (1 << side)) == 0))
 #else
 	if((side == MOTOR_LEFT) && ((__Instantiated_sides & (1 << side)) == 0))
@@ -70,7 +70,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 
 void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 {
-	uint16_t Message;
+	uint16_t Message, Comp_message;
 	MessageInfoTypeDef<SPI> MsgInfoToSend = {0};
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
@@ -94,8 +94,8 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfoToSend.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->__InitMessageID++;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			break;
 		case 1://Check POR status
 			Message = (CONFIGURATION_REQUEST_ADDR << ADDRESS_OFFSET) | (CONFIGURATION_REQUEST_CONF(5) << MESSAGE_OFFSET);
@@ -106,11 +106,11 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfoToSend.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			if((this->pRxData[0] & POR_STATUS_MSK) == POR_STATUS_MSK)
 			{
 				this->__InitMessageID++;
 			}
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			break;
 		case 2://Trigger HWSC & BIST
 			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (RESET_TRIGGER_CONF_HWSC << MESSAGE_OFFSET);
@@ -121,8 +121,8 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfoToSend.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->__InitMessageID++;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			break;
 		case 3://Check BIST status
 			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
@@ -133,35 +133,29 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfoToSend.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-			Message = 0;
-			Message = (this->pRxData[0]<<8) | this->pRxData[1];
-			if(Message & HWSC_BIST_RUN_STATUS_MSK)
+			Comp_message = 0;
+			Comp_message = (this->pRxData[0]<<8) | this->pRxData[1];
+			if(Comp_message & HWSC_BIST_RUN_STATUS_MSK)
 			{
-				if((Message & HWSC_BIST_PASS) == HWSC_BIST_PASS)
+				if((Comp_message & HWSC_BIST_PASS) == HWSC_BIST_PASS)
 				{
 					//PASS
 					this->__InitMessageID++;
 				}
-				else if((Message & HWSC_BIST_PASS) == HWSC_BIST_RUN_STATUS_MSK)
+				else if((Comp_message & HWSC_BIST_PASS) == HWSC_BIST_RUN_STATUS_MSK)
 				{
 					//FAIL
-					this->__InitMessageID++;
-					this->__InitMessageID--;
 				}
-				else if((Message & HWSC_BIST_PASS) == HWSC_RUNNING)
+				else if((Comp_message & HWSC_BIST_PASS) == HWSC_RUNNING)
 				{
 					//RUNNING
-					this->__InitMessageID++;
-					this->__InitMessageID--;
 				}
-				else if((Message & HWSC_BIST_PASS) == HWSC_BIST_FAIL)
+				else if((Comp_message & HWSC_BIST_PASS) == HWSC_BIST_FAIL)
 				{
 					//GENERAL FAIL
-					this->__InitMessageID++;
-					this->__InitMessageID--;
 				}
 			}
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			break;
 		case 4://Clear Communication Check bit and start timers
 #ifndef USES_RTOS
@@ -176,8 +170,8 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfoToSend.pTxData = pTxData;
-			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			this->__InitMessageID++;
+			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			break;
 		case 5://Set current range
 			Message = 	(CONFIGURATION_ADDR(1) << ADDRESS_OFFSET) 			|

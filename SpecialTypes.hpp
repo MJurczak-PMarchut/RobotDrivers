@@ -51,4 +51,5 @@ struct MessageInfoTypeDef{
 };
 
 
+
 #endif /* SPECIALTYPES_HPP_ */

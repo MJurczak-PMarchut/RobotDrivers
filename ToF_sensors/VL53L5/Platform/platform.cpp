@@ -87,7 +87,7 @@ void lock_interface()
 void unlock_interface()
 {
 	if(_pmutex != NULL){
-		__enable_irq();
+		_pmutex->unlock();
 	}
 }
 
