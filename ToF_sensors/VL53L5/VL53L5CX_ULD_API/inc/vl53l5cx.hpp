@@ -16,6 +16,8 @@
 #define DEFAULT_ADDR 0x52
 #define CHANGED_ADDRESS_OFFSET 0x10
 
+typedef enum {ROTATE_0, ROTATE_90, ROTATE_180, ROTATE_270} SensorSpatialOrientation;
+
 class VL53L5CX: public ToF_Sensor {
 public:
 	VL53L5CX_ResultsData result;
@@ -44,6 +46,7 @@ protected:
 	HAL_StatusTypeDef DisableSensorComm(void);
 	HAL_StatusTypeDef EnableSensorComm(void);
 	HAL_StatusTypeDef SetResolution(void);
+	HAL_StatusTypeDef SetRotation(SensorSpatialOrientation Orientation);
 	HAL_StatusTypeDef SetRangingFrequency(void);
 
 private:
@@ -78,6 +81,7 @@ private:
 	uint8_t __comm_buffer[VL53L5CX_TEMPORARY_BUFFER_SIZE];
 	uint8_t __offset_buffer[VL53L5CX_OFFSET_BUFFER_SIZE];
 	uint32_t last_update_tick;
+	SensorSpatialOrientation eOrientation;
 };
 
 #endif /* TOF_SENSORS_VL53L5_VL53L5CX_ULD_API_INC_VL53L5CX_HPP_ */

@@ -220,7 +220,7 @@ uint8_t start_ranging_cmd[] = {0x00, 0x03, 0x00, 0x00};
 uint32_t header_config[2] = {0, 0};
 
 VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *hi2c1) :
-		ToF_Sensor(vl53l5, position, comm), __hi2c1{hi2c1}, __InitSequenceID{0}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0} {
+		ToF_Sensor(vl53l5, position, comm), __hi2c1{hi2c1}, __InitSequenceID{0}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0}, eOrientation{ROTATE_0} {
 
 	this->__sensor_index = __no_of_sensors - 1;
 	this->__sensor_conf.platform.__CommunicationManager = comm;
@@ -229,6 +229,15 @@ VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
 	last_update_tick = HAL_GetTick();
+}
+
+HAL_StatusTypeDef VL53L5CX::SetRotation(SensorSpatialOrientation Orientation)
+{
+	if(Orientation < ROTATE_270){
+		eOrientation = Orientation;
+		return HAL_OK;
+	}
+	return HAL_ERROR;
 }
 
 uint16_t VL53L5CX::GetSensorITPin(void)
@@ -531,7 +540,24 @@ HAL_StatusTypeDef VL53L5CX::SensorInit(void)
 
 uint16_t VL53L5CX::GetDataFromSensor(uint8_t x, uint8_t y)
 {
-	uint8_t index = (y*4)+x;
+	uint8_t index;
+	switch (eOrientation) {
+		case ROTATE_0:
+				index = (y*4)+x;
+			break;
+		case ROTATE_90:
+				index = (x*4)+(3-y);
+			break;
+		case ROTATE_180:
+				index = ((3-y)*4)+(3-x);
+			break;
+		case ROTATE_270:
+				index = ((3-x)*4)+y;
+			break;
+		default:
+			index = (y*4)+x;
+			break;
+	}
 	if(index < 16)
 	{
 		return this->result.distance_mm[index];
