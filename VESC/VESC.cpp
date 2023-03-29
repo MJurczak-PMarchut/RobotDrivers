@@ -24,13 +24,13 @@ VESC::VESC(MotorSideTypeDef side, UART_HandleTypeDef *huart, CommManager *Commun
 	}
 #ifdef LEFT_MOTOR_INVERT_DIRECTION
 	if(_side == MOTOR_LEFT){
-		DirectionInverted = true;
+		_DirectionInverted = true;
 	}
 #endif
 
 #ifdef RIGHT_MOTOR_INVERT_DIRECTION
 	if(_side == MOTOR_RIGHT){
-		DirectionInverted = true;
+		_DirectionInverted = true;
 	}
 #endif
 	ptrVESC[NoOfControllers-1] = this;
@@ -99,6 +99,7 @@ HAL_StatusTypeDef VESC::CheckControllerState(void)
 {
 	_Vesc->sendKeepalive(_CanID);
 	_Vesc->getVescValues(_CanID);
+//	memcpy((void*)&this->Data, (void*)&_Vesc->data, sizeof(_Vesc->data));
 	SetVESCData();
 	return HAL_OK;
 }
