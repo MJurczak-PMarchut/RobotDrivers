@@ -58,6 +58,9 @@ void Robot::begin(void)
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
+	Sensors[0].SetRotation(ROTATE_0);
+	Sensors[1].SetRotation(ROTATE_0);
+	Sensors[2].SetRotation(ROTATE_0);
 }
 
 

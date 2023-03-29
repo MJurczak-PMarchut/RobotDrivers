@@ -27,6 +27,7 @@ public:
 	ToF_Status_t CheckSensorStatus(void);
 	uint16_t GetDataFromSensor(uint8_t x, uint8_t y);
 	uint8_t GetStatusFromSensor(uint8_t x, uint8_t y);
+	HAL_StatusTypeDef SetRotation(SensorSpatialOrientation Orientation);
 	void DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
 	void SetMutex(osapi::Mutex *pmutex);
 	~VL53L5CX(void) {
@@ -46,7 +47,7 @@ protected:
 	HAL_StatusTypeDef DisableSensorComm(void);
 	HAL_StatusTypeDef EnableSensorComm(void);
 	HAL_StatusTypeDef SetResolution(void);
-	HAL_StatusTypeDef SetRotation(SensorSpatialOrientation Orientation);
+
 	HAL_StatusTypeDef SetRangingFrequency(void);
 
 private:
