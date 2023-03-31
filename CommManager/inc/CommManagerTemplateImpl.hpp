@@ -42,6 +42,7 @@ HAL_StatusTypeDef CommManager::PushCommRequestIntoQueue(MessageInfoTypeDef<T> *M
 		if(instance->CheckIfSameInstance(MsgInfo->IntHandle) == HAL_OK)
 		{
 			return instance->PushMessageIntoQueue(MsgInfo);
+
 		}
 	}
 	return HAL_ERROR;

@@ -131,7 +131,7 @@ void ToF_Sensor::ToF_SensorMortalThread::begin()
 		}
 		xReturned = xTaskCreate(ToF_SensorMortalThread::InitWorkerThread,
 								"NAME",
-								512,
+								1024,
 								(void*) xSemaphore[worker],
 								tskIDLE_PRIORITY,
 								&xHandle[worker]);
@@ -202,7 +202,7 @@ void ToF_Sensor::ToF_SensorMortalThread::loop()
 					break;
 			}
 		}
-		this->sleep(5);
+		this->sleep(10);
 	}
 
 void ToF_Sensor::ToF_SensorMortalThread::InitWorkerThread(void *pvParametes)

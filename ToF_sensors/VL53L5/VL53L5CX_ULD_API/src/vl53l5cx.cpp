@@ -233,7 +233,7 @@ VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef
 
 HAL_StatusTypeDef VL53L5CX::SetRotation(SensorSpatialOrientation Orientation)
 {
-	if(Orientation < ROTATE_270){
+	if(Orientation <= ROTATE_270){
 		eOrientation = Orientation;
 		return HAL_OK;
 	}
@@ -543,16 +543,16 @@ uint16_t VL53L5CX::GetDataFromSensor(uint8_t x, uint8_t y)
 	uint8_t index;
 	switch (eOrientation) {
 		case ROTATE_0:
-				index = (y*4)+x;
+				index = (y*4)+(3-x);
 			break;
 		case ROTATE_90:
-				index = (x*4)+(3-y);
+				index = ((3-x)*4)+(3-y);
 			break;
 		case ROTATE_180:
-				index = ((3-y)*4)+(3-x);
+				index = ((3-y)*4)+x;
 			break;
 		case ROTATE_270:
-				index = ((3-x)*4)+y;
+				index = (x*4)+y;
 			break;
 		default:
 			index = (y*4)+x;

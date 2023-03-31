@@ -9,6 +9,7 @@
 #include "vl53l5cx.hpp"
 #include "L9960T.hpp"
 
+
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern I2C_HandleTypeDef hi2c1;
@@ -40,9 +41,10 @@ static VL53L5CX Sensors[] ={ VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1), VL5
 Robot::Robot():MortalThread(tskIDLE_PRIORITY, 1024)
 {
 }
-
+uint16_t data[4] = {0};
 void Robot::begin(void)
 {
+
 	ToF_Sensor::StartSensorTask();
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
@@ -58,9 +60,9 @@ void Robot::begin(void)
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
-	Sensors[0].SetRotation(ROTATE_0);
-	Sensors[1].SetRotation(ROTATE_0);
-	Sensors[2].SetRotation(ROTATE_0);
+	Sensors[0].SetRotation(ROTATE_270);
+	Sensors[1].SetRotation(ROTATE_180);
+	Sensors[2].SetRotation(ROTATE_90);
 }
 
 
@@ -89,6 +91,8 @@ void Robot::loop(void)
 	{
 		case WAIT_FOR_START:
 			eOpponentLastLocation = OPPONENT_NOT_SEEN;
+			MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(0);
+			MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(0);
 			if(START_CONDITION){
 				//Start moving here
 			}

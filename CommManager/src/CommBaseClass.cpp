@@ -69,6 +69,8 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart()
 template<typename T>
 HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
 {
+	bool alfa = true;
+	auto size = _MsgQueue.size();
 	if(MsgInfo->TransactionStatus !=0)
 	{
 		*MsgInfo->TransactionStatus = HAL_BUSY;
@@ -80,6 +82,14 @@ HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *
 	if(_MsgQueue.size() >= MAX_MESSAGE_NO_IN_QUEUE)
 	{
 		return HAL_ERROR;
+	}
+
+	if(size > 20)
+	{
+		while(alfa)
+		{
+
+		}
 	}
 	__disable_irq();
 	this->_MsgQueue.push(*MsgInfo); //Queue not empty, push message back
