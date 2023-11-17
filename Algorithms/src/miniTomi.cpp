@@ -9,6 +9,9 @@
 #include "vl53l5cx.hpp"
 #include "L9960T.hpp"
 
+#define FULL_SPEED 600
+#define MANOUVER_SPEED 350
+
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
 extern I2C_HandleTypeDef hi2c1;
@@ -92,14 +95,14 @@ void Robot::loop(void)
 			if((means[2] - means[1]) > 100)
 			{
 				//strongly on the left
-				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(750);
-				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(999);
+				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(MANOUVER_SPEED);
+				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(FULL_SPEED);
 			}
 			else
 			{
 				//Weakly on the left, drive forward
-				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(999);
-				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(999);
+				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(FULL_SPEED);
+				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(FULL_SPEED);
 			}
 		}
 		else
@@ -109,14 +112,14 @@ void Robot::loop(void)
 			if((means[1] - means[2]) > 100)
 			{
 				//strongly on the right
-				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(999);
-				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(750);
+				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(FULL_SPEED);
+				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(MANOUVER_SPEED);
 			}
 			else
 			{
 				//Weakly on the right, drive forward
-				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(999);
-				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(999);
+				MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(FULL_SPEED);
+				MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(FULL_SPEED);
 			}
 		}
 	}
@@ -136,8 +139,8 @@ void Robot::loop(void)
 			MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
 			MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_BACKWARD);
 		}
-		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(999);
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(999);
+		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(FULL_SPEED);
+		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(FULL_SPEED);
 	}
 	else if(means[0] < 50)
 	{
@@ -145,8 +148,8 @@ void Robot::loop(void)
 		lastDetOnLeft = true;
 		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
 		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
-		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(750);
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(999);
+		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(MANOUVER_SPEED);
+		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(FULL_SPEED);
 
 	}
 	else if(means[3] < 50)
@@ -155,8 +158,8 @@ void Robot::loop(void)
 		lastDetOnLeft = false;
 		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
 		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
-		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(999);
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(750);
+		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(FULL_SPEED);
+		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(MANOUVER_SPEED);
 
 	}
 	else
@@ -173,8 +176,8 @@ void Robot::loop(void)
 			MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
 			MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_BACKWARD);
 		}
-		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(999);
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(999);
+		MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(FULL_SPEED);
+		MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(FULL_SPEED);
 	}
 	taskYIELD();
 
