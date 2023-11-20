@@ -254,7 +254,8 @@ HAL_StatusTypeDef L9960T::Enable(void)
 		this->__Instantiated_sides &= ~ ((1 << this->__side) << MOTOR_NDIS_OFFSET);
 		HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_RESET);
 	}
-	this->__delay_ms(1); 	//Wait 1ms to satisfy wait on dis condition (1us is enough but too much work)
+	this->__delay_ms(1);
+	this->StartPWM();//Wait 1ms to satisfy wait on dis condition (1us is enough but too much work)
 	return HAL_OK;
 }
 
