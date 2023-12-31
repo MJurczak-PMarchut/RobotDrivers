@@ -11,10 +11,20 @@ CommSPI::CommSPI(SPI_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeD
 :CommBaseClass(hint, hdma, CommMode)
 {}
 
+HAL_StatusTypeDef CommSPI::__CheckIfInterfaceFree(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)
+{
+	HAL_StatusTypeDef ret = HAL_BUSY;
+	if(_Handle->State != HAL_SPI_STATE_READY)
+	{
+		return ret;
+	}
+	return HAL_OK;
+}
+
 HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)
 {
 	HAL_StatusTypeDef ret =HAL_BUSY;
-	if(_Handle->State != HAL_SPI_STATE_READY)
+	if(__CheckIfInterfaceFree(MsgInfo) != HAL_OK)
 	{
 		return ret;
 	}

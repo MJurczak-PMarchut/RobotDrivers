@@ -9,7 +9,12 @@
 template<typename T>
 CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode)
 :_Handle{hint}, hdmaRx{hdmaRx}, _commType{CommMode}, GPIO_PIN{0}, GPIOx{NULL}
-{}
+{
+	_MsgQueue = xQueueCreateStatic(MAX_MESSAGE_NO_IN_QUEUE,
+										sizeof(MessageInfoTypeDef<T>),
+										_xQueueStaticBuffer,
+										&_xStQueue );
+}
 
 
 template<typename T>
@@ -40,27 +45,34 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckAndSetCSPinsGeneric(MessageInfoTypeDe
 }
 
 template<class T>
-HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart()
+HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart(MessageInfoTypeDef<T> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_OK;
-	MessageInfoTypeDef<T> Msg;
-	if(_MsgQueue.size() > MAX_MESSAGE_NO_IN_QUEUE)
+	MessageInfoTypeDef<T> Msg = {0};
+	MessageInfoTypeDef<T> *pMsg = &Msg;
+	if(uxQueueMessagesWaitingFromISR(_MsgQueue) == 0 && MsgInfo != NULL)
 	{
-		if(_MsgQueue.empty())
-		{
-			return HAL_OK;
+		if(this->__CheckIfInterfaceFree(MsgInfo) == HAL_OK){
+			//send message
+			if(xQueueSendToBackFromISR(_MsgQueue, MsgInfo, NULL) != pdPASS)
+			{
+				return HAL_ERROR;
+			}
+			ret = this->__CheckIfFreeAndSendRecv(MsgInfo);
 		}
 	}
-	else if(_MsgQueue.size() > 0)
+	else
 	{
-		//				auto size = (*Queue)[VectorIndex].MsgInfo.size();
-		Msg =_MsgQueue.front();
-		//send message
-		ret = this->__CheckIfFreeAndSendRecv(&Msg);
-		if(ret == HAL_ERROR)
+		if(MsgInfo != NULL)
 		{
-			//Unable to send
-			_MsgQueue.pop();
+			if(xQueueSendToBackFromISR(_MsgQueue, pMsg, NULL) != pdPASS)
+			{
+				return HAL_ERROR;
+			}
+			pMsg = MsgInfo;
+		}
+		if(xQueuePeekFromISR(_MsgQueue, pMsg) == pdPASS){
+			ret = this->__CheckIfFreeAndSendRecv(pMsg);
 		}
 	}
 	return ret;
@@ -69,8 +81,6 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart()
 template<typename T>
 HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
 {
-	bool alfa = true;
-	auto size = _MsgQueue.size();
 	if(MsgInfo->TransactionStatus !=0)
 	{
 		*MsgInfo->TransactionStatus = HAL_BUSY;
@@ -79,30 +89,20 @@ HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *
 	{
 		return HAL_ERROR;
 	}
-	if(_MsgQueue.size() >= MAX_MESSAGE_NO_IN_QUEUE)
+	if(uxQueueMessagesWaitingFromISR(_MsgQueue) >= MAX_MESSAGE_NO_IN_QUEUE)
 	{
 		return HAL_ERROR;
 	}
 
-	if(size > 20)
-	{
-		while(alfa)
-		{
-
-		}
-	}
-	__disable_irq();
-	this->_MsgQueue.push(*MsgInfo); //Queue not empty, push message back
-	__enable_irq();
-	return this->__CheckForNextCommRequestAndStart();
+	return this->__CheckForNextCommRequestAndStart(MsgInfo);
 }
 
 template<typename T>
 HAL_StatusTypeDef CommBaseClass<T>::MsgReceivedCB(T *hint)
 {
-	MessageInfoTypeDef<T> Msg = _MsgQueue.front();
+	MessageInfoTypeDef<T> Msg ={0};
 	//remove item from queue
-	_MsgQueue.pop();
+	xQueueReceiveFromISR(_MsgQueue, &Msg, NULL);
 	//Clear CS Pin if any
 	if(Msg.GPIOx != 0){
 		HAL_GPIO_WritePin(Msg.GPIOx, Msg.GPIO_PIN, CSn_INACTIVE_PIN_STATE);
@@ -148,7 +148,7 @@ HAL_StatusTypeDef CommBaseClass<T>::MsgReceivedCB(T *hint)
 	{
 		Msg.pCB(&Msg);
 	}
-	return __CheckForNextCommRequestAndStart();
+	return __CheckForNextCommRequestAndStart(NULL);
 }
 
 template<typename T>

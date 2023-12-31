@@ -8,13 +8,15 @@
 #include "L9960T.hpp"
 
 
-L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim):
+L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim, bool inverted_pwm, bool use_sw_pwm):
 	__side{side},
 	__hspi{hspi},
 	__CommunicationManager{CommunicationManager},
 	_prev_context{0},
 	__htim{htim},
 	__Channel{Channel},
+	__inverted_pwm{inverted_pwm},
+	__use_sw_pwm{use_sw_pwm},
 	_StatusSemaphore{NULL}
 {
 	__InitMessageID = 0;
@@ -58,10 +60,12 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 		this->__Direction = GPIO_PIN_SET;
 #endif
 	}
+	HAL_GPIO_WritePin(__CS_Port, __CS_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	this->__Instantiated_sides |= (1 << this->__side);
 	this->__Instantiated_sides |=  ((1 << this->__side) << MOTOR_NDIS_OFFSET);
 	HAL_GPIO_WritePin(this->__DIS_PORT, this->__DIS_PIN, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(this->__IN1_PWM_PORT, this->__IN1_PWM_PIN, GPIO_PIN_RESET);
 
 #ifdef USES_RTOS
 	_StatusSemaphore = xSemaphoreCreateBinaryStatic(&_pxSemphrMemory);
@@ -212,7 +216,7 @@ HAL_StatusTypeDef L9960T::SetMotorPowerPWM(uint16_t PowerPWM)
 	}
 	else if(PowerPWM < 1000)
 	{
-		__HAL_TIM_SET_COMPARE(this->__htim, this->__Channel, PowerPWM);
+		__HAL_TIM_SET_COMPARE(this->__htim, this->__Channel, ((__inverted_pwm)?999-PowerPWM:PowerPWM));
 		return HAL_OK;
 	}
 	return HAL_ERROR;
@@ -266,7 +270,22 @@ HAL_StatusTypeDef L9960T::CheckIfControllerInitializedOk(void)
 
 HAL_StatusTypeDef L9960T::StartPWM(void)
 {
-	return HAL_TIM_PWM_Start(__htim, __Channel);
+	if(this->__use_sw_pwm)
+	{
+		HAL_TIM_Base_Start_IT(__htim);
+		__htim->State = HAL_TIM_STATE_READY;
+	}
+	return HAL_TIM_PWM_Start_IT(__htim, __Channel);
+}
+
+void L9960T::SoftPWMCB_pulse()
+{
+	HAL_GPIO_WritePin(__IN1_PWM_PORT, __IN1_PWM_PIN, GPIO_PIN_RESET);
+}
+
+void L9960T::SoftPWMCB_period()
+{
+	HAL_GPIO_WritePin(__IN1_PWM_PORT, __IN1_PWM_PIN, GPIO_PIN_SET);
 }
 
 #ifdef USES_RTOS
@@ -347,7 +366,7 @@ void L9960T::_ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo)
 		}
 	}
 	//we can handle this message here
-	switch((this->_prev_context  & 0x0F) >> CONTEXT_OFFSET)
+	switch((this->_prev_context >> CONTEXT_OFFSET) & 0xF)
 	{
 		case 0:
 		{
@@ -364,7 +383,7 @@ void L9960T::_ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo)
 		case STATUS_CHECK_CONTEXT:
 		{
 			if((this->_prev_context >> 8) > 2) return;
-			this->_status_regs[this->_prev_context >> 8] = *this->pRxData;
+			this->_status_regs[this->_prev_context >> 8] = (this->pRxData[0]<<8) | this->pRxData[1];;
 			//We can call check again here, but for now lets exit, parent class task will call that function periodically
 		}
 		break;

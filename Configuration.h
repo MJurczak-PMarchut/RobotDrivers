@@ -64,7 +64,6 @@
 #endif
 
 //#define ROBOT_IS_FIDOL
-#define ROBOT_IS_MINISUMO
 //#define ROBOT_IS_TOMISLAW
 
 

@@ -13,6 +13,7 @@ class Robot : public MortalThread
 {
 public:
 	Robot();
+	virtual void PeriodCB();
 protected:
     void begin(void);
     void loop(void);

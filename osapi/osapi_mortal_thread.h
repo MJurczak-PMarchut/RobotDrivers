@@ -12,8 +12,8 @@ class MortalThread : public Thread
     virtual ~MortalThread()
     {
       ;
-    }                   
-                        
+    }
+
     /** Sends termination signal to the thread. */
     void kill() {
         this->killSignal = 1;
