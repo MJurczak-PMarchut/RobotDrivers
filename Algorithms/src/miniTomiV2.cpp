@@ -56,7 +56,6 @@ void Robot::begin(void)
 	{taskYIELD();}
 	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
 	{taskYIELD();}
-	MCInterface::run();
 	logger.Log("Starting loop\n", false);
 
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
@@ -98,6 +97,41 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 		else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
 			MOTOR_CONTROLLERS[MOTOR_RIGHT].SoftPWMCB_pulse();
 	}
+}
+
+void Robot::PeriodicCheckCall(void)
+{
+	static uint8_t call_count = 0;
+	if(!isInitCompleted()){
+		return;
+	}
+	// we could use mod, but that might not be fast for architectures other than ARM
+	switch(call_count)
+	{
+		case 25:
+			{
+				MCInterface::RunStateCheck();
+			}
+			break;
+		case 50:
+			{
+				MCInterface::RunStateCheck();
+			}
+			break;
+		case 75:
+			{
+				MCInterface::RunStateCheck();
+			}
+			break;
+		case 100:
+			{
+				MCInterface::RunStateCheck();
+			}
+			break;
+		default:
+			break;
+	}
+	call_count = (call_count >= 100)? call_count + 1 : 0;
 }
 
 void Robot::PeriodCB(void)

@@ -39,10 +39,11 @@ class MCInterface{
 		virtual HAL_StatusTypeDef CheckControllerState(void) = 0;
 		virtual HAL_StatusTypeDef CheckIfControllerInitializedOk(void) = 0;
 		static void run(void);
+		static void RunStateCheck(void);
 
 
 	private:
-
+		static bool _isRunning;
 		static void _check_state(void* pvParam);
 		static MCInterface*  _MCInterfacePointers[2];
 		static TaskHandle_t xHandle;

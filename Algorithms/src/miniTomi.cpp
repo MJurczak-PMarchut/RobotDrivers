@@ -193,6 +193,11 @@ void Robot::loop(void)
 
 }
 
+void Robot::PeriodicCheckCall(void)
+{
+
+}
+
 void Robot::end(void)
 {
 	Error_Handler();

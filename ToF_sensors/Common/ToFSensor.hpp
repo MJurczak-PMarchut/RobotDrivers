@@ -48,6 +48,7 @@ public:
 	static void EXTI_Callback_func(uint16_t pin);
 	static void StartSensorTask(void);
 	virtual ~ToF_Sensor();
+	static void RunSensorCheck(void);
 
 
 protected:
@@ -76,6 +77,7 @@ private:
 	static ToF_Sensor*  __ToFSensorPointers[10];
 	static TaskHandle_t *__pTaskHandle;
 	static ToF_SensorMortalThread Thread;
+	static bool InitCompleted;
 };
 
 #endif /* TOF_SENSORS_COMMON_TOFSENSOR_HPP_ */
