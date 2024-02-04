@@ -9,12 +9,14 @@
 #define DIRTYLOGGER_DIRTYLOGGER_HPP_
 #include "fatfs.h"
 
+typedef enum {LOGLEVEL_INFO=0, LOGLEVEL_DEBUG, LOGLEVEL_TRACE} loglevel_t;
 
 class DirtyLogger{
 public:
 	DirtyLogger(uint8_t *retSD, char *SDPath, FATFS *_SDFatFS, FIL *SDFile);
 	void Init(void);
-	void Log(const char* message, bool include_timestamp);
+	void Log(const char* message, loglevel_t LogLevel);
+	void Sync(void);
 	void StartTimestamp(void);
 private:
 	static bool _instance_exists;

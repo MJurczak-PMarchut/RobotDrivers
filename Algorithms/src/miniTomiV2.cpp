@@ -62,10 +62,10 @@ void Robot::begin(void)
 //	{taskYIELD();}
 	MCInterface::run();
 //	Sensors[0].SetRotation(ROTATE_0);
-	logger.Log("Starting loop\n", false);
+	logger.Log("Starting loop", LOGLEVEL_INFO);
 
-	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 
 
 
@@ -75,14 +75,12 @@ void Robot::loop(void)
 {
 	char message[100];
 	static uint16_t speed = 0;
-	sprintf(message, "Set Motor Power at %d\n", speed);
+	sprintf(message, "Set LEFT Motor Power at %d", speed);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(speed);
-	logger.Log(message, false);
+	logger.Log(message, LOGLEVEL_TRACE);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
 	speed = (speed >= 999)?0:speed + 100;
-	HAL_Delay(250);
-	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_BACKWARD);
-	HAL_Delay(250);
+	HAL_Delay(100);
 
 }
 
@@ -109,6 +107,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 void Robot::PeriodicCheckCall(void)
 {
 	static uint8_t call_count = 0;
+	static uint8_t diver = 0;
 	if(!isInitCompleted()){
 		return;
 	}
@@ -133,7 +132,12 @@ void Robot::PeriodicCheckCall(void)
 		case 100:
 			{
 				MCInterface::RunStateCheck();
-				HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+
+				if(diver == 20){
+					logger.Sync();
+					HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+				}
+				diver = (diver >= 20)? 0: diver+1;
 			}
 			break;
 		default:

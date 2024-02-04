@@ -11,6 +11,7 @@
 
 
 bool DirtyLogger::_instance_exists = 0;
+const char* lvl_type[] = {"INFO", "DEBUG", "TRACE"};
 
 DirtyLogger::DirtyLogger(uint8_t *retSD, char *SDPath, FATFS *SDFatFS, FIL *SDFile):
 		_retSD{retSD}, _SDPath{SDPath}, _SDFatFS{SDFatFS}, _SDFile{SDFile}
@@ -59,18 +60,34 @@ void DirtyLogger::Init(void){
 		}
 	}
 }
-void DirtyLogger::Log(const char* message, bool include_timestamp)
+void DirtyLogger::Log(const char* message, loglevel_t LogLevel)
 {
 	FRESULT res;
 	uint32_t byteswritten;
-	res = f_write(_SDFile, message, (UINT)strlen((char *)message), (UINT*)&byteswritten);
+	static char data[512] = {0};
+	int len;
+	if(LogLevel > LOGLEVEL_TRACE)
+	{
+		Error_Handler();
+	}
+	len = sprintf(data, "+++LOG::%s::%u::%s::END_LOG---\n", lvl_type[LogLevel], (unsigned int)(HAL_GetTick()-_start_time), message);
+	if(len < 0)
+	{
+		return;
+	}
+	res = f_write(_SDFile, data, (UINT)len, (UINT*)&byteswritten);
 	if((byteswritten == 0) || (res != FR_OK))
 	{
 		Error_Handler();
 	}
+}
+
+void DirtyLogger::Sync(void)
+{
 	f_sync(_SDFile);
 }
-void StartTimestamp(void)
-{
 
+void DirtyLogger::StartTimestamp(void)
+{
+	_start_time = HAL_GetTick();
 }
