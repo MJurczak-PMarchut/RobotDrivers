@@ -280,12 +280,12 @@ HAL_StatusTypeDef L9960T::StartPWM(void)
 
 void L9960T::SoftPWMCB_pulse()
 {
-	HAL_GPIO_WritePin(__IN1_PWM_PORT, __IN1_PWM_PIN, GPIO_PIN_RESET);
+	__IN1_PWM_PORT->BSRR = (uint32_t)__IN1_PWM_PIN << 16;
 }
 
 void L9960T::SoftPWMCB_period()
 {
-	HAL_GPIO_WritePin(__IN1_PWM_PORT, __IN1_PWM_PIN, GPIO_PIN_SET);
+	__IN1_PWM_PORT->BSRR = __IN1_PWM_PIN;
 }
 
 #ifdef USES_RTOS
