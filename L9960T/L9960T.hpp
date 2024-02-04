@@ -24,7 +24,9 @@ typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CUR
 
 class L9960T : protected MCInterface{
 	public:
-		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim);
+		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,
+				CommManager *CommunicationManager, uint32_t Channel,
+				TIM_HandleTypeDef *htim, bool inverted_pwm=false, bool use_sw_pwm=false);
 		HAL_StatusTypeDef AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint32_t Channel);
 		HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM);
 		HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir);
@@ -34,6 +36,8 @@ class L9960T : protected MCInterface{
 		HAL_StatusTypeDef EmergencyStop(void);
 		HAL_StatusTypeDef CheckIfControllerInitializedOk(void);
 		HAL_StatusTypeDef StartPWM(void);
+		void SoftPWMCB_period();
+		void SoftPWMCB_pulse();
 		void Init(MessageInfoTypeDef<SPI>* MsgInfo);
 	private:
 		void __delay_ms(uint32_t TimeMs);
@@ -56,6 +60,8 @@ class L9960T : protected MCInterface{
 		uint8_t pTxData[2];
 		uint16_t _status_regs[3] = {0};
 		uint8_t __InitMessageID;
+		bool __inverted_pwm;
+		bool __use_sw_pwm;
 #ifdef USES_RTOS
 public:
 		HAL_StatusTypeDef CheckControllerState(void);

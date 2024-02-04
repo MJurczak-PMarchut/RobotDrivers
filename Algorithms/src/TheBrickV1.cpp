@@ -248,6 +248,11 @@ bool OpponentFound(void)
 	return false;
 }
 
+void Robot::PeriodicCheckCall(void)
+{
+
+}
+
 
 void MeasureMeans(void)
 {

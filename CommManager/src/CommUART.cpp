@@ -11,9 +11,20 @@ CommUART::CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_Hand
 :CommBaseClass(hint, hdmaRx, CommMode), _hdmaTx{hdmaTx}
 {}
 
+HAL_StatusTypeDef CommUART::__CheckIfInterfaceFree(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
+{
+	HAL_StatusTypeDef ret = HAL_BUSY;
+	//Disallow async for now
+	if(_Handle->gState != HAL_UART_STATE_READY)
+	{
+		return ret;
+	}
+	return HAL_OK;
+}
+
 HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
 {
-	HAL_StatusTypeDef ret =HAL_BUSY;
+	HAL_StatusTypeDef ret = HAL_BUSY;
 	if(_commType != COMM_DUMMY)
 	{
 		__CheckAndSetCSPinsGeneric(MsgInfo);
@@ -78,13 +89,6 @@ HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_Han
 
 HAL_StatusTypeDef CommUART::PushMessageIntoQueue(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
 {
-	std::queue<MessageInfoTypeDef<UART_HandleTypeDef>> *pMsgQueue;
-	if(MsgInfo->eCommType == COMM_INT_RX){
-		pMsgQueue = &this->_RxMsgQueue;
-	}
-	else{
-		pMsgQueue = &this->_MsgQueue;
-	}
 
 	if(MsgInfo->TransactionStatus !=0)
 	{
@@ -94,59 +98,72 @@ HAL_StatusTypeDef CommUART::PushMessageIntoQueue(MessageInfoTypeDef<UART_HandleT
 	{
 		return HAL_ERROR;
 	}
-	if(pMsgQueue->size() >= MAX_MESSAGE_NO_IN_QUEUE)
+	if(uxQueueMessagesWaitingFromISR(_MsgQueue) >= MAX_MESSAGE_NO_IN_QUEUE)
 	{
 		return HAL_ERROR;
 	}
-	__disable_irq();
-	pMsgQueue->push(*MsgInfo); //Queue not empty, push message back
-	__enable_irq();
+
 	if(MsgInfo->eCommType == COMM_INT_RX){
-		return this->__CheckForNextRxCommRequestAndStart();
+		return this->__CheckForNextRxCommRequestAndStart(MsgInfo);
 	}
 	else{
-		return this->__CheckForNextCommRequestAndStart();
+		return this->__CheckForNextCommRequestAndStart(MsgInfo);
 	}
 
 }
 
-HAL_StatusTypeDef CommUART::__CheckForNextRxCommRequestAndStart()
+HAL_StatusTypeDef CommUART::__CheckForNextRxCommRequestAndStart(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_OK;
-	MessageInfoTypeDef<UART_HandleTypeDef> Msg;
-	if(_RxMsgQueue.size() > MAX_MESSAGE_NO_IN_QUEUE)
+	MessageInfoTypeDef<UART_HandleTypeDef> Msg = {0};
+	MessageInfoTypeDef<UART_HandleTypeDef> *pMsg = &Msg;
+	if(uxQueueMessagesWaitingFromISR(_RxMsgQueue) == 0 && MsgInfo != NULL)
 	{
-		if(_RxMsgQueue.empty())
-		{
-			return HAL_OK;
+		if(this->__CheckIfInterfaceFree(MsgInfo) == HAL_OK){
+			//send message
+			if(xQueueSendToBackFromISR(_RxMsgQueue, MsgInfo, NULL) != pdPASS)
+			{
+				return HAL_ERROR;
+			}
+			ret = this->__CheckIfFreeAndSendRecv(MsgInfo);
 		}
 	}
-	else if(_RxMsgQueue.size() > 0)
+	else
 	{
-		//				auto size = (*Queue)[VectorIndex].MsgInfo.size();
-		Msg =_RxMsgQueue.front();
-		//send message
-		ret = this->__CheckIfFreeAndSendRecv(&Msg);
-		if(ret == HAL_ERROR)
+		if(MsgInfo != NULL)
 		{
-			//Unable to send
-			_RxMsgQueue.pop();
+			if(xQueueSendToBackFromISR(_RxMsgQueue, pMsg, NULL) != pdPASS)
+			{
+				return HAL_ERROR;
+			}
+			pMsg = MsgInfo;
+		}
+		if(xQueuePeekFromISR(_RxMsgQueue, pMsg) == pdPASS){
+			ret = this->__CheckIfFreeAndSendRecv(pMsg);
 		}
 	}
 	return ret;
+
 }
 
 HAL_StatusTypeDef CommUART::MsgReceivedRxCB(UART_HandleTypeDef *hint)
 {
-	MessageInfoTypeDef<UART_HandleTypeDef> Msg = _RxMsgQueue.front();
+	MessageInfoTypeDef<UART_HandleTypeDef> Msg = {0};
+	if(xQueuePeekFromISR(_RxMsgQueue, &Msg) != pdTRUE)
+	{
+		Error_Handler();
+	}
 	return this->MsgReceivedCB(hint, Msg.len);
 }
 
 HAL_StatusTypeDef CommUART::MsgReceivedCB(UART_HandleTypeDef *hint, uint16_t len)
 {
-	MessageInfoTypeDef<UART_HandleTypeDef> Msg = _RxMsgQueue.front();
+	MessageInfoTypeDef<UART_HandleTypeDef> Msg = {0};
 	//remove item from queue
-	_RxMsgQueue.pop();
+	if(xQueueReceiveFromISR(_RxMsgQueue, &Msg, NULL) != pdTRUE)
+		{
+			Error_Handler();
+		}
 	//Clear CS Pin if any
 	if(Msg.GPIOx != 0){
 		HAL_GPIO_WritePin(Msg.GPIOx, Msg.GPIO_PIN, CSn_INACTIVE_PIN_STATE);
@@ -196,20 +213,12 @@ HAL_StatusTypeDef CommUART::MsgReceivedCB(UART_HandleTypeDef *hint, uint16_t len
 	}
 
 	if(Msg.eCommType == COMM_INT_RX){
-		return this->__CheckForNextRxCommRequestAndStart();
+		return this->__CheckForNextRxCommRequestAndStart(NULL);
 	}
 	else{
-		return this->__CheckForNextCommRequestAndStart();
+		return this->__CheckForNextCommRequestAndStart(NULL);
 	}
 }
-
-/*
- * CommUART.cpp
- *
- *  Created on: 30 gru 2022
- *      Author: Paulina
- */
-
 
 
 

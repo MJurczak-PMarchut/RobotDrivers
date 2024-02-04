@@ -23,6 +23,7 @@ static 	osapi::Mutex mutex;
 
 
 ToF_Sensor::ToF_SensorMortalThread ToF_Sensor::Thread;
+bool ToF_Sensor::InitCompleted = false;
 
 ToF_Sensor* ToF_Sensor::GetSensorPointer(uint8_t Sensor)
 {
@@ -59,7 +60,7 @@ ToF_Sensor::ToF_Sensor(e_ToF_Type type, e_ToF_Position position, CommManager *co
 
 bool ToF_Sensor::CheckInitializationCplt(void)
 {
-	return Thread.isInitCompleted();
+	return InitCompleted;
 }
 
 
@@ -91,8 +92,59 @@ ToF_Sensor::~ToF_Sensor() {
 	// TODO Auto-generated destructor stub
 }
 
+void ToF_Sensor::RunSensorCheck(void)
+{
+	if(!Thread.isRunning()){
+		__ToFSensorThread(NULL);
+	}
+}
+
 void ToF_Sensor::__ToFSensorThread(void *pvParameters) {
-	//nothing to do at this time
+	ToF_Sensor* SensorObj;
+	for (uint8_t i = 0; i < __no_of_sensors; i++)
+	{
+		SensorObj = ToF_Sensor::GetSensorPointer(i);
+		switch (SensorObj->CheckSensorStatus()) {
+			case TOF_STATE_OK: {
+
+			}
+				break;
+			case TOF_STATE_INIT_WAIT: {
+
+			}
+				break;
+			case TOF_INIT_NOT_DONE: {
+			}
+				break;
+			case TOF_STATE_ERROR: {
+
+			}
+				break;
+			case TOF_STATE_BUSY: {
+
+			}
+				break;
+			case TOF_STATE_INIT_ONGOING: {
+
+			}
+				break;
+			case TOF_STATE_NOT_CONNECTED: {
+
+			}
+				break;
+			case TOF_STATE_COMM_ERROR: {
+
+			}
+				break;
+			case TOF_STATE_DATA_RDY: {
+			}
+				break;
+			default: {
+
+			}
+				break;
+		}
+	}
 }
 
 
@@ -152,56 +204,12 @@ void ToF_Sensor::ToF_SensorMortalThread::begin()
 		xSemaphoreTake(xSemaphore[worketstate], -1); 	// wait till task completed
 		vSemaphoreDelete(xSemaphore[worketstate]); 		//delete its semaphore
 	}
-
+	ToF_Sensor::InitCompleted = true;
 }
 
 void ToF_Sensor::ToF_SensorMortalThread::loop()
 	{
-		ToF_Sensor* SensorObj;
-		for (uint8_t i = 0; i < __no_of_sensors; i++)
-		{
-			SensorObj = ToF_Sensor::GetSensorPointer(i);
-			switch (SensorObj->CheckSensorStatus()) {
-				case TOF_STATE_OK: {
-
-				}
-					break;
-				case TOF_STATE_INIT_WAIT: {
-
-				}
-					break;
-				case TOF_INIT_NOT_DONE: {
-				}
-					break;
-				case TOF_STATE_ERROR: {
-
-				}
-					break;
-				case TOF_STATE_BUSY: {
-
-				}
-					break;
-				case TOF_STATE_INIT_ONGOING: {
-
-				}
-					break;
-				case TOF_STATE_NOT_CONNECTED: {
-
-				}
-					break;
-				case TOF_STATE_COMM_ERROR: {
-
-				}
-					break;
-				case TOF_STATE_DATA_RDY: {
-				}
-					break;
-				default: {
-
-				}
-					break;
-			}
-		}
+		ToF_Sensor::__ToFSensorThread(NULL);
 		this->sleep(10);
 	}
 
@@ -222,5 +230,4 @@ void ToF_Sensor::ToF_SensorMortalThread::InitWorkerThread(void *pvParametes)
 
 void ToF_Sensor::ToF_SensorMortalThread::end()
 	{
-		Error_Handler();
 	}

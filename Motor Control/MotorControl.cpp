@@ -21,6 +21,7 @@ MCInterface::MCInterface()
 #ifdef USES_RTOS
 
 TaskHandle_t MCInterface::xHandle = {NULL};
+bool MCInterface::_isRunning = false;
 
 void MCInterface::run(void)
 {
@@ -38,11 +39,20 @@ void MCInterface::run(void)
 	{
 		Error_Handler();
 	}
+	_isRunning = true;
+}
+
+void MCInterface::RunStateCheck(void)
+{
+	if(!_isRunning){
+		_check_state((void*)1);
+	}
 }
 
 
 void MCInterface::_check_state(void* pvParam)
 {
+	static uint32_t ommit_delay = (uint32_t) pvParam;
 	while(true){
 		for(uint8_t u8Iter = 0; u8Iter < NoOfControllers; u8Iter++)
 		{
@@ -50,7 +60,9 @@ void MCInterface::_check_state(void* pvParam)
 				_MCInterfacePointers[u8Iter]->CheckControllerState();
 			}
 		}
-		vTaskDelay(50);
+		if(ommit_delay == 0){
+			vTaskDelay(50);
+		}
 	}
 }
 #endif

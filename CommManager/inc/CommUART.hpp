@@ -18,13 +18,14 @@ public:
 	HAL_StatusTypeDef MsgReceivedRxCB(UART_HandleTypeDef *hint);
 	HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo);
 protected:
+	virtual HAL_StatusTypeDef __CheckIfInterfaceFree(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo);
 	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo);
-	HAL_StatusTypeDef __CheckForNextRxCommRequestAndStart();
+	HAL_StatusTypeDef __CheckForNextRxCommRequestAndStart(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo);
 
 
 private:
 	DMA_HandleTypeDef *_hdmaTx;
-	std::queue<MessageInfoTypeDef<UART_HandleTypeDef>> _RxMsgQueue;
+	QueueHandle_t _RxMsgQueue;
 
 };
 

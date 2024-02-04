@@ -618,23 +618,26 @@ void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 }
 
 HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
-		HAL_StatusTypeDef ret = HAL_OK;
-		MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
-		MsgInfoToSend.eCommType = COMM_INT_MEM_RX;
-		MsgInfoToSend.I2C_Addr = this->__address;
-		MsgInfoToSend.I2C_MemAddr = 304;
-		MsgInfoToSend.len = 32;
-		MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
-		MsgInfoToSend.IntHandle = this->__hi2c1;
-		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-		MsgInfoToSend.I2C_Addr = this->__address;
-		MsgInfoToSend.I2C_MemAddr = 360;
-		MsgInfoToSend.len = 16;
-		MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer + 32;
-		MsgInfoToSend.IntHandle = this->__hi2c1;
-		MsgInfoToSend.pCB = std::bind(&VL53L5CX::DataReceived, this, std::placeholders::_1);
-		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-		this->__Status = TOF_STATE_DATA_RDY;
+
+	HAL_StatusTypeDef ret = HAL_OK;
+	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
+
+	MsgInfoToSend.eCommType = COMM_INT_MEM_RX;
+	MsgInfoToSend.I2C_Addr = this->__address;
+	MsgInfoToSend.I2C_MemAddr = 304;
+	MsgInfoToSend.len = 32;
+	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
+	MsgInfoToSend.IntHandle = this->__hi2c1;
+	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	MsgInfoToSend.I2C_Addr = this->__address;
+	MsgInfoToSend.I2C_MemAddr = 360;
+	MsgInfoToSend.len = 16;
+	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer + 32;
+	MsgInfoToSend.IntHandle = this->__hi2c1;
+	MsgInfoToSend.pCB = std::bind(&VL53L5CX::DataReceived, this, std::placeholders::_1);
+	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	this->__Status = TOF_STATE_DATA_RDY;
+
 	return (ret == 0) ? HAL_OK : HAL_ERROR;
 }
 

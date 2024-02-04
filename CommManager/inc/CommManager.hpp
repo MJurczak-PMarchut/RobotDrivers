@@ -9,6 +9,10 @@
 #define SUMODRIVERS_COMMMANAGER_COMMMANAGER_HPP_
 #include "Configuration.h"
 
+#ifndef USES_RTOS
+#error("CommManager requires FreeRTOS")
+#endif
+
 #ifndef NO_COMMUNICATION_INTERFACE_DEFINED
 #include "vector"
 #include "queue"

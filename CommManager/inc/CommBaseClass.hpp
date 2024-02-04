@@ -7,7 +7,7 @@
 #ifndef COMMMANAGER_COMMINTERFACE_HPP_
 #define COMMMANAGER_COMMINTERFACE_HPP_
 #include "Configuration.h"
-#include <Queue>
+#include "queue.h"
 
 template <class T>
 class CommBaseClass
@@ -21,15 +21,18 @@ class CommBaseClass
 		virtual HAL_StatusTypeDef MsgReceivedRxCB(T *hint){return HAL_ERROR;};
 
 	protected:
+		virtual HAL_StatusTypeDef __CheckIfInterfaceFree(MessageInfoTypeDef<T> *MsgInfo) = 0;
 		virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<T> *MsgInfo) = 0;
-		virtual HAL_StatusTypeDef __CheckForNextCommRequestAndStart();
+		virtual HAL_StatusTypeDef __CheckForNextCommRequestAndStart(MessageInfoTypeDef<T> *MsgInfo);
 		HAL_StatusTypeDef __CheckAndSetCSPinsGeneric(MessageInfoTypeDef<T> *MsgInfo);
 
 		T *_Handle;
 		DMA_HandleTypeDef *hdmaRx;
 		CommModeTypeDef _commType;
-		std::queue<MessageInfoTypeDef<T>> _MsgQueue;
+		QueueHandle_t _MsgQueue;
 	private:
+		uint8_t _xQueueStaticBuffer[MAX_MESSAGE_NO_IN_QUEUE*sizeof(MessageInfoTypeDef<T>)];
+		StaticQueue_t _xStQueue;
 		uint16_t GPIO_PIN;
 		GPIO_TypeDef *GPIOx;
 };

@@ -12,10 +12,20 @@ CommI2C::CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeD
 :CommBaseClass(hint, hdma, CommMode)
 {}
 
-HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
+HAL_StatusTypeDef CommI2C::__CheckIfInterfaceFree(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_BUSY;
 	if(_Handle->State != HAL_I2C_STATE_READY)
+	{
+		return ret;
+	}
+	return HAL_OK;
+}
+
+HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
+{
+	HAL_StatusTypeDef ret = HAL_BUSY;
+	if(__CheckIfInterfaceFree(MsgInfo) != HAL_OK)
 	{
 		return ret;
 	}
