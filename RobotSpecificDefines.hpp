@@ -163,6 +163,15 @@
 	#define MD_CS_1_Pin GPIO_PIN_6
 	#define MD_CS_1_GPIO_Port GPIOB
 
+	#define TOF_INT0_Pin GPIO_PIN_7
+	#define TOF_INT0_Port GPIOI
+	#define TOF_INT1_Pin GPIO_PIN_13
+	#define TOF_INT1_Port GPIOC
+	#define TOF_LP0_Pin GPIO_PIN_8
+	#define TOF_LP0_Port GPIOI
+	#define TOF_LP1_Pin GPIO_PIN_0
+	#define TOF_LP1_Port GPIOF
+
 	#ifdef ROBOT_STD_V1_parse
 		#define STARTER_Pin TOF_GPIO_5_Pin
 		#define STARTER_Port TOF_GPIO_5_GPIO_Port
@@ -199,9 +208,9 @@
 	#define MOTOR_INVERTED_SIDE
 	#define RIGHT_MOTOR_INVERT_DIRECTION
 	#define LEFT_MOTOR_INVERT_DIRECTION
-	#define XSHUT_PINS  {}
-	#define TOFx_GPIO_PINS {}
-	#define TOFx_XSHUT_PORTS  {}
+	#define XSHUT_PINS  {TOF_LP0_Pin}
+	#define TOFx_GPIO_PINS { TOF_INT0_Pin}
+	#define TOFx_XSHUT_PORTS  { TOF_INT0_Port}
 
 	#define OPPONENT_SEARCH_SPEED 500
 	#define OPPONENT_CHASE_SPEED 600

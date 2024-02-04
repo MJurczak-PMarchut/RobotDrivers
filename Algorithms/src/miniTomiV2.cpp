@@ -25,6 +25,7 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true),
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
+//static VL53L5CX Sensors[] ={ VL53L5CX(FRONT, &MainCommManager, &hi2c1)};
 
 static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*
@@ -47,6 +48,7 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 1024)
 
 void Robot::begin(void)
 {
+//	ToF_Sensor::StartSensorTask();
 
 	logger.Init();
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
@@ -56,9 +58,14 @@ void Robot::begin(void)
 	{taskYIELD();}
 	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
 	{taskYIELD();}
+//	while(ToF_Sensor::CheckInitializationCplt() != true)
+//	{taskYIELD();}
+	MCInterface::run();
+//	Sensors[0].SetRotation(ROTATE_0);
 	logger.Log("Starting loop\n", false);
 
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
 
 
 
@@ -126,12 +133,13 @@ void Robot::PeriodicCheckCall(void)
 		case 100:
 			{
 				MCInterface::RunStateCheck();
+				HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 			}
 			break;
 		default:
 			break;
 	}
-	call_count = (call_count >= 100)? call_count + 1 : 0;
+	call_count = (call_count >= 100)? 0: call_count+1;
 }
 
 void Robot::PeriodCB(void)
