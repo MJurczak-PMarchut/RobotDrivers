@@ -25,7 +25,7 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true),
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
-//static VL53L5CX Sensors[] ={ VL53L5CX(FRONT, &MainCommManager, &hi2c1)};
+static VL53L5CX Sensors[] ={ VL53L5CX(FRONT, &MainCommManager, &hi2c1)};
 
 static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*
@@ -48,9 +48,12 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 1024)
 
 void Robot::begin(void)
 {
-//	ToF_Sensor::StartSensorTask();
 
-	logger.Init();
+	//Enable power
+	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
+	HAL_Delay(1000);
+//	logger.Init();
+	ToF_Sensor::StartSensorTask();
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
@@ -58,11 +61,11 @@ void Robot::begin(void)
 	{taskYIELD();}
 	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
 	{taskYIELD();}
-//	while(ToF_Sensor::CheckInitializationCplt() != true)
-//	{taskYIELD();}
+	while(ToF_Sensor::CheckInitializationCplt() != true)
+	{taskYIELD();}
 	MCInterface::run();
 //	Sensors[0].SetRotation(ROTATE_0);
-	logger.Log("Starting loop", LOGLEVEL_INFO);
+//	logger.Log("Starting loop", LOGLEVEL_INFO);
 
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
@@ -73,11 +76,11 @@ void Robot::begin(void)
 
 void Robot::loop(void)
 {
-	char message[100];
+//	char message[100];
 	static uint16_t speed = 0;
-	sprintf(message, "Set LEFT Motor Power at %d", speed);
+//	sprintf(message, "Set LEFT Motor Power at %d", speed);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(speed);
-	logger.Log(message, LOGLEVEL_TRACE);
+//	logger.Log(message, LOGLEVEL_TRACE);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
 	speed = (speed >= 999)?0:speed + 100;
 	HAL_Delay(100);

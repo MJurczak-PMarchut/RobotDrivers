@@ -108,7 +108,7 @@ uint8_t RdByte(
 {
 	uint8_t status = 0;
 	lock_interface();
-	HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_value, 1, 150);
+	status = HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_value, 1, 150);
 	unlock_interface();
 	return status;
 
@@ -122,7 +122,7 @@ uint8_t WrByte(
 	uint8_t status = 0;
 	uint8_t value_stat = value;
 	lock_interface();
-	HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, &value_stat, 1, 150);
+	status = HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, &value_stat, 1, 150);
 	unlock_interface();
 	return status;
 
@@ -136,7 +136,7 @@ uint8_t WrMulti(
 {
 	uint8_t status = 0;
 	lock_interface();
-	HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 1000);
+	status = HAL_I2C_Mem_Write(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 20000);
 	unlock_interface();
 	return status;
 
@@ -150,7 +150,7 @@ uint8_t RdMulti(
 {
 	uint8_t status = 0;
 	lock_interface();
-	HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 250);
+	status = HAL_I2C_Mem_Read(&hi2c1, p_platform->address, RegisterAdress, 2, p_values, size, 250);
 	unlock_interface();
 	return status;
 
