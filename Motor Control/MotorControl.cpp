@@ -53,16 +53,14 @@ void MCInterface::RunStateCheck(void)
 void MCInterface::_check_state(void* pvParam)
 {
 	static uint32_t ommit_delay = (uint32_t) pvParam;
-	while(true){
-		for(uint8_t u8Iter = 0; u8Iter < NoOfControllers; u8Iter++)
-		{
-			if(_MCInterfacePointers[u8Iter]->CheckIfControllerInitializedOk() == HAL_OK){
-				_MCInterfacePointers[u8Iter]->CheckControllerState();
-			}
+	for(uint8_t u8Iter = 0; u8Iter < NoOfControllers; u8Iter++)
+	{
+		if(_MCInterfacePointers[u8Iter]->CheckIfControllerInitializedOk() == HAL_OK){
+			_MCInterfacePointers[u8Iter]->CheckControllerState();
 		}
-		if(ommit_delay == 0){
-			vTaskDelay(50);
-		}
+	}
+	if(ommit_delay == 0){
+		vTaskDelay(50);
 	}
 }
 #endif

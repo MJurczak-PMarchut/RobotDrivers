@@ -72,7 +72,9 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart(MessageInf
 			pMsg = MsgInfo;
 		}
 		if(xQueuePeekFromISR(_MsgQueue, pMsg) == pdPASS){
-			ret = this->__CheckIfFreeAndSendRecv(pMsg);
+			if(pMsg->IntHandle != NULL){
+				ret = this->__CheckIfFreeAndSendRecv(pMsg);
+			}
 		}
 	}
 	return ret;

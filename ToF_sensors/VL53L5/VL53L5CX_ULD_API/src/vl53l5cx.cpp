@@ -638,7 +638,7 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->__Status = TOF_STATE_DATA_RDY;
 
-	return (ret == 0) ? HAL_OK : HAL_ERROR;
+	return ret;
 }
 
 HAL_StatusTypeDef VL53L5CX::CheckDataReady(void) {
