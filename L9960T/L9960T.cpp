@@ -69,12 +69,14 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 
 #ifdef USES_RTOS
 	_StatusSemaphore = xSemaphoreCreateBinaryStatic(&_pxSemphrMemory);
+	_CallbackFunc = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
 #endif
 }
 
 void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 {
 	uint16_t Message, Comp_message;
+	static uint16_t retry_count = 0;
 	MessageInfoTypeDef<SPI> MsgInfoToSend = {0};
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
@@ -86,7 +88,7 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 	MsgInfoToSend.pRxData = this->pRxData;
 	MsgInfoToSend.IntHandle = this->__hspi;
 #ifdef USES_RTOS
-	MsgInfoToSend.pCB = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
+	MsgInfoToSend.pCB = &_CallbackFunc;
 #else
 	MsgInfoToSend.pCB = std::bind(&L9960T::Init, this, std::placeholders::_1);
 #endif
@@ -112,8 +114,14 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			MsgInfoToSend.pTxData = pTxData;
 			if((this->pRxData[0] & POR_STATUS_MSK) == POR_STATUS_MSK)
 			{
+				retry_count = 0;
 				this->__InitMessageID++;
 			}
+			else if(retry_count > 4)
+			{
+				this->__InitMessageID--;
+			}
+			retry_count++;
 			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			break;
 		case 2://Trigger HWSC & BIST
@@ -194,6 +202,7 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->__InitMessageID++;
 			break;
 		default:
+			this->__InitMessageID++;
 			//this ends init
 			break;
 	}
@@ -265,7 +274,7 @@ HAL_StatusTypeDef L9960T::Enable(void)
 
 HAL_StatusTypeDef L9960T::CheckIfControllerInitializedOk(void)
 {
-	return (__InitMessageID >= 5)? HAL_OK : HAL_ERROR;
+	return (__InitMessageID >= 7)? HAL_OK : HAL_ERROR;
 }
 
 HAL_StatusTypeDef L9960T::StartPWM(void)
@@ -294,60 +303,63 @@ void L9960T::SoftPWMCB_period()
  */
 HAL_StatusTypeDef L9960T::CheckControllerState(void)
 {
+
 	static uint8_t state = 0;
 	uint16_t Message;
 	HAL_StatusTypeDef ret;
 	static HAL_StatusTypeDef transactionstatud = HAL_ERROR;
-	MessageInfoTypeDef<SPI> MsgInfoToSend = {0};
-
-	//Send status request
-
-
-	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
-	MsgInfoToSend.GPIOx = this->__CS_Port;
-	MsgInfoToSend.context = (STATUS_CHECK_CONTEXT << CONTEXT_OFFSET) | (state << 8);
-	MsgInfoToSend.eCommType = COMM_INT_TXRX;
-	MsgInfoToSend.len = 2;
-	MsgInfoToSend.IntHandle = this->__hspi;
-	MsgInfoToSend.pTxData = pTxData;
-	MsgInfoToSend.TransactionStatus = &transactionstatud;
-	MsgInfoToSend.pCB = std::bind(&L9960T::_ControllerStateCB, this, std::placeholders::_1);
-	MsgInfoToSend.pRxData = this->pRxData;
-
-
-	switch(state)
+	if(xSemaphoreTake(this->_StatusSemaphore, ( TickType_t ) 10) == pdTRUE)
 	{
-		case 0:
-		{
-			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
-		}
-		break;
+		MessageInfoTypeDef<SPI> MsgInfoToSend = {0};
 
-		case 1:
-		{
-			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_2 << MESSAGE_OFFSET);
-		}
-		break;
+		//Send status request
 
-		case 2:
-		{
-			Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_3 << MESSAGE_OFFSET);
 
+		MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
+		MsgInfoToSend.GPIOx = this->__CS_Port;
+		MsgInfoToSend.context = (STATUS_CHECK_CONTEXT << CONTEXT_OFFSET) | (state << 8);
+		MsgInfoToSend.eCommType = COMM_INT_TXRX;
+		MsgInfoToSend.len = 2;
+		MsgInfoToSend.IntHandle = this->__hspi;
+		MsgInfoToSend.pTxData = pTxData;
+		MsgInfoToSend.TransactionStatus = &transactionstatud;
+		MsgInfoToSend.pCB = &_CallbackFunc;
+		MsgInfoToSend.pRxData = this->pRxData;
+
+
+		switch(state)
+		{
+			case 0:
+			{
+				Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_1 << MESSAGE_OFFSET);
+			}
+			break;
+
+			case 1:
+			{
+				Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_2 << MESSAGE_OFFSET);
+			}
+			break;
+
+			case 2:
+			{
+				Message = (STATUS_REQUEST_ADDR << ADDRESS_OFFSET) | (STATUS_REQUEST_3 << MESSAGE_OFFSET);
+
+			}
+			break;
 		}
-		break;
+
+		Message |= (~__builtin_parity(Message) & 1);
+		this->pTxData[1] = (Message & 0xFF);
+		this->pTxData[0] = ((Message >> 8) & 0xFF);
+		ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+
+		if(ret == HAL_OK)
+		{
+			state++;
+			if(state >=3) state = 0;
+		}
 	}
-
-	Message |= (~__builtin_parity(Message) & 1);
-	this->pTxData[1] = (Message & 0xFF);
-	this->pTxData[0] = ((Message >> 8) & 0xFF);
-	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-
-	if(ret == HAL_OK)
-	{
-		state++;
-		if(state >=3) state = 0;
-	}
-
 /*
  * Handle errors here, but remember that reading the faults clears them if bit @DIAG_CLR_OFFSET is set to 1
  */
@@ -358,6 +370,7 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 
 void L9960T::_ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo)
 {
+	xSemaphoreGiveFromISR(this->_StatusSemaphore, NULL);
 	if(((MsgInfo->context & 0xFF) >> CONTEXT_OFFSET) == STATUS_CHECK_CONTEXT) //redundant check
 	{
 		if((this->_status_regs[MsgInfo->context >> 8] >> ADDRESS_OFFSET) != STATUS_REQUEST_ADDR){

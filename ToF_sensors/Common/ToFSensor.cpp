@@ -82,6 +82,7 @@ void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 		if(SensorObj->GetSensorITPin() == pin)
 		{
 			if(SensorObj->CheckSensorStatus() == TOF_STATE_OK){
+				SensorObj->last_update_tick = HAL_GetTick();
 				SensorObj->GetRangingData();
 			}
 		}
@@ -205,6 +206,7 @@ void ToF_Sensor::ToF_SensorMortalThread::begin()
 		vSemaphoreDelete(xSemaphore[worketstate]); 		//delete its semaphore
 	}
 	ToF_Sensor::InitCompleted = true;
+	this->sleep(100);
 }
 
 void ToF_Sensor::ToF_SensorMortalThread::loop()

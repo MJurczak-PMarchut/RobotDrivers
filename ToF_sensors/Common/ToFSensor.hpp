@@ -58,13 +58,14 @@ protected:
 	e_ToF_Position __pos;
 	static uint8_t __no_of_sensors;
 	virtual void SetMutex(osapi::Mutex *pmutex) = 0;
+	uint32_t last_update_tick;
 
 private:
 
 	class ToF_SensorMortalThread : public MortalThread
 	{
 	public:
-		ToF_SensorMortalThread() : MortalThread(tskIDLE_PRIORITY, 1024) {
+		ToF_SensorMortalThread() : MortalThread(tskIDLE_PRIORITY, 1024, "TofSensorThread") {
 		}
 	private:
 		static void InitWorkerThread(void *pvParametes);
@@ -77,6 +78,7 @@ private:
 	static ToF_Sensor*  __ToFSensorPointers[10];
 	static TaskHandle_t *__pTaskHandle;
 	static ToF_SensorMortalThread Thread;
+
 	static bool InitCompleted;
 };
 

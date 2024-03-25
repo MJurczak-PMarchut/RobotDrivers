@@ -7,13 +7,12 @@
 #include "CommBaseClass.hpp"
 
 template<typename T>
-CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode)
-:_Handle{hint}, hdmaRx{hdmaRx}, _commType{CommMode}, GPIO_PIN{0}, GPIOx{NULL}
+CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode, const char* CommName)
+:_Handle{hint}, hdmaRx{hdmaRx}, _commType{CommMode}, name{CommName}, GPIO_PIN{0}, GPIOx{NULL}
 {
-	_MsgQueue = xQueueCreateStatic(MAX_MESSAGE_NO_IN_QUEUE,
-										sizeof(MessageInfoTypeDef<T>),
-										_xQueueStaticBuffer,
-										&_xStQueue );
+	_MsgQueue = xQueueCreate (MAX_MESSAGE_NO_IN_QUEUE,
+										sizeof(MessageInfoTypeDef<T>));
+	vQueueAddToRegistry(_MsgQueue, CommName);
 }
 
 
@@ -48,33 +47,34 @@ template<class T>
 HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart(MessageInfoTypeDef<T> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_OK;
+	BaseType_t pdRetval;
 	MessageInfoTypeDef<T> Msg = {0};
 	MessageInfoTypeDef<T> *pMsg = &Msg;
-	if(uxQueueMessagesWaitingFromISR(_MsgQueue) == 0 && MsgInfo != NULL)
+
+	if(MsgInfo != NULL)
 	{
-		if(this->__CheckIfInterfaceFree(MsgInfo) == HAL_OK){
-			//send message
-			if(xQueueSendToBackFromISR(_MsgQueue, MsgInfo, NULL) != pdPASS)
-			{
-				return HAL_ERROR;
-			}
-			ret = this->__CheckIfFreeAndSendRecv(MsgInfo);
+		if(xPortIsInsideInterrupt() == pdTRUE){
+			pdRetval = xQueueSendToBackFromISR(_MsgQueue, MsgInfo, NULL);
 		}
-	}
-	else
-	{
-		if(MsgInfo != NULL)
+		else{
+			pdRetval = xQueueSendToBack(_MsgQueue, MsgInfo, 10);
+		}
+		if(pdRetval != pdPASS)
 		{
-			if(xQueueSendToBackFromISR(_MsgQueue, pMsg, NULL) != pdPASS)
-			{
-				return HAL_ERROR;
-			}
-			pMsg = MsgInfo;
+			return HAL_ERROR;
 		}
-		if(xQueuePeekFromISR(_MsgQueue, pMsg) == pdPASS){
-			if(pMsg->IntHandle != NULL){
-				ret = this->__CheckIfFreeAndSendRecv(pMsg);
-			}
+		pMsg = MsgInfo;
+	}
+	if(xPortIsInsideInterrupt() == pdTRUE){
+		pdRetval = xQueuePeekFromISR(_MsgQueue, pMsg);
+	}
+	else{
+		pdRetval = xQueuePeek(_MsgQueue, pMsg, 10);
+	}
+	if(pdRetval == pdPASS)
+	{
+		if(pMsg->IntHandle != NULL){
+			ret = this->__CheckIfFreeAndSendRecv(pMsg);
 		}
 	}
 	return ret;
@@ -83,6 +83,8 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart(MessageInf
 template<typename T>
 HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
 {
+	HAL_StatusTypeDef ret = HAL_ERROR;
+	UBaseType_t uxSavedInterruptStatus;
 	if(MsgInfo->TransactionStatus !=0)
 	{
 		*MsgInfo->TransactionStatus = HAL_BUSY;
@@ -95,8 +97,8 @@ HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *
 	{
 		return HAL_ERROR;
 	}
-
-	return this->__CheckForNextCommRequestAndStart(MsgInfo);
+	ret =  this->__CheckForNextCommRequestAndStart(MsgInfo);
+	return ret;
 }
 
 template<typename T>
@@ -146,9 +148,9 @@ HAL_StatusTypeDef CommBaseClass<T>::MsgReceivedCB(T *hint)
 		default:
 			break;
 	}
-	if(Msg.pCB != 0)
+	if(Msg.pCB != NULL)
 	{
-		Msg.pCB(&Msg);
+		(*Msg.pCB)(&Msg);
 	}
 	return __CheckForNextCommRequestAndStart(NULL);
 }

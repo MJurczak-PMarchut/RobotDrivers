@@ -9,7 +9,7 @@
 
 
 CommI2C::CommI2C(I2C_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeDef CommMode)
-:CommBaseClass(hint, hdma, CommMode)
+:CommBaseClass(hint, hdma, CommMode, "I2C")
 {}
 
 HAL_StatusTypeDef CommI2C::__CheckIfInterfaceFree(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)

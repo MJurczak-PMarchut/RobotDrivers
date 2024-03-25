@@ -30,7 +30,7 @@ void MCInterface::run(void)
 	{
 		xReturned = xTaskCreate(MCInterface::_check_state,
 								"MC Status check",
-								512,
+								1024,
 								NULL,
 								tskIDLE_PRIORITY,
 								&xHandle);
@@ -42,25 +42,23 @@ void MCInterface::run(void)
 	_isRunning = true;
 }
 
-void MCInterface::RunStateCheck(void)
-{
-	if(!_isRunning){
-		_check_state((void*)1);
-	}
-}
-
 
 void MCInterface::_check_state(void* pvParam)
 {
 	static uint32_t ommit_delay = (uint32_t) pvParam;
-	for(uint8_t u8Iter = 0; u8Iter < NoOfControllers; u8Iter++)
-	{
-		if(_MCInterfacePointers[u8Iter]->CheckIfControllerInitializedOk() == HAL_OK){
-			_MCInterfacePointers[u8Iter]->CheckControllerState();
+	uint32_t call_count = 0;
+	vTaskDelay(500);
+	while(true){
+		for(uint8_t u8Iter = 0; u8Iter < NoOfControllers; u8Iter++)
+		{
+			if(_MCInterfacePointers[u8Iter]->CheckIfControllerInitializedOk() == HAL_OK){
+				_MCInterfacePointers[u8Iter]->CheckControllerState();
+			}
 		}
-	}
-	if(ommit_delay == 0){
-		vTaskDelay(50);
+		if(ommit_delay == 0){
+			vTaskDelay(50);
+		}
+		call_count++;
 	}
 }
 #endif

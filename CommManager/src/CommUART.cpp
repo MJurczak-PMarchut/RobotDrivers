@@ -8,7 +8,7 @@
 #include "CommUART.hpp"
 
 CommUART::CommUART(UART_HandleTypeDef *hint, DMA_HandleTypeDef *hdmaRx, DMA_HandleTypeDef *hdmaTx, CommModeTypeDef CommMode)
-:CommBaseClass(hint, hdmaRx, CommMode), _hdmaTx{hdmaTx}
+:CommBaseClass(hint, hdmaRx, CommMode, "UART"), _hdmaTx{hdmaTx}
 {}
 
 HAL_StatusTypeDef CommUART::__CheckIfInterfaceFree(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
@@ -209,7 +209,7 @@ HAL_StatusTypeDef CommUART::MsgReceivedCB(UART_HandleTypeDef *hint, uint16_t len
 	}
 	if(Msg.pCB != 0)
 	{
-		Msg.pCB(&Msg);
+		(*Msg.pCB)(&Msg);
 	}
 
 	if(Msg.eCommType == COMM_INT_RX){

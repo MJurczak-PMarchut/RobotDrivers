@@ -19,7 +19,9 @@ extern TIM_HandleTypeDef htim4;
 extern I2C_HandleTypeDef hi2c1;
 extern SPI_HandleTypeDef hspi2;
 extern CommManager MainCommManager;
+
 uint32_t means[4] = {0};
+uint16_t sens;
 //config
 static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true),
@@ -42,18 +44,17 @@ static VL53L5CX Sensors[] ={ VL53L5CX(FRONT, &MainCommManager, &hi2c1),  VL53L5C
 /*
  * Algorithm
  */
-Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096)
+Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 {
 }
 
 void Robot::begin(void)
 {
-
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
-	HAL_Delay(1000);
+	HAL_Delay(100);
 //	logger.Init();
-//	ToF_Sensor::StartSensorTask();
+	ToF_Sensor::StartSensorTask();
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
@@ -61,14 +62,17 @@ void Robot::begin(void)
 	{taskYIELD();}
 	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
 	{taskYIELD();}
-//	while(ToF_Sensor::CheckInitializationCplt() != true)
-//	{taskYIELD();}
-//	MCInterface::run();
+	while(ToF_Sensor::CheckInitializationCplt() != true)
+	{taskYIELD();}
+	MCInterface::run();
 //	Sensors[0].SetRotation(ROTATE_0);
 //	logger.Log("Starting loop", LOGLEVEL_INFO);
 
-	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
+
+
+
 
 
 
@@ -78,25 +82,12 @@ void Robot::loop(void)
 {
 //	char message[100];
 	static uint16_t speed = 0;
-
 	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin))//dummy
 	{
-		vTaskDelay(1);
-		MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-		return;
 	}
 	else{
-		MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
 	}
-//	sprintf(message, "Set LEFT Motor Power at %d", speed);
-	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(999);
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(999);
-//	logger.Log(message, LOGLEVEL_TRACE);
-	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
-	vTaskDelay(10);
+	HAL_Delay(10000);
 
 }
 
@@ -138,7 +129,7 @@ void Robot::PeriodicCheckCall(void)
 	{
 		case 25:
 			{
-				MCInterface::RunStateCheck();
+//				MCInterface::RunStateCheck();
 			}
 			break;
 		case 50:

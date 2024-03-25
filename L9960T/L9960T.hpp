@@ -62,11 +62,13 @@ class L9960T : protected MCInterface{
 		uint8_t __InitMessageID;
 		bool __inverted_pwm;
 		bool __use_sw_pwm;
+
 #ifdef USES_RTOS
 public:
 		HAL_StatusTypeDef CheckControllerState(void);
 
 private:
+		std::function<void(MessageInfoTypeDef<SPI> *MsgInfo)> _CallbackFunc;
 		void _ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo);
 		StaticSemaphore_t _pxSemphrMemory;
 		SemaphoreHandle_t _StatusSemaphore;

@@ -44,7 +44,7 @@ struct MessageInfoTypeDef{
 	uint8_t *pTxData;
 	uint16_t I2C_Addr;
 	uint16_t I2C_MemAddr;
-	std::function<void(MessageInfoTypeDef* MsgInfo)> pCB;
+	std::function<void(MessageInfoTypeDef* MsgInfo)> *pCB;
 	void (*pRxCompletedCB)(MessageInfoTypeDef* MsgInfo);
 	void (*pTxCompletedCB)(MessageInfoTypeDef* MsgInfo);
 	HAL_StatusTypeDef* TransactionStatus;

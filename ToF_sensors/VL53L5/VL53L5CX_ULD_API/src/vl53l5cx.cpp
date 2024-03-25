@@ -229,6 +229,8 @@ VL53L5CX::VL53L5CX(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
 	last_update_tick = HAL_GetTick();
+	this->_CallbackFunc = std::bind(&VL53L5CX::DataReceived, this, std::placeholders::_1);
+
 }
 
 HAL_StatusTypeDef VL53L5CX::SetRotation(SensorSpatialOrientation Orientation)
@@ -605,6 +607,7 @@ HAL_StatusTypeDef VL53L5CX::StartRanging(void) {
 	return (ret == 0) ? HAL_OK : HAL_ERROR;
 }
 
+
 void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 {
 	SwapBuffer((uint8_t*)this->__comm_buffer, (uint16_t)32);
@@ -621,7 +624,7 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 
 	HAL_StatusTypeDef ret = HAL_OK;
 	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
-
+	MsgInfoToSend.context = __pos;
 	MsgInfoToSend.eCommType = COMM_INT_MEM_RX;
 	MsgInfoToSend.I2C_Addr = this->__address;
 	MsgInfoToSend.I2C_MemAddr = 304;
@@ -634,7 +637,7 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 	MsgInfoToSend.len = 16;
 	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer + 32;
 	MsgInfoToSend.IntHandle = this->__hi2c1;
-	MsgInfoToSend.pCB = std::bind(&VL53L5CX::DataReceived, this, std::placeholders::_1);
+	MsgInfoToSend.pCB = &this->_CallbackFunc;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->__Status = TOF_STATE_DATA_RDY;
 
@@ -656,7 +659,8 @@ ToF_Status_t VL53L5CX::CheckSensorStatus(void) {
 
 		break;
 	case TOF_STATE_OK:
-		if((HAL_GetTick() - last_update_tick) > 100)//no update since 100ms;
+	case TOF_STATE_DATA_RDY:
+		if(HAL_GetTick() - last_update_tick > 100)//no update since 100ms;
 		{
 			if(GetRangingData() == HAL_ERROR)
 			{

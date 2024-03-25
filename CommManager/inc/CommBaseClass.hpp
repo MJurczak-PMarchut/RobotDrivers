@@ -13,7 +13,7 @@ template <class T>
 class CommBaseClass
 {
 	public:
-		CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode);
+		CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode, const char* CommName="");
 		virtual HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo);
 		HAL_StatusTypeDef CheckIfSameInstance(const T *pIntStruct);
 		HAL_StatusTypeDef MsgReceivedCB(T *hint);
@@ -29,12 +29,15 @@ class CommBaseClass
 		T *_Handle;
 		DMA_HandleTypeDef *hdmaRx;
 		CommModeTypeDef _commType;
+		const char* name;
 		QueueHandle_t _MsgQueue;
+
 	private:
 		uint8_t _xQueueStaticBuffer[MAX_MESSAGE_NO_IN_QUEUE*sizeof(MessageInfoTypeDef<T>)];
-		StaticQueue_t _xStQueue;
+		QueueHandle_t  _xStQueue;
 		uint16_t GPIO_PIN;
 		GPIO_TypeDef *GPIOx;
+
 };
 
 #endif /* COMMMANAGER_COMMINTERFACE_HPP_ */
