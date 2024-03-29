@@ -11,7 +11,7 @@
 
 
 bool DirtyLogger::_instance_exists = 0;
-const char* lvl_type[] = {"INFO", "DEBUG", "TRACE"};
+const char* lvl_type[] = {"INFO", "DEBUG", "TRACE", "SENSOR_LOG"};
 
 DirtyLogger::DirtyLogger(uint8_t *retSD, char *SDPath, FATFS *SDFatFS, FIL *SDFile):
 		_retSD{retSD}, _SDPath{SDPath}, _SDFatFS{SDFatFS}, _SDFile{SDFile}
@@ -20,11 +20,11 @@ DirtyLogger::DirtyLogger(uint8_t *retSD, char *SDPath, FATFS *SDFatFS, FIL *SDFi
 }
 
 void DirtyLogger::Init(void){
-	TCHAR buff[25];
-	DIR dp;
-	FILINFO fno;
-	TCHAR filename_pattern[] = "Log_*.txt";
-	char filename[15] = {0};
+	static TCHAR buff[35];
+	static DIR dp;
+	static FILINFO fno;
+	static TCHAR filename_pattern[] = "Log_*.txt";
+	char filename[25] = {0};
 	uint8_t iter = 0;
 	if(f_getcwd(buff, 25) != FR_OK)
 	{
@@ -64,7 +64,7 @@ void DirtyLogger::Log(const char* message, loglevel_t LogLevel)
 {
 	FRESULT res;
 	uint32_t byteswritten;
-	static char data[512] = {0};
+	static char data[1024] = {0};
 	int len;
 	if(LogLevel > LOGLEVEL_TRACE)
 	{

@@ -618,6 +618,7 @@ void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 	SwapBuffer(this->__comm_buffer + 32, (uint16_t)16);
 	memcpy(this->result.target_status, this->__comm_buffer + 32, 16);
 	this->__Status = TOF_STATE_OK;
+	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
 }
 
 HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {

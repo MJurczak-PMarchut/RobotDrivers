@@ -9,7 +9,7 @@
 #define DIRTYLOGGER_DIRTYLOGGER_HPP_
 #include "fatfs.h"
 
-typedef enum {LOGLEVEL_INFO=0, LOGLEVEL_DEBUG, LOGLEVEL_TRACE} loglevel_t;
+typedef enum {LOGLEVEL_INFO=0, LOGLEVEL_DEBUG, LOGLEVEL_TRACE, TOF_LOG} loglevel_t;
 
 class DirtyLogger{
 public:

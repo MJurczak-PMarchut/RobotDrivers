@@ -17,7 +17,8 @@
 TaskHandle_t* ToF_Sensor::__pTaskHandle;
 ToF_Sensor*  ToF_Sensor::__ToFSensorPointers[10];
 uint8_t ToF_Sensor::__no_of_sensors = 0;
-
+StaticEventGroup_t  ToF_Sensor::SensorUpdateEventBuffer;
+EventGroupHandle_t ToF_Sensor::EventGroupHandle;
 static 	osapi::Mutex mutex;
 
 
@@ -55,6 +56,9 @@ ToF_Sensor::ToF_Sensor(e_ToF_Type type, e_ToF_Position position, CommManager *co
 		ToF_Type { type }, __CommunicationManager { comm }, __pos { position } {
 	__ToFSensorPointers[__no_of_sensors] = this;
 	__no_of_sensors++;
+	if(__no_of_sensors == 1){
+		EventGroupHandle = xEventGroupCreateStatic(&SensorUpdateEventBuffer);
+	}
 }
 
 
@@ -63,6 +67,14 @@ bool ToF_Sensor::CheckInitializationCplt(void)
 	return InitCompleted;
 }
 
+const EventGroupHandle_t ToF_Sensor::GetEventHandle(void)
+{
+	if(InitCompleted)
+	{
+		return EventGroupHandle;
+	}
+	return NULL;
+}
 
 void ToF_Sensor::StartSensorTask(void) {
 	Thread.run();
@@ -212,7 +224,7 @@ void ToF_Sensor::ToF_SensorMortalThread::begin()
 void ToF_Sensor::ToF_SensorMortalThread::loop()
 	{
 		ToF_Sensor::__ToFSensorThread(NULL);
-		this->sleep(10);
+		this->sleep(12);
 	}
 
 void ToF_Sensor::ToF_SensorMortalThread::InitWorkerThread(void *pvParametes)

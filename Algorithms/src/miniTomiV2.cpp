@@ -50,12 +50,14 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 
 void Robot::begin(void)
 {
+//	logger.Init();
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
-//	logger.Init();
 	ToF_Sensor::StartSensorTask();
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
 	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
@@ -65,7 +67,6 @@ void Robot::begin(void)
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
 	MCInterface::run();
-//	Sensors[0].SetRotation(ROTATE_0);
 //	logger.Log("Starting loop", LOGLEVEL_INFO);
 
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
@@ -78,16 +79,49 @@ void Robot::begin(void)
 
 }
 
+void prepare_sensor_data(char *pData, VL53L5CX Sensors[])
+{
+	uint8_t sensor_index;
+	uint16_t distance_array[16];
+	for(sensor_index = 0; sensor_index < ToF_Sensor::GetNoOfSensors(); sensor_index++)
+	{
+		distance_array[0] = Sensors[sensor_index].GetDataFromSensor(0, 0);
+		distance_array[1] = Sensors[sensor_index].GetDataFromSensor(1, 0);
+		distance_array[2] = Sensors[sensor_index].GetDataFromSensor(2, 0);
+		distance_array[3] = Sensors[sensor_index].GetDataFromSensor(3, 0);
+		distance_array[4] = Sensors[sensor_index].GetDataFromSensor(0, 1);
+		distance_array[5] = Sensors[sensor_index].GetDataFromSensor(1, 1);
+		distance_array[6] = Sensors[sensor_index].GetDataFromSensor(2, 1);
+		distance_array[7] = Sensors[sensor_index].GetDataFromSensor(3, 1);
+		distance_array[8] = Sensors[sensor_index].GetDataFromSensor(0, 2);
+		distance_array[9] = Sensors[sensor_index].GetDataFromSensor(1, 2);
+		distance_array[10] = Sensors[sensor_index].GetDataFromSensor(2, 2);
+		distance_array[11] = Sensors[sensor_index].GetDataFromSensor(3, 2);
+		distance_array[12] = Sensors[sensor_index].GetDataFromSensor(0, 3);
+		distance_array[13] = Sensors[sensor_index].GetDataFromSensor(1, 3);
+		distance_array[14] = Sensors[sensor_index].GetDataFromSensor(2, 3);
+		distance_array[15] = Sensors[sensor_index].GetDataFromSensor(3, 3);
+		sprintf(pData, "%s\nSensorNumber: %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n",pData, (sensor_index),
+				distance_array[0], distance_array[1], distance_array[2], distance_array[3],
+				distance_array[4], distance_array[5], distance_array[6], distance_array[7],
+				distance_array[8], distance_array[9], distance_array[10], distance_array[11],
+				distance_array[12], distance_array[13], distance_array[14], distance_array[15]);
+	}
+}
+
 void Robot::loop(void)
 {
 //	char message[100];
 	static uint16_t speed = 0;
-	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin))//dummy
-	{
+	char message_data[400] = {0};
+	EventBits_t u32_updated_Sensors;
+	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin)){
 	}
 	else{
 	}
-	HAL_Delay(10000);
+	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 1000);
+	prepare_sensor_data(message_data, Sensors);
+//	logger.Log(message_data, LOGLEVEL_INFO);
 
 }
 
@@ -98,10 +132,15 @@ void Robot::end(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	if (GPIO_Pin == TOF_INT1_Pin || GPIO_Pin == TOF_INT3_Pin || GPIO_Pin == TOF_INT5_Pin)
-	{
-		if(ToF_Sensor::CheckInitializationCplt())
+	if(ToF_Sensor::CheckInitializationCplt()){
+		if (GPIO_Pin == TOF_INT4_Pin)
 		{
+			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
+		}
+		if(GPIO_Pin == TOF_INT3_Pin){
+			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
+		}
+		if(GPIO_Pin == TOF_INT5_Pin){
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
 	}

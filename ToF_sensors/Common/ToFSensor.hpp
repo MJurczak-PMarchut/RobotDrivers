@@ -8,9 +8,12 @@
 #ifndef TOF_SENSORS_COMMON_TOFSENSOR_HPP_
 #define TOF_SENSORS_COMMON_TOFSENSOR_HPP_
 
+#define TOF_EVENT_MASK  ((1<<ToF_Sensor::GetNoOfSensors())-1)
+
 #include "CommManager.hpp"
 #include "Configuration.h"
 #include "osapi.h"
+
 
 typedef enum  {vl53l5, vl53l1}e_ToF_Type;
 
@@ -47,6 +50,7 @@ public:
 	static ToF_Sensor* GetSensorPointer(uint8_t);
 	static void EXTI_Callback_func(uint16_t pin);
 	static void StartSensorTask(void);
+	static const EventGroupHandle_t GetEventHandle(void);
 	virtual ~ToF_Sensor();
 	static void RunSensorCheck(void);
 
@@ -59,6 +63,8 @@ protected:
 	static uint8_t __no_of_sensors;
 	virtual void SetMutex(osapi::Mutex *pmutex) = 0;
 	uint32_t last_update_tick;
+	static EventGroupHandle_t EventGroupHandle;
+
 
 private:
 
@@ -78,7 +84,7 @@ private:
 	static ToF_Sensor*  __ToFSensorPointers[10];
 	static TaskHandle_t *__pTaskHandle;
 	static ToF_SensorMortalThread Thread;
-
+	static StaticEventGroup_t  SensorUpdateEventBuffer;
 	static bool InitCompleted;
 };
 

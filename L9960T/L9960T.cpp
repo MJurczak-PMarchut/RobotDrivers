@@ -112,16 +112,17 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->pTxData[1] = (Message & 0xFF);
 			this->pTxData[0] = ((Message >> 8) & 0xFF);
 			MsgInfoToSend.pTxData = pTxData;
+			retry_count++;
 			if((this->pRxData[0] & POR_STATUS_MSK) == POR_STATUS_MSK)
 			{
 				retry_count = 0;
 				this->__InitMessageID++;
 			}
-			else if(retry_count > 4)
+			else if(retry_count > 6)
 			{
+				retry_count = 0;
 				this->__InitMessageID--;
 			}
-			retry_count++;
 			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 			break;
 		case 2://Trigger HWSC & BIST
@@ -152,11 +153,13 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 				if((Comp_message & HWSC_BIST_PASS) == HWSC_BIST_PASS)
 				{
 					//PASS
+					retry_count=0;
 					this->__InitMessageID++;
 				}
 				else if((Comp_message & HWSC_BIST_PASS) == HWSC_BIST_RUN_STATUS_MSK)
 				{
 					//FAIL
+					this->__InitMessageID = 0;
 				}
 				else if((Comp_message & HWSC_BIST_PASS) == HWSC_RUNNING)
 				{
@@ -165,6 +168,17 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 				else if((Comp_message & HWSC_BIST_PASS) == HWSC_BIST_FAIL)
 				{
 					//GENERAL FAIL
+					this->__InitMessageID = 0;
+				}
+			}
+			else if(Comp_message ==0)
+			{
+				if(retry_count > 6){
+					this->__InitMessageID = 0;
+					retry_count = 0;
+				}
+				else{
+					retry_count++;
 				}
 			}
 			this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
