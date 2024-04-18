@@ -251,7 +251,7 @@ HAL_StatusTypeDef L9960T::SetMotorDirection(MotorDirectionTypeDef Dir)
 	GPIO_PinState Pin_STATE;
 	if((Dir == MOTOR_DIR_FORWARD) || (Dir == MOTOR_DIR_BACKWARD))
 	{
-		Pin_STATE = (GPIO_PinState)((Dir ^ __Direction) & 0x01); //Do xor and take last bit
+		Pin_STATE = (GPIO_PinState)(((GPIO_PinState)Dir ^ __Direction) & 0x01); //Do xor and take last bit
 		HAL_GPIO_WritePin(__IN2_DIR_PORT, __IN2_DIR_PIN, Pin_STATE);
 		return HAL_OK;
 	}

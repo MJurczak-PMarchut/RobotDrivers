@@ -84,7 +84,6 @@ template<typename T>
 HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_ERROR;
-	UBaseType_t uxSavedInterruptStatus;
 	if(MsgInfo->TransactionStatus !=0)
 	{
 		*MsgInfo->TransactionStatus = HAL_BUSY;

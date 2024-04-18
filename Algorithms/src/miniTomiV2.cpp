@@ -101,7 +101,8 @@ void prepare_sensor_data(char *pData, VL53L5CX Sensors[])
 		distance_array[13] = Sensors[sensor_index].GetDataFromSensor(1, 3);
 		distance_array[14] = Sensors[sensor_index].GetDataFromSensor(2, 3);
 		distance_array[15] = Sensors[sensor_index].GetDataFromSensor(3, 3);
-		sprintf(pData, "%s\nSensorNumber: %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n",pData, (sensor_index),
+
+		sprintf(&pData[strlen(pData)], "\nSensorNumber: %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n", (sensor_index),
 				distance_array[0], distance_array[1], distance_array[2], distance_array[3],
 				distance_array[4], distance_array[5], distance_array[6], distance_array[7],
 				distance_array[8], distance_array[9], distance_array[10], distance_array[11],
@@ -113,8 +114,10 @@ void Robot::loop(void)
 {
 //	char message[100];
 	static uint16_t speed = 0;
+	UNUSED(speed);
 	char message_data[400] = {0};
 	EventBits_t u32_updated_Sensors;
+	UNUSED(u32_updated_Sensors);
 	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin)){
 	}
 	else{
