@@ -610,12 +610,12 @@ HAL_StatusTypeDef VL53L5CX::StartRanging(void) {
 
 void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 {
-	SwapBuffer((uint8_t*)this->__comm_buffer, (uint16_t)32);
+	VL53L5CX_SwapBuffer((uint8_t*)this->__comm_buffer, (uint16_t)32);
 	for(uint8_t i = 0; i< 16; i++)
 	{
 		this->result.distance_mm[i] = (((uint16_t*)this->__comm_buffer)[i] < 0)? 0 : ((uint16_t*)this->__comm_buffer)[i]/4;
 	}
-	SwapBuffer(this->__comm_buffer + 32, (uint16_t)16);
+	VL53L5CX_SwapBuffer(this->__comm_buffer + 32, (uint16_t)16);
 	memcpy(this->result.target_status, this->__comm_buffer + 32, 16);
 	this->__Status = TOF_STATE_OK;
 	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
@@ -749,7 +749,7 @@ uint8_t VL53L5CX::__vl53l5cx_send_offset_data(uint8_t resolution)
 	/* Data extrapolation is required for 4X4 offset */
 	if(resolution == (uint8_t)VL53L5CX_RESOLUTION_4X4){
 		(void)memcpy(&(this->__comm_buffer[0x10]), dss_4x4, sizeof(dss_4x4));
-		SwapBuffer(this->__comm_buffer, VL53L5CX_OFFSET_BUFFER_SIZE);
+		VL53L5CX_SwapBuffer(this->__comm_buffer, VL53L5CX_OFFSET_BUFFER_SIZE);
 		(void)memcpy(signal_grid,&(this->__comm_buffer[0x3C]),
 			sizeof(signal_grid));
 		(void)memcpy(range_grid,&(this->__comm_buffer[0x140]),
@@ -779,7 +779,7 @@ uint8_t VL53L5CX::__vl53l5cx_send_offset_data(uint8_t resolution)
 		signal_grid, sizeof(signal_grid));
             (void)memcpy(&(this->__comm_buffer[0x140]),
 		range_grid, sizeof(range_grid));
-            SwapBuffer(this->__comm_buffer, VL53L5CX_OFFSET_BUFFER_SIZE);
+            VL53L5CX_SwapBuffer(this->__comm_buffer, VL53L5CX_OFFSET_BUFFER_SIZE);
 	}
 
 	for(k = 0; k < (VL53L5CX_OFFSET_BUFFER_SIZE - (uint16_t)4); k++)
@@ -812,7 +812,7 @@ uint8_t VL53L5CX::__vl53l5cx_send_xtalk_data(uint8_t resolution)
 		(void)memcpy(&(this->__comm_buffer[0x020]),
 			dss_4x4, sizeof(dss_4x4));
 
-		SwapBuffer(this->__comm_buffer, VL53L5CX_XTALK_BUFFER_SIZE);
+		VL53L5CX_SwapBuffer(this->__comm_buffer, VL53L5CX_XTALK_BUFFER_SIZE);
 		(void)memcpy(signal_grid, &(this->__comm_buffer[0x34]),
 			sizeof(signal_grid));
 
@@ -830,7 +830,7 @@ uint8_t VL53L5CX::__vl53l5cx_send_xtalk_data(uint8_t resolution)
 	    (void)memset(&signal_grid[0x10], 0, (uint32_t)192);
 	    (void)memcpy(&(this->__comm_buffer[0x34]),
                   signal_grid, sizeof(signal_grid));
-	    SwapBuffer(this->__comm_buffer, VL53L5CX_XTALK_BUFFER_SIZE);
+	    VL53L5CX_SwapBuffer(this->__comm_buffer, VL53L5CX_XTALK_BUFFER_SIZE);
 	    (void)memcpy(&(this->__comm_buffer[0x134]),
 	    profile_4x4, sizeof(profile_4x4));
 	    (void)memset(&(this->__comm_buffer[0x078]),0 ,
@@ -862,7 +862,7 @@ uint16_t VL53L5CX::__vl53l5cx_dci_write_data(
 	headers[3] = (uint8_t) ((data_size & (uint16_t) 0xf) << 4);
 
 	/* Copy data from structure to FW format (+4 bytes to add header) */
-	SwapBuffer(data, data_size);
+	VL53L5CX_SwapBuffer(data, data_size);
 	for (i = (int16_t) data_size - (int16_t) 1; i >= 0; i--) {
 		this->__comm_buffer[i + 4] = data[i];
 	}
@@ -872,7 +872,7 @@ uint16_t VL53L5CX::__vl53l5cx_dci_write_data(
 	(void) memcpy(&this->__comm_buffer[data_size + (uint16_t) 4], footer,
 			sizeof(footer));
 
-	SwapBuffer(data, data_size);
+	VL53L5CX_SwapBuffer(data, data_size);
 
 	return address;
 }

@@ -69,7 +69,7 @@
 
 
 
-#include "platform.hpp"
+#include <VL53L5CX_platform.hpp>
 
 /**
  * @brief Current driver version.
