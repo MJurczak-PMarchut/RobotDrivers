@@ -87,12 +87,12 @@ uint8_t VL53L1X_RdByte(
 
 }
 
-uint8_t VL53L1X_WrByte(
+HAL_StatusTypeDef VL53L1X_WrByte(
 		uint16_t dev,
 		uint16_t RegisterAdress,
 		uint8_t value)
 {
-	uint8_t status = 0;
+	HAL_StatusTypeDef status = HAL_OK;
 	uint8_t value_stat = value;
 	lock_interface();
 	status = HAL_I2C_Mem_Write(&hi2c1, dev, RegisterAdress, 2, &value_stat, 1, 150);
