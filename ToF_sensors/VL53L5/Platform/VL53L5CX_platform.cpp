@@ -77,14 +77,14 @@ void PlatformSetMutex(osapi::Mutex *pMutex)
 	_pmutex = pMutex;
 }
 
-void lock_interface()
+static void lock_interface()
 {
 	if(_pmutex != NULL){
 		_pmutex->lock(-1);
 	}
 }
 
-void unlock_interface()
+static void unlock_interface()
 {
 	if(_pmutex != NULL){
 		_pmutex->unlock();
