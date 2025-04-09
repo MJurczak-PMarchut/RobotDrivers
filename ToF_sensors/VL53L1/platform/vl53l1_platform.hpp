@@ -28,12 +28,11 @@ typedef VL53L1_Dev_t *VL53L1_DEV;
 /** @brief VL53L1_WriteMulti() definition.\n
  * To be implemented by the developer
  */
-uint8_t VL53L1_WriteMulti( uint16_t dev,
-		uint16_t index,
-		uint8_t *pdata,
-		uint16_t count,
-		CommManager *CommunicationManager,
-		MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
+uint8_t VL53L1X_WrMulti(
+		uint16_t dev,
+		uint16_t RegisterAdress,
+		uint8_t *p_values,
+		uint32_t size);
 /** @brief VL53L1_ReadMulti() definition.\n
  * To be implemented by the developer
  */
@@ -45,7 +44,7 @@ uint8_t VL53L1_ReadMulti(
 /** @brief VL53L1_WrByte() definition.\n
  * To be implemented by the developer
  */
-uint8_t VL53L1X_WrByte(
+HAL_StatusTypeDef VL53L1X_WrByte(
 		uint16_t dev,
 		uint16_t RegisterAdress,
 		uint8_t value);

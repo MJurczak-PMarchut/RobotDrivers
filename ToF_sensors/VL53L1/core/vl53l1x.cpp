@@ -8,12 +8,109 @@
 #include "vl53l1x.hpp"
 #include "RobotSpecificDefines.hpp"
 #include "vl53l1_platform.hpp"
+#include "VL53L1X_api.hpp"
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
-
+static uint8_t start_ranging_const = 0x40;
 const static uint16_t __ToFX_SHUT_Pin[] = XSHUT_PINS;
 const static uint16_t __ToFX_GPIO_Pin[] = TOFx_GPIO_PINS;
 static GPIO_TypeDef *__ToFX_SHUT_Port[] = TOFx_XSHUT_PORTS;
+
+uint8_t VL51L1X_DEFAULT_CONFIGURATION[] = {
+0x00, /* 0x2d : set bit 2 and 5 to 1 for fast plus mode (1MHz I2C), else don't touch */
+0x00, /* 0x2e : bit 0 if I2C pulled up at 1.8V, else set bit 0 to 1 (pull up at AVDD) */
+0x00, /* 0x2f : bit 0 if GPIO pulled up at 1.8V, else set bit 0 to 1 (pull up at AVDD) */
+0x01, /* 0x30 : set bit 4 to 0 for active high interrupt and 1 for active low (bits 3:0 must be 0x1), use SetInterruptPolarity() */
+0x02, /* 0x31 : bit 1 = interrupt depending on the polarity, use CheckForDataReady() */
+0x00, /* 0x32 : not user-modifiable */
+0x02, /* 0x33 : not user-modifiable */
+0x08, /* 0x34 : not user-modifiable */
+0x00, /* 0x35 : not user-modifiable */
+0x08, /* 0x36 : not user-modifiable */
+0x10, /* 0x37 : not user-modifiable */
+0x01, /* 0x38 : not user-modifiable */
+0x01, /* 0x39 : not user-modifiable */
+0x00, /* 0x3a : not user-modifiable */
+0x00, /* 0x3b : not user-modifiable */
+0x00, /* 0x3c : not user-modifiable */
+0x00, /* 0x3d : not user-modifiable */
+0xff, /* 0x3e : not user-modifiable */
+0x00, /* 0x3f : not user-modifiable */
+0x0F, /* 0x40 : not user-modifiable */
+0x00, /* 0x41 : not user-modifiable */
+0x00, /* 0x42 : not user-modifiable */
+0x00, /* 0x43 : not user-modifiable */
+0x00, /* 0x44 : not user-modifiable */
+0x00, /* 0x45 : not user-modifiable */
+0x20, /* 0x46 : interrupt configuration 0->level low detection, 1-> level high, 2-> Out of window, 3->In window, 0x20-> New sample ready , TBC */
+0x0b, /* 0x47 : not user-modifiable */
+0x00, /* 0x48 : not user-modifiable */
+0x00, /* 0x49 : not user-modifiable */
+0x02, /* 0x4a : not user-modifiable */
+0x0a, /* 0x4b : not user-modifiable */
+0x21, /* 0x4c : not user-modifiable */
+0x00, /* 0x4d : not user-modifiable */
+0x00, /* 0x4e : not user-modifiable */
+0x05, /* 0x4f : not user-modifiable */
+0x00, /* 0x50 : not user-modifiable */
+0x00, /* 0x51 : not user-modifiable */
+0x00, /* 0x52 : not user-modifiable */
+0x00, /* 0x53 : not user-modifiable */
+0xc8, /* 0x54 : not user-modifiable */
+0x00, /* 0x55 : not user-modifiable */
+0x00, /* 0x56 : not user-modifiable */
+0x38, /* 0x57 : not user-modifiable */
+0xff, /* 0x58 : not user-modifiable */
+0x01, /* 0x59 : not user-modifiable */
+0x00, /* 0x5a : not user-modifiable */
+0x08, /* 0x5b : not user-modifiable */
+0x00, /* 0x5c : not user-modifiable */
+0x00, /* 0x5d : not user-modifiable */
+0x01, /* 0x5e : not user-modifiable */
+0xcc, /* 0x5f : not user-modifiable */
+0x0f, /* 0x60 : not user-modifiable */
+0x01, /* 0x61 : not user-modifiable */
+0xf1, /* 0x62 : not user-modifiable */
+0x0d, /* 0x63 : not user-modifiable */
+0x01, /* 0x64 : Sigma threshold MSB (mm in 14.2 format for MSB+LSB), use SetSigmaThreshold(), default value 90 mm  */
+0x68, /* 0x65 : Sigma threshold LSB */
+0x00, /* 0x66 : Min count Rate MSB (MCPS in 9.7 format for MSB+LSB), use SetSignalThreshold() */
+0x80, /* 0x67 : Min count Rate LSB */
+0x08, /* 0x68 : not user-modifiable */
+0xb8, /* 0x69 : not user-modifiable */
+0x00, /* 0x6a : not user-modifiable */
+0x00, /* 0x6b : not user-modifiable */
+0x00, /* 0x6c : Intermeasurement period MSB, 32 bits register, use SetIntermeasurementInMs() */
+0x00, /* 0x6d : Intermeasurement period */
+0x0f, /* 0x6e : Intermeasurement period */
+0x89, /* 0x6f : Intermeasurement period LSB */
+0x00, /* 0x70 : not user-modifiable */
+0x00, /* 0x71 : not user-modifiable */
+0x00, /* 0x72 : distance threshold high MSB (in mm, MSB+LSB), use SetD:tanceThreshold() */
+0x00, /* 0x73 : distance threshold high LSB */
+0x00, /* 0x74 : distance threshold low MSB ( in mm, MSB+LSB), use SetD:tanceThreshold() */
+0x00, /* 0x75 : distance threshold low LSB */
+0x00, /* 0x76 : not user-modifiable */
+0x01, /* 0x77 : not user-modifiable */
+0x0f, /* 0x78 : not user-modifiable */
+0x0d, /* 0x79 : not user-modifiable */
+0x0e, /* 0x7a : not user-modifiable */
+0x0e, /* 0x7b : not user-modifiable */
+0x00, /* 0x7c : not user-modifiable */
+0x00, /* 0x7d : not user-modifiable */
+0x02, /* 0x7e : not user-modifiable */
+0xc7, /* 0x7f : ROI center, use SetROI() */
+0xff, /* 0x80 : XY ROI (X=Width, Y=Height), use SetROI() */
+0x9B, /* 0x81 : not user-modifiable */
+0x00, /* 0x82 : not user-modifiable */
+0x00, /* 0x83 : not user-modifiable */
+0x00, /* 0x84 : not user-modifiable */
+0x01, /* 0x85 : not user-modifiable */
+0x00, /* 0x86 : clear interrupt, use ClearInterrupt() */
+0x00  /* 0x87 : start ranging, use StartRanging() or StopRanging(), If you want an automatic start after VL53L1X_init() call, put 0x40 in location 0x87 */
+};
+
+static uint8_t clr_interrupt = 0x01;
 
 VL53L1X::VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *hi2c1) :
 		ToF_Sensor(vl53l1, position, comm), __hi2c1{hi2c1}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0} {
@@ -22,28 +119,39 @@ VL53L1X::VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
 	last_update_tick = HAL_GetTick();
+	this->_CallbackFunc = std::bind(&VL53L1X::DataReceived, this, std::placeholders::_1);
 }
 
 HAL_StatusTypeDef VL53L1X::SensorInit(void){
 
-	uint8_t ret;
+	uint8_t status = 0;
+	uint8_t tmp;
+	UNUSED(tmp);
+	status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
+	status |= this->StartRanging();
+	tmp  = 0;
+	while(tmp==0){
+			status |= CheckForDataReady(this->__address, &tmp);
+	}
+	status |= this->ClearInterrupt();
+	return (status)? HAL_ERROR:HAL_OK;
+}
 
-//	ret = VL53L1X_WrMulti(this->__address, );
-//	ret |= vl53l5cx_set_ranging_mode(&this->__sensor_conf, VL53L5CX_RANGING_MODE_CONTINUOUS);
-//	ret |= vl53l5cx_set_ranging_frequency_hz(&this->__sensor_conf, 60);
-//	ret |= vl53l5cx_start_ranging(&this->__sensor_conf);
-//	this->__Status = (ret)?TOF_STATE_ERROR:TOF_STATE_OK;
-//	this->last_update_tick = HAL_GetTick();
-//	return (ret)?HAL_OK:HAL_ERROR;
+uint8_t VL53L1X::ClearInterrupt()
+{
+	uint8_t status = 0;
+
+	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
+	return status;
 }
 
 HAL_StatusTypeDef VL53L1X::SetI2CAddress() {
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_SET);
-	uint8_t ret = 0;
+	HAL_StatusTypeDef ret = HAL_OK;
 	ret = VL53L1X_WrByte(this->__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, __ToFAddr[this->__sensor_index]);
 	this->__address = __ToFAddr[this->__sensor_index];
-	return (ret == 0) ? HAL_OK : HAL_ERROR;
+	return ret;
 }
 
 ToF_Status_t VL53L1X::CheckSensorStatus(void) {
@@ -64,9 +172,64 @@ ToF_Status_t VL53L1X::CheckSensorStatus(void) {
 	default:
 		break;
 	}
-	return this->__Status;
 }
+
+HAL_StatusTypeDef  VL53L1X::StartRanging(){
+	uint8_t status = HAL_OK;
+	status |= VL53L1X_WrByte(this->__address, SYSTEM__MODE_START, start_ranging_const);	/* Enable VL53L1X */
+	return (status)? HAL_ERROR:HAL_OK;
+}
+
+uint8_t VL53L1X::CheckForDataReady(uint16_t dev, uint8_t *isDataReady)
+{
+	uint8_t Temp;
+	uint8_t IntPol;
+	uint8_t status = HAL_OK;
+	status |= this->GetInterruptPolarity(this->__address, &IntPol);
+	status |= VL53L1X_RdByte(this->__address, GPIO__TIO_HV_STATUS, &Temp);
+	/* Read in the register to check if a new value is available */
+	if (status == 0){
+		if ((Temp & 1) == IntPol)
+			*isDataReady = 1;
+		else
+			*isDataReady = 0;
+	}
+	return status;
+}
+
+uint8_t  VL53L1X::GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity)
+{
+	uint8_t Temp;
+	uint8_t status = 0;
+
+	status |= VL53L1X_RdByte(dev, GPIO_HV_MUX__CTRL, &Temp);
+	Temp = Temp & 0x10;
+	*pInterruptPolarity = !(Temp>>4);
+	return status;
+}
+
+HAL_StatusTypeDef VL53L1X::GetRangingData(void){
+	HAL_StatusTypeDef ret = HAL_OK;
+	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
+	MsgInfoToSend.context = 10;
+	MsgInfoToSend.eCommType = COMM_INT_MEM_RX;
+	MsgInfoToSend.I2C_Addr = this->__address;
+	MsgInfoToSend.I2C_MemAddr = VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0;
+	MsgInfoToSend.len = 2;
+	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
+	MsgInfoToSend.IntHandle = this->__hi2c1;
+	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	this->__Status = TOF_STATE_DATA_RDY;
+	return ret;
+}
+
+void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
+	this->__distance = this->__comm_buffer[1] | (this->__comm_buffer[0] << 8);
+	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
+}
+
 //
+
 //VL53L1X::VL53L1X(I2C_HandleTypeDef *hi2c, CommManager *CommunicationManager)
 //{
 //	this->_CommunicationManager = CommunicationManager;
