@@ -147,21 +147,21 @@ typedef struct {
 	uint16_t NumSPADs;	/*!< ResultNumSPADs */
 } VL53L1X_Result_t;
 
-class VL53L1X: public ToF_Sensor
-{
-private:
-	static const uint16_t __default_addr = {0x52};
-	GPIO_TypeDef *__GPIOx;
-	uint16_t __GPIO_Pin;
-	MessageInfoTypeDef<I2C_HandleTypeDef> __MsgInfo;
-	VL53L1X_ERROR VL53L1X_ClearInterrupt();
-	VL53L1X_ERROR VL53L1X_SetI2CAddress();
-public:
-	VL53L1X(CommManager *comm, e_ToF_Position position, GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
-	VL53L1X_ERROR VL53L1X_SensorInit();
-	VL53L1X_ERROR VL53L1X_SetInterruptPolarity(uint8_t IntPolef);
-	virtual ~VL53L1X();
-};
+//class VL53L1X: public ToF_Sensor
+//{
+//private:
+//	static const uint16_t __default_addr = {0x52};
+//	GPIO_TypeDef *__GPIOx;
+//	uint16_t __GPIO_Pin;
+//	MessageInfoTypeDef<I2C_HandleTypeDef> __MsgInfo;
+//	VL53L1X_ERROR VL53L1X_ClearInterrupt();
+//	VL53L1X_ERROR VL53L1X_SetI2CAddress();
+//public:
+//	VL53L1X(CommManager *comm, e_ToF_Position position, GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin);
+//	VL53L1X_ERROR VL53L1X_SensorInit();
+//	VL53L1X_ERROR VL53L1X_SetInterruptPolarity(uint8_t IntPolef);
+//	virtual ~VL53L1X();
+//};
 
 /**
  * @brief This function returns the current interrupt polarity\n

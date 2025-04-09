@@ -11,6 +11,7 @@
 #include "VL53L1X_api.hpp"
 #include "../../Configuration.h"
 #include "CommManager.hpp"
+#include "ToFSensor.hpp"
 
 #define TOF_DEFAULT_ADDRESS 0x52
 #define TIMING_BUDGET_MS         100U
@@ -31,38 +32,33 @@
 #define TOF5				     5U
 
 
-typedef struct
-{
-	bool Active;
-	uint8_t Address;
-	uint16_t GPIO_PIN;
-	GPIO_TypeDef *GPIO_GPIOx;
-	uint16_t XSHUT_PIN;
-	GPIO_TypeDef *XSHUT_GPIOx;
-}VL53L1X_Device;
-
-//class VL53L1X
+//typedef struct
 //{
-//	public:
-//		VL53L1X(I2C_HandleTypeDef *hi2c, CommManager *CommunicationManager);
-//		~VL53L1X(void);
-//		VL53L1X_ERROR SetSensorPins(uint8_t sensor, uint16_t GPIO_PIN, GPIO_TypeDef *GPIO_GPIOx, uint16_t XSHUT_PIN, GPIO_TypeDef *XSHUT_GPIOx);
-//		VL53L1X_ERROR InitAllSensors(void);
-//		VL53L1X_ERROR InitSensor(uint8_t sensor);
-//		VL53L1X_ERROR StartAllSensors(void);
-//		VL53L1X_ERROR StartRanging(uint8_t sensor);
-//		VL53L1X_ERROR StartRangingAllSensors(void);
-//		VL53L1X_ERROR GetDistance(uint8_t sensor);
-//		VL53L1X_ERROR ClearInterrupt(uint8_t sensor);
-//		VL53L1X_ERROR SetDistanceMode(void);
-//		void MsgSent(void);
-//	private:
-//		CommManager *_CommunicationManager;
-//		I2C_HandleTypeDef *_hi2c;
-//		VL53L1X_ERROR SetSensorAddress(uint8_t sensor);
-//		MessageInfoTypeDef _MessageInfo;
-//		VL53L1X_Device _Devices[MAX_TOF_NUMBER];
-//};
+//	bool Active;
+//	uint8_t Address;
+//	uint16_t GPIO_PIN;
+//	GPIO_TypeDef *GPIO_GPIOx;
+//	uint16_t XSHUT_PIN;
+//	GPIO_TypeDef *XSHUT_GPIOx;
+//}VL53L1X_Device;
+
+class VL53L1X: public ToF_Sensor{
+public:
+	VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *hi2c1);
+	HAL_StatusTypeDef SetI2CAddress();
+	ToF_Status_t CheckSensorStatus(void);
+	~VL53L1X(void){};
+protected:
+	HAL_StatusTypeDef SensorInit(void);
+private:
+	I2C_HandleTypeDef *__hi2c1;
+	static uint8_t __sensor_nb;
+	uint8_t __sensor_index;
+	TickType_t __wait_until_tick;
+	ToF_Status_t __Status;
+	uint32_t __data_count;
+	uint16_t __address = TOF_DEFAULT_ADDRESS;
+};
 
 
 

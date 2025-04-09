@@ -206,48 +206,48 @@ static const uint8_t status_rtn[24] = { 255, 255, 255, 5, 2, 4, 1, 7, 3, 0,
 static uint8_t start_ranging_const = 0x40;
 static uint8_t clr_interrupt = 0x01;
 
-VL53L1X::VL53L1X(CommManager *comm, e_ToF_Position position, GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin):
-		ToF_Sensor(vl53l1, position, comm), __GPIOx{GPIOx}, __GPIO_Pin{GPIO_Pin}
-{
-	HAL_GPIO_WritePin(__GPIOx, __GPIO_Pin, GPIO_PIN_SET);
-	this->__MsgInfo.I2C_Addr = __default_addr;
-}
-
-VL53L1X_ERROR VL53L1X::VL53L1X_SetI2CAddress()
-{
-	VL53L1X_ERROR status = 0;
-	HAL_StatusTypeDef transaction_status = HAL_ERROR;
-	static HAL_StatusTypeDef HAL_status = HAL_ERROR;
-	static uint8_t addr;
-	addr = this->__MsgInfo.I2C_Addr>>1;
-	this->__MsgInfo.TransactionStatus = &transaction_status;
-	status |= VL53L1_WrByte(this->__MsgInfo.I2C_Addr, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, &addr, this->__CommunicationManager, &this->__MsgInfo);
-	this->__MsgInfo.TransactionStatus = &HAL_status;
-	return status;
-}
-
-VL53L1X_ERROR VL53L1X::VL53L1X_SensorInit()
-{
-	VL53L1X_ERROR status = 0;
-	uint8_t tmp;
-	UNUSED(tmp);
-	status |= VL53L1_WriteMulti(this->__MsgInfo.I2C_Addr, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 0x88-0x2D, this->__CommunicationManager, &this->__MsgInfo);
-	status |= VL53L1X_StartRanging(this->__MsgInfo.I2C_Addr, this->__CommunicationManager, &this->__MsgInfo);
-	tmp  = 0;
-	while(tmp==0){
-			status |= VL53L1X_CheckForDataReady(this->__MsgInfo.I2C_Addr, &tmp, this->__CommunicationManager, &this->__MsgInfo);
-	}
-	status |= VL53L1X_ClearInterrupt();
-	return status;
-}
-
-VL53L1X_ERROR VL53L1X::VL53L1X_ClearInterrupt()
-{
-	VL53L1X_ERROR status = 0;
-
-	status |= VL53L1_WrByte(this->__MsgInfo.I2C_Addr, SYSTEM__INTERRUPT_CLEAR, &clr_interrupt, this->__CommunicationManager, &this->__MsgInfo);
-	return status;
-}
+//VL53L1X::VL53L1X(CommManager *comm, e_ToF_Position position, GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin):
+//		ToF_Sensor(vl53l1, position, comm), __GPIOx{GPIOx}, __GPIO_Pin{GPIO_Pin}
+//{
+//	HAL_GPIO_WritePin(__GPIOx, __GPIO_Pin, GPIO_PIN_SET);
+//	this->__MsgInfo.I2C_Addr = __default_addr;
+//}
+//
+//VL53L1X_ERROR VL53L1X_SetI2CAddress()
+//{
+//	VL53L1X_ERROR status = 0;
+//	HAL_StatusTypeDef transaction_status = HAL_ERROR;
+//	static HAL_StatusTypeDef HAL_status = HAL_ERROR;
+//	static uint8_t addr;
+//	addr = this->__MsgInfo.I2C_Addr>>1;
+//	this->__MsgInfo.TransactionStatus = &transaction_status;
+//	status |= VL53L1_WrByte(this->__MsgInfo.I2C_Addr, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, &addr, this->__CommunicationManager, &this->__MsgInfo);
+//	this->__MsgInfo.TransactionStatus = &HAL_status;
+//	return status;
+//}
+//
+//VL53L1X_ERROR VL53L1X::VL53L1X_SensorInit()
+//{
+//	VL53L1X_ERROR status = 0;
+//	uint8_t tmp;
+//	UNUSED(tmp);
+//	status |= VL53L1_WriteMulti(this->__MsgInfo.I2C_Addr, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 0x88-0x2D, this->__CommunicationManager, &this->__MsgInfo);
+//	status |= VL53L1X_StartRanging(this->__MsgInfo.I2C_Addr, this->__CommunicationManager, &this->__MsgInfo);
+//	tmp  = 0;
+//	while(tmp==0){
+//			status |= VL53L1X_CheckForDataReady(this->__MsgInfo.I2C_Addr, &tmp, this->__CommunicationManager, &this->__MsgInfo);
+//	}
+//	status |= VL53L1X_ClearInterrupt();
+//	return status;
+//}
+//
+//VL53L1X_ERROR VL53L1X::VL53L1X_ClearInterrupt()
+//{
+//	VL53L1X_ERROR status = 0;
+//
+//	status |= VL53L1_WrByte(this->__MsgInfo.I2C_Addr, SYSTEM__INTERRUPT_CLEAR, &clr_interrupt, this->__CommunicationManager, &this->__MsgInfo);
+//	return status;
+//}
 /**
  * 1=active high (default), 0=active low
  */
@@ -262,25 +262,25 @@ VL53L1X_ERROR VL53L1X::VL53L1X_ClearInterrupt()
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
-{
-	uint8_t Temp;
-	VL53L1X_ERROR status = 0;
-
-	status |= VL53L1_RdByte(dev, GPIO_HV_MUX__CTRL, &Temp, CommunicationManager, MsgInfo);
-	while(*MsgInfo->TransactionStatus != HAL_OK){}
-	*MsgInfo->TransactionStatus = HAL_ERROR;
-	Temp = Temp & 0x10;
-	*pInterruptPolarity = !(Temp>>4);
-	return status;
-}
-
-VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
-{
-	VL53L1X_ERROR status = 0;
-	status |= VL53L1_WrByte(dev, SYSTEM__MODE_START, &start_ranging_const, CommunicationManager, MsgInfo);	/* Enable VL53L1X */
-	return status;
-}
+//VL53L1X_ERROR VL53L1X_GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
+//{
+//	uint8_t Temp;
+//	VL53L1X_ERROR status = 0;
+//
+//	status |= VL53L1_RdByte(dev, GPIO_HV_MUX__CTRL, &Temp, CommunicationManager, MsgInfo);
+//	while(*MsgInfo->TransactionStatus != HAL_OK){}
+//	*MsgInfo->TransactionStatus = HAL_ERROR;
+//	Temp = Temp & 0x10;
+//	*pInterruptPolarity = !(Temp>>4);
+//	return status;
+//}
+//
+//VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
+//{
+//	VL53L1X_ERROR status = 0;
+//	status |= VL53L1_WrByte(dev, SYSTEM__MODE_START, &start_ranging_const, CommunicationManager, MsgInfo);	/* Enable VL53L1X */
+//	return status;
+//}
 
 //VL53L1X_ERROR VL53L1X_StopRanging(uint16_t dev)
 //{
@@ -290,26 +290,26 @@ VL53L1X_ERROR VL53L1X_StartRanging(uint16_t dev, CommManager *CommunicationManag
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
-{
-	uint8_t Temp;
-	uint8_t IntPol;
-	VL53L1X_ERROR status = 0;
-	HAL_StatusTypeDef transmit_status = HAL_ERROR;
-	MsgInfo->TransactionStatus = &transmit_status;
-	status |= VL53L1X_GetInterruptPolarity(dev, &IntPol, CommunicationManager, MsgInfo);
-	status |= VL53L1_RdByte(dev, GPIO__TIO_HV_STATUS, &Temp, CommunicationManager, MsgInfo);
-	while(*MsgInfo->TransactionStatus != HAL_OK){}
-	*MsgInfo->TransactionStatus = HAL_ERROR;
-	/* Read in the register to check if a new value is available */
-	if (status == 0){
-		if ((Temp & 1) == IntPol)
-			*isDataReady = 1;
-		else
-			*isDataReady = 0;
-	}
-	return status;
-}
+//VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
+//{
+//	uint8_t Temp;
+//	uint8_t IntPol;
+//	VL53L1X_ERROR status = 0;
+//	HAL_StatusTypeDef transmit_status = HAL_ERROR;
+//	MsgInfo->TransactionStatus = &transmit_status;
+//	status |= VL53L1X_GetInterruptPolarity(dev, &IntPol, CommunicationManager, MsgInfo);
+//	status |= VL53L1_RdByte(dev, GPIO__TIO_HV_STATUS, &Temp, CommunicationManager, MsgInfo);
+//	while(*MsgInfo->TransactionStatus != HAL_OK){}
+//	*MsgInfo->TransactionStatus = HAL_ERROR;
+//	/* Read in the register to check if a new value is available */
+//	if (status == 0){
+//		if ((Temp & 1) == IntPol)
+//			*isDataReady = 1;
+//		else
+//			*isDataReady = 0;
+//	}
+//	return status;
+//}
 
 //VL53L1X_ERROR VL53L1X_SetTimingBudgetInMs(uint16_t dev, uint16_t TimingBudgetInMs)
 //{
@@ -413,46 +413,46 @@ VL53L1X_ERROR VL53L1X_CheckForDataReady(uint16_t dev, uint8_t *isDataReady, Comm
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
-{
-	uint16_t Temp;
-	VL53L1X_ERROR status = 0;
-
-	status |= VL53L1_RdWord(dev, RANGE_CONFIG__TIMEOUT_MACROP_A_HI, &Temp, CommunicationManager, MsgInfo);
-	switch (Temp) {
-		case 0x001D :
-			*pTimingBudget = 15;
-			break;
-		case 0x0051 :
-		case 0x001E :
-			*pTimingBudget = 20;
-			break;
-		case 0x00D6 :
-		case 0x0060 :
-			*pTimingBudget = 33;
-			break;
-		case 0x1AE :
-		case 0x00AD :
-			*pTimingBudget = 50;
-			break;
-		case 0x02E1 :
-		case 0x01CC :
-			*pTimingBudget = 100;
-			break;
-		case 0x03E1 :
-		case 0x02D9 :
-			*pTimingBudget = 200;
-			break;
-		case 0x0591 :
-		case 0x048F :
-			*pTimingBudget = 500;
-			break;
-		default:
-			status = 1;
-			*pTimingBudget = 0;
-	}
-	return status;
-}
+//VL53L1X_ERROR VL53L1X_GetTimingBudgetInMs(uint16_t dev, uint16_t *pTimingBudget, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
+//{
+//	uint16_t Temp;
+//	VL53L1X_ERROR status = 0;
+//
+//	status |= VL53L1_RdWord(dev, RANGE_CONFIG__TIMEOUT_MACROP_A_HI, &Temp, CommunicationManager, MsgInfo);
+//	switch (Temp) {
+//		case 0x001D :
+//			*pTimingBudget = 15;
+//			break;
+//		case 0x0051 :
+//		case 0x001E :
+//			*pTimingBudget = 20;
+//			break;
+//		case 0x00D6 :
+//		case 0x0060 :
+//			*pTimingBudget = 33;
+//			break;
+//		case 0x1AE :
+//		case 0x00AD :
+//			*pTimingBudget = 50;
+//			break;
+//		case 0x02E1 :
+//		case 0x01CC :
+//			*pTimingBudget = 100;
+//			break;
+//		case 0x03E1 :
+//		case 0x02D9 :
+//			*pTimingBudget = 200;
+//			break;
+//		case 0x0591 :
+//		case 0x048F :
+//			*pTimingBudget = 500;
+//			break;
+//		default:
+//			status = 1;
+//			*pTimingBudget = 0;
+//	}
+//	return status;
+//}
 
 //VL53L1X_ERROR VL53L1X_SetDistanceMode(uint16_t dev, uint16_t DM)
 //{

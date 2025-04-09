@@ -2,10 +2,70 @@
  * vl53l1x.cpp
  *
  *  Created on: Nov 16, 2021
- *      Author: paulina
+ *      Author: Paulina
  */
 
 #include "vl53l1x.hpp"
+#include "RobotSpecificDefines.hpp"
+#include "vl53l1_platform.hpp"
+
+const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
+
+const static uint16_t __ToFX_SHUT_Pin[] = XSHUT_PINS;
+const static uint16_t __ToFX_GPIO_Pin[] = TOFx_GPIO_PINS;
+static GPIO_TypeDef *__ToFX_SHUT_Port[] = TOFx_XSHUT_PORTS;
+
+VL53L1X::VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *hi2c1) :
+		ToF_Sensor(vl53l1, position, comm), __hi2c1{hi2c1}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0} {
+
+	this->__sensor_index = __no_of_sensors - 1;
+	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
+			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
+	last_update_tick = HAL_GetTick();
+}
+
+HAL_StatusTypeDef VL53L1X::SensorInit(void){
+
+	uint8_t ret;
+
+//	ret = VL53L1X_WrMulti(this->__address, );
+//	ret |= vl53l5cx_set_ranging_mode(&this->__sensor_conf, VL53L5CX_RANGING_MODE_CONTINUOUS);
+//	ret |= vl53l5cx_set_ranging_frequency_hz(&this->__sensor_conf, 60);
+//	ret |= vl53l5cx_start_ranging(&this->__sensor_conf);
+//	this->__Status = (ret)?TOF_STATE_ERROR:TOF_STATE_OK;
+//	this->last_update_tick = HAL_GetTick();
+//	return (ret)?HAL_OK:HAL_ERROR;
+}
+
+HAL_StatusTypeDef VL53L1X::SetI2CAddress() {
+	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
+			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_SET);
+	uint8_t ret = 0;
+	ret = VL53L1X_WrByte(this->__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, __ToFAddr[this->__sensor_index]);
+	this->__address = __ToFAddr[this->__sensor_index];
+	return (ret == 0) ? HAL_OK : HAL_ERROR;
+}
+
+ToF_Status_t VL53L1X::CheckSensorStatus(void) {
+	switch (this->__Status) {
+	case TOF_STATE_INIT_WAIT:
+
+		break;
+	case TOF_STATE_OK:
+	case TOF_STATE_DATA_RDY:
+		if(HAL_GetTick() - last_update_tick > 100)//no update since 100ms;
+		{
+			if(GetRangingData() == HAL_ERROR)
+			{
+				this->__Status = TOF_STATE_ERROR;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	return this->__Status;
+}
 //
 //VL53L1X::VL53L1X(I2C_HandleTypeDef *hi2c, CommManager *CommunicationManager)
 //{
