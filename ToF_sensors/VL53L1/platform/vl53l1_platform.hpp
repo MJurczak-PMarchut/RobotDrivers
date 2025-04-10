@@ -10,6 +10,7 @@
 #include "Configuration.h"
 #include "CommManager.hpp"
 #include "vl53l1x.hpp"
+#include "osapi.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -91,6 +92,9 @@ uint8_t VL53L1_RdDWord(
 uint8_t VL53L1_WaitMs(
 		uint16_t dev,
 		int32_t       wait_ms);
+
+
+void PlatformSetMutex(osapi::Mutex *pMutex);
 
 #ifdef __cplusplus
 }

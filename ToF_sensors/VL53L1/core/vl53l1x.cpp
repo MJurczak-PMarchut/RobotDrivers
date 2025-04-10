@@ -131,7 +131,7 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 	status |= this->StartRanging();
 	tmp  = 0;
 	while(tmp==0){
-			status |= CheckForDataReady(this->__address, &tmp);
+			status |= CheckForDataReady( &tmp);
 	}
 	status |= this->ClearInterrupt();
 	return (status)? HAL_ERROR:HAL_OK;
@@ -139,18 +139,31 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 
 uint8_t VL53L1X::ClearInterrupt()
 {
-	uint8_t status = 0;
-
-	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
-	return status;
+	HAL_StatusTypeDef ret = HAL_OK;
+	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
+	MsgInfoToSend.context = 10;
+	MsgInfoToSend.eCommType = COMM_INT_MEM_TX;
+	MsgInfoToSend.I2C_Addr = this->__address;
+	MsgInfoToSend.I2C_MemAddr = SYSTEM__INTERRUPT_CLEAR;
+	MsgInfoToSend.len = 1;
+	MsgInfoToSend.pTxData = &clr_interrupt;
+	MsgInfoToSend.IntHandle = this->__hi2c1;
+	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	return (uint8_t)ret;
 }
 
 HAL_StatusTypeDef VL53L1X::SetI2CAddress() {
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_SET);
+	vTaskDelay(2);
+	uint8_t pval=0;
+
 	HAL_StatusTypeDef ret = HAL_OK;
-	ret = VL53L1X_WrByte(this->__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, __ToFAddr[this->__sensor_index]);
+	VL53L1X_RdByte(__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, &pval);
+	ret = VL53L1X_WrByte(this->__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, (__ToFAddr[this->__sensor_index]>>1));
+	this->__address = (ret)? TOF_DEFAULT_ADDRESS: __ToFAddr[this->__sensor_index];
 	this->__address = __ToFAddr[this->__sensor_index];
+	this->__Status = (ret)?TOF_STATE_ERROR:TOF_STATE_OK;
 	return ret;
 }
 
@@ -180,7 +193,7 @@ HAL_StatusTypeDef  VL53L1X::StartRanging(){
 	return (status)? HAL_ERROR:HAL_OK;
 }
 
-uint8_t VL53L1X::CheckForDataReady(uint16_t dev, uint8_t *isDataReady)
+uint8_t VL53L1X::CheckForDataReady(uint8_t *isDataReady)
 {
 	uint8_t Temp;
 	uint8_t IntPol;
@@ -218,14 +231,41 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 	MsgInfoToSend.len = 2;
 	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
 	MsgInfoToSend.IntHandle = this->__hi2c1;
+	MsgInfoToSend.pCB = &this->_CallbackFunc;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->__Status = TOF_STATE_DATA_RDY;
+	this->ClearInterrupt();
 	return ret;
 }
 
 void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
 	this->__distance = this->__comm_buffer[1] | (this->__comm_buffer[0] << 8);
 	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
+}
+
+HAL_StatusTypeDef VL53L1X::__GetData(void)
+{
+	if(this->__Status == TOF_STATE_OK){
+		this->__Status = TOF_STATE_DATA_RDY;
+	}
+	return HAL_OK;
+}
+
+uint16_t VL53L1X::GetSensorITPin(void)
+{
+	return __ToFX_GPIO_Pin[this->__sensor_index];
+}
+
+HAL_StatusTypeDef VL53L1X::DisableSensorComm(void)
+{
+	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
+			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
+	return HAL_OK;
+}
+
+void VL53L1X::SetMutex(osapi::Mutex *pmutex)
+{
+	PlatformSetMutex(pmutex);
 }
 
 //
