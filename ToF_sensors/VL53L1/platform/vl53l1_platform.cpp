@@ -87,6 +87,12 @@ uint8_t VL53L1X_RdByte(
 
 }
 
+void PlatformSetMutex(osapi::Mutex *pMutex)
+{
+
+	_pmutex = pMutex;
+}
+
 HAL_StatusTypeDef VL53L1X_WrByte(
 		uint16_t dev,
 		uint16_t RegisterAdress,

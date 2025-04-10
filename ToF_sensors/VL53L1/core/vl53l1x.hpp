@@ -98,13 +98,17 @@ public:
 	ToF_Status_t CheckSensorStatus(void);
 	HAL_StatusTypeDef GetRangingData(void);
 	HAL_StatusTypeDef  StartRanging();
+	uint16_t GetSensorITPin(void);
+	HAL_StatusTypeDef __GetData(void);
+	HAL_StatusTypeDef DisableSensorComm(void);
 	void DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo);
 	uint8_t ClearInterrupt();
-	uint8_t CheckForDataReady(uint16_t dev, uint8_t *isDataReady);
+	uint8_t CheckForDataReady(uint8_t *isDataReady);
 	uint8_t  GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity);
 	~VL53L1X(void){};
 protected:
 	HAL_StatusTypeDef SensorInit(void);
+	void SetMutex(osapi::Mutex *pmutex);
 private:
 	uint8_t __comm_buffer[10];
 	I2C_HandleTypeDef *__hi2c1;
