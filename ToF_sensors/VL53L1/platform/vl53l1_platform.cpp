@@ -70,7 +70,6 @@ void unlock_interface()
 }
 #endif
 
-static uint8_t _data[MESSAGE_LENGTH];
 uint8_t _data_receiveL[MESSAGE_LENGTH];
 uint8_t _data_receiveR[MESSAGE_LENGTH];
 
@@ -107,6 +106,22 @@ HAL_StatusTypeDef VL53L1X_WrByte(
 
 }
 
+HAL_StatusTypeDef VL53L1X_WrWord(
+		uint16_t dev,
+		uint16_t RegisterAdress,
+		uint16_t value)
+{
+	uint8_t status = HAL_OK;
+	uint8_t temp8[2] = {0, 0};
+	temp8[0] = uint8_t(value >> 8);
+	temp8[1] = uint8_t(value && 0x00FF);
+	lock_interface();
+	status = HAL_I2C_Mem_Write(&hi2c1, dev, RegisterAdress, 2, temp8, 2, 150);
+	unlock_interface();
+	return (status)? HAL_ERROR:HAL_OK;
+
+}
+
 uint8_t VL53L1X_WrMulti(
 		uint16_t dev,
 		uint16_t RegisterAdress,
@@ -132,6 +147,21 @@ uint8_t VL53L1X_RdMulti(
 	status = HAL_I2C_Mem_Read(&hi2c1, dev, RegisterAdress, 2, p_values, size, 250);
 	unlock_interface();
 	return status;
+
+}
+
+HAL_StatusTypeDef VL53L1X_RdWord(
+		uint16_t dev,
+		uint16_t RegisterAdress,
+		uint16_t *p_value)
+{
+	uint8_t status = 0;
+	uint8_t temp[2] = {0, 0};
+	lock_interface();
+	status = HAL_I2C_Mem_Read(&hi2c1, dev, RegisterAdress, 2, temp, 2, 150);
+	*p_value = (temp[0] << 8) + temp[1];
+	unlock_interface();
+	return (status)? HAL_ERROR:HAL_OK;
 
 }
 
