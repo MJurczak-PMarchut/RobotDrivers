@@ -109,6 +109,10 @@ public:
 protected:
 	HAL_StatusTypeDef SensorInit(void);
 	void SetMutex(osapi::Mutex *pmutex);
+	HAL_StatusTypeDef SetDistanceMode(uint16_t DM);
+	HAL_StatusTypeDef SetTimingBudgetInMs(uint16_t TimingBudgetInMs);
+	HAL_StatusTypeDef GetTimingBudgetInMs(uint16_t *pTimingBudget);
+	HAL_StatusTypeDef GetDistanceMode(uint16_t *DM);
 private:
 	uint8_t __comm_buffer[10];
 	I2C_HandleTypeDef *__hi2c1;

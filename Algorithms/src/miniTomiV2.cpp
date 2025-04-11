@@ -27,7 +27,7 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true),
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
-static VL53L1X Sensors[] = {VL53L1X(FRONT, &MainCommManager, &hi2c1)};
+static VL53L1X Sensors[] = {VL53L1X(FRONT, &MainCommManager, &hi2c1), VL53L1X(FRONT, &MainCommManager, &hi2c1) }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*

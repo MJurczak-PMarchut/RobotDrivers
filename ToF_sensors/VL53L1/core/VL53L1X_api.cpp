@@ -548,13 +548,13 @@ static uint8_t clr_interrupt = 0x01;
 //	return status;
 //}
 //
-VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
-{
-	VL53L1X_ERROR status = 0;
-
-	status |= (VL53L1_RdWord(dev, VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0, distance, CommunicationManager, MsgInfo));
-	return status;
-}
+//VL53L1X_ERROR VL53L1X_GetDistance(uint16_t dev, uint16_t *distance, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
+//{
+//	VL53L1X_ERROR status = 0;
+//
+//	status |= (VL53L1_RdWord(dev, VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0, distance, CommunicationManager, MsgInfo));
+//	return status;
+//}
 //
 //VL53L1X_ERROR VL53L1X_GetSignalPerSpad(uint16_t dev, uint16_t *signalRate)
 //{

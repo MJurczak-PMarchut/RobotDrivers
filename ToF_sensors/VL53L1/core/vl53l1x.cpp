@@ -128,6 +128,7 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 	uint8_t tmp;
 	UNUSED(tmp);
 	status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
+	status |= this->SetDistanceMode(1);
 	status |= this->StartRanging();
 	tmp  = 0;
 	while(tmp==0){
@@ -185,6 +186,7 @@ ToF_Status_t VL53L1X::CheckSensorStatus(void) {
 	default:
 		break;
 	}
+	return this->__Status;
 }
 
 HAL_StatusTypeDef  VL53L1X::StartRanging(){
@@ -267,6 +269,198 @@ void VL53L1X::SetMutex(osapi::Mutex *pmutex)
 {
 	PlatformSetMutex(pmutex);
 }
+
+HAL_StatusTypeDef VL53L1X::SetDistanceMode(uint16_t DM)
+{
+	uint16_t TB;
+	HAL_StatusTypeDef status = HAL_OK;
+
+	status = this->GetTimingBudgetInMs(&TB);
+	if (status != HAL_OK)
+		return HAL_ERROR;
+	switch (DM) {
+	case 1:
+		status = VL53L1X_WrByte(this->__address, PHASECAL_CONFIG__TIMEOUT_MACROP, 0x14);
+		status = VL53L1X_WrByte(this->__address, RANGE_CONFIG__VCSEL_PERIOD_A, 0x07);
+		status = VL53L1X_WrByte(this->__address, RANGE_CONFIG__VCSEL_PERIOD_B, 0x05);
+		status = VL53L1X_WrByte(this->__address, RANGE_CONFIG__VALID_PHASE_HIGH, 0x38);
+		status = VL53L1X_WrWord(this->__address, SD_CONFIG__WOI_SD0, 0x0705);
+		status = VL53L1X_WrWord(this->__address, SD_CONFIG__INITIAL_PHASE_SD0, 0x0606);
+		break;
+	case 2:
+		status = VL53L1X_WrByte(this->__address, PHASECAL_CONFIG__TIMEOUT_MACROP, 0x0A);
+		status = VL53L1X_WrByte(this->__address, RANGE_CONFIG__VCSEL_PERIOD_A, 0x0F);
+		status = VL53L1X_WrByte(this->__address, RANGE_CONFIG__VCSEL_PERIOD_B, 0x0D);
+		status = VL53L1X_WrByte(this->__address, RANGE_CONFIG__VALID_PHASE_HIGH, 0xB8);
+		status = VL53L1X_WrWord(this->__address, SD_CONFIG__WOI_SD0, 0x0F0D);
+		status = VL53L1X_WrWord(this->__address, SD_CONFIG__INITIAL_PHASE_SD0, 0x0E0E);
+		break;
+	default:
+		status = HAL_ERROR;
+		break;
+	}
+
+	if (status == HAL_OK)
+		status = this->SetTimingBudgetInMs(TB);
+	return status;
+}
+
+HAL_StatusTypeDef VL53L1X::SetTimingBudgetInMs(uint16_t TimingBudgetInMs)
+{
+	uint16_t DM;
+	HAL_StatusTypeDef status = HAL_OK;
+
+	status = this->GetDistanceMode(&DM);
+	if (DM == 0)
+		return HAL_ERROR;
+	else if (DM == 1) {	/* Short DistanceMode */
+		switch (TimingBudgetInMs) {
+		case 15: /* only available in short distance mode */
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x01D);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x0027);
+			break;
+		case 20:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x0051);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x006E);
+			break;
+		case 33:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x00D6);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x006E);
+			break;
+		case 50:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x1AE);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x01E8);
+			break;
+		case 100:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x02E1);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x0388);
+			break;
+		case 200:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x03E1);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x0496);
+			break;
+		case 500:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x0591);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x05C1);
+			break;
+		default:
+			status = HAL_ERROR;
+			break;
+		}
+	} else {
+		switch (TimingBudgetInMs) {
+		case 20:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x001E);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x0022);
+			break;
+		case 33:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x0060);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x006E);
+			break;
+		case 50:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x00AD);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x00C6);
+			break;
+		case 100:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x01CC);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x01EA);
+			break;
+		case 200:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x02D9);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x02F8);
+			break;
+		case 500:
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI,
+					0x048F);
+			VL53L1X_WrWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_B_HI,
+					0x04A4);
+			break;
+		default:
+			status = HAL_ERROR;
+			break;
+		}
+	}
+	return status;
+}
+
+HAL_StatusTypeDef VL53L1X::GetTimingBudgetInMs(uint16_t *pTimingBudget)
+{
+	uint16_t Temp = 0;
+	HAL_StatusTypeDef status = HAL_OK;
+
+	status = VL53L1X_RdWord(this->__address, RANGE_CONFIG__TIMEOUT_MACROP_A_HI, &Temp);
+	switch (Temp) {
+		case 0x001D :
+			*pTimingBudget = 15;
+			break;
+		case 0x0051 :
+		case 0x001E :
+			*pTimingBudget = 20;
+			break;
+		case 0x00D6 :
+		case 0x0060 :
+			*pTimingBudget = 33;
+			break;
+		case 0x1AE :
+		case 0x00AD :
+			*pTimingBudget = 50;
+			break;
+		case 0x02E1 :
+		case 0x01CC :
+			*pTimingBudget = 100;
+			break;
+		case 0x03E1 :
+		case 0x02D9 :
+			*pTimingBudget = 200;
+			break;
+		case 0x0591 :
+		case 0x048F :
+			*pTimingBudget = 500;
+			break;
+		default:
+			status = HAL_ERROR;
+			*pTimingBudget = 0;
+	}
+	return status;
+}
+
+HAL_StatusTypeDef VL53L1X::GetDistanceMode(uint16_t *DM)
+{
+	uint8_t TempDM;
+	uint8_t status = HAL_OK;
+
+	status = VL53L1X_RdByte(this->__address,PHASECAL_CONFIG__TIMEOUT_MACROP, &TempDM);
+	if (TempDM == 0x14)
+		*DM=1;
+	if(TempDM == 0x0A)
+		*DM=2;
+	return (status)? HAL_ERROR:HAL_OK;
+}
+
 
 //
 

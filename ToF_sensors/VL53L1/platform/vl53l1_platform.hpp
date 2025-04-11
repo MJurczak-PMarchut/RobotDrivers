@@ -37,7 +37,7 @@ uint8_t VL53L1X_WrMulti(
 /** @brief VL53L1_ReadMulti() definition.\n
  * To be implemented by the developer
  */
-uint8_t VL53L1_ReadMulti(
+uint8_t VL53L1X_ReadMulti(
 		uint16_t 			dev,
 		uint16_t      index,
 		uint8_t      *pdata,
@@ -52,17 +52,10 @@ HAL_StatusTypeDef VL53L1X_WrByte(
 /** @brief VL53L1_WrWord() definition.\n
  * To be implemented by the developer
  */
-uint8_t VL53L1_WrWord(
+HAL_StatusTypeDef VL53L1X_WrWord(
 		uint16_t dev,
-		uint16_t      index,
-		uint16_t      data);
-/** @brief VL53L1_WrDWord() definition.\n
- * To be implemented by the developer
- */
-uint8_t VL53L1_WrDWord(
-		uint16_t dev,
-		uint16_t      index,
-		uint32_t      data);
+		uint16_t RegisterAdress,
+		uint16_t value);
 /** @brief VL53L1_RdByte() definition.\n
  * To be implemented by the developer
  */
@@ -73,19 +66,10 @@ uint8_t VL53L1X_RdByte(
 /** @brief VL53L1_RdWord() definition.\n
  * To be implemented by the developer
  */
-uint8_t VL53L1_RdWord(
+HAL_StatusTypeDef VL53L1X_RdWord(
 		uint16_t dev,
-		uint16_t      index,
-		uint16_t     *pdata,
-		CommManager *CommunicationManager,
-		MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo);
-/** @brief VL53L1_RdDWord() definition.\n
- * To be implemented by the developer
- */
-uint8_t VL53L1_RdDWord(
-		uint16_t dev,
-		uint16_t      index,
-		uint32_t     *pdata);
+		uint16_t RegisterAdress,
+		uint16_t *p_value);
 /** @brief VL53L1_WaitMs() definition.\n
  * To be implemented by the developer
  */
