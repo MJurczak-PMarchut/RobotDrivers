@@ -114,7 +114,7 @@ HAL_StatusTypeDef VL53L1X_WrWord(
 	uint8_t status = HAL_OK;
 	uint8_t temp8[2] = {0, 0};
 	temp8[0] = uint8_t(value >> 8);
-	temp8[1] = uint8_t(value && 0x00FF);
+	temp8[1] = uint8_t(value & 0x00FF);
 	lock_interface();
 	status = HAL_I2C_Mem_Write(&hi2c1, dev, RegisterAdress, 2, temp8, 2, 150);
 	unlock_interface();
