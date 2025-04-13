@@ -113,6 +113,7 @@ protected:
 	HAL_StatusTypeDef SetTimingBudgetInMs(uint16_t TimingBudgetInMs);
 	HAL_StatusTypeDef GetTimingBudgetInMs(uint16_t *pTimingBudget);
 	HAL_StatusTypeDef GetDistanceMode(uint16_t *DM);
+	HAL_StatusTypeDef SetInterMeasurementInMs(uint32_t InterMeasMs);
 private:
 	uint8_t __comm_buffer[10];
 	I2C_HandleTypeDef *__hi2c1;
@@ -124,6 +125,7 @@ private:
 	uint32_t __data_count;
 	uint16_t __address = TOF_DEFAULT_ADDRESS;
 	std::function<void(MessageInfoTypeDef<I2C> *MsgInfo)> _CallbackFunc;
+	uint32_t __timing_budget;
 };
 
 
