@@ -14,6 +14,7 @@ class CommSPI : public CommBaseClass<SPI_HandleTypeDef>
 {
 public:
 	CommSPI(SPI_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeDef CommMode);
+	HAL_StatusTypeDef MsgReceivedCB(SPI_HandleTypeDef *hint);
 
 protected:
 	virtual HAL_StatusTypeDef __CheckIfInterfaceFree(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo);

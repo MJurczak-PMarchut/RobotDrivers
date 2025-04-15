@@ -10,6 +10,7 @@
 #include "L9960T.hpp"
 #include "DirtyLogger.hpp"
 #include <string>
+#include "lsm6dso.hpp"
 
 #define FULL_SPEED 600
 #define MANOUVER_SPEED 350
@@ -27,7 +28,9 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true),
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
-static VL53L5CX Sensors[] ={ VL53L5CX(FRONT, &MainCommManager, &hi2c1),  VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1),  VL53L5CX(FRONT_RIGHT, &MainCommManager, &hi2c1)};
+//static VL53L5CX Sensors[] ={ VL53L5CX(FRONT, &MainCommManager, &hi2c1),  VL53L5CX(FRONT_LEFT, &MainCommManager, &hi2c1),  VL53L5CX(FRONT_RIGHT, &MainCommManager, &hi2c1)};
+
+static LSM6DSO IMU = LSM6DSO(&MainCommManager, &hspi2);
 
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*
@@ -48,83 +51,30 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 {
 }
 
+
 void Robot::begin(void)
 {
 //	logger.Init();
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
-	ToF_Sensor::StartSensorTask();
-	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
-	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
-	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
-	{taskYIELD();}
-	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
-	{taskYIELD();}
-	while(ToF_Sensor::CheckInitializationCplt() != true)
-	{taskYIELD();}
-	MCInterface::run();
-//	logger.Log("Starting loop", LOGLEVEL_INFO);
-
-	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
+	HAL_GPIO_WritePin(NCS1_GPIO_Port, NCS1_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
+	HAL_Delay(100);
+//	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
+//	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
+//	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
+//	{taskYIELD();}
+//	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
+//	{taskYIELD();}
+	IMU.Init();
 
 
-
-
-
-
-}
-
-void prepare_sensor_data(char *pData, VL53L5CX Sensors[])
-{
-	uint8_t sensor_index;
-	uint16_t distance_array[16];
-	for(sensor_index = 0; sensor_index < ToF_Sensor::GetNoOfSensors(); sensor_index++)
-	{
-		distance_array[0] = Sensors[sensor_index].GetDataFromSensor(0, 0);
-		distance_array[1] = Sensors[sensor_index].GetDataFromSensor(1, 0);
-		distance_array[2] = Sensors[sensor_index].GetDataFromSensor(2, 0);
-		distance_array[3] = Sensors[sensor_index].GetDataFromSensor(3, 0);
-		distance_array[4] = Sensors[sensor_index].GetDataFromSensor(0, 1);
-		distance_array[5] = Sensors[sensor_index].GetDataFromSensor(1, 1);
-		distance_array[6] = Sensors[sensor_index].GetDataFromSensor(2, 1);
-		distance_array[7] = Sensors[sensor_index].GetDataFromSensor(3, 1);
-		distance_array[8] = Sensors[sensor_index].GetDataFromSensor(0, 2);
-		distance_array[9] = Sensors[sensor_index].GetDataFromSensor(1, 2);
-		distance_array[10] = Sensors[sensor_index].GetDataFromSensor(2, 2);
-		distance_array[11] = Sensors[sensor_index].GetDataFromSensor(3, 2);
-		distance_array[12] = Sensors[sensor_index].GetDataFromSensor(0, 3);
-		distance_array[13] = Sensors[sensor_index].GetDataFromSensor(1, 3);
-		distance_array[14] = Sensors[sensor_index].GetDataFromSensor(2, 3);
-		distance_array[15] = Sensors[sensor_index].GetDataFromSensor(3, 3);
-
-		sprintf(&pData[strlen(pData)], "\nSensorNumber: %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n%d %d %d %d\n", (sensor_index),
-				distance_array[0], distance_array[1], distance_array[2], distance_array[3],
-				distance_array[4], distance_array[5], distance_array[6], distance_array[7],
-				distance_array[8], distance_array[9], distance_array[10], distance_array[11],
-				distance_array[12], distance_array[13], distance_array[14], distance_array[15]);
-	}
 }
 
 void Robot::loop(void)
 {
-//	char message[100];
-	static uint16_t speed = 0;
-	UNUSED(speed);
-	char message_data[400] = {0};
-	EventBits_t u32_updated_Sensors;
-	UNUSED(u32_updated_Sensors);
-	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin)){
-	}
-	else{
-	}
-	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 1000);
-	prepare_sensor_data(message_data, Sensors);
-//	logger.Log(message_data, LOGLEVEL_INFO);
 
 }
 
