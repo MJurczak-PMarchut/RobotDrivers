@@ -303,12 +303,12 @@ HAL_StatusTypeDef L9960T::StartPWM(void)
 
 void L9960T::SoftPWMCB_pulse()
 {
-	__IN1_PWM_PORT->BSRR = (uint32_t)__IN1_PWM_PIN << 16;
+	__IN1_PWM_PORT->BSRR = __IN1_PWM_PIN;
 }
 
 void L9960T::SoftPWMCB_period()
 {
-	__IN1_PWM_PORT->BSRR = __IN1_PWM_PIN;
+	__IN1_PWM_PORT->BSRR = (uint32_t)__IN1_PWM_PIN << 16;
 }
 
 #ifdef USES_RTOS
