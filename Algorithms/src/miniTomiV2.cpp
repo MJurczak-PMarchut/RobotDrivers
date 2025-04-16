@@ -27,7 +27,10 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true),
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
-static VL53L1X Sensors[] = {VL53L1X(FRONT, &MainCommManager, &hi2c1), VL53L1X(FRONT, &MainCommManager, &hi2c1) }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
+static VL53L1X Sensors[] = {
+		VL53L1X(FRONT, &MainCommManager, &hi2c1),
+		VL53L1X(FRONT, &MainCommManager, &hi2c1)
+}; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*
@@ -52,6 +55,9 @@ void Robot::begin(void)
 {
 //	logger.Init();
 	//Enable power
+	//Enable power
+	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
+	HAL_Delay(100);
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
 	ToF_Sensor::StartSensorTask();
@@ -117,6 +123,7 @@ void Robot::end(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
 	if(ToF_Sensor::CheckInitializationCplt()){
 		if (GPIO_Pin == TOF_INT4_Pin)
 		{
@@ -129,6 +136,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
 	}
+	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
@@ -172,7 +180,7 @@ void Robot::PeriodicCheckCall(void)
 
 				if(diver == 20){
 //					logger.Sync();
-					HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+//					HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 				}
 				diver = (diver >= 20)? 0: diver+1;
 			}
