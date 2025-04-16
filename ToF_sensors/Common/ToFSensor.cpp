@@ -10,7 +10,7 @@
 #ifndef USES_RTOS
 #error("RTOS is needed for current implementation of Tof Sensor drivers")
 #else
-#define NO_OF_WORKERS 2
+#define NO_OF_WORKERS 1
 #endif
 
 

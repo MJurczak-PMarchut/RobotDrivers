@@ -127,15 +127,20 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 	uint8_t status = 0;
 	uint8_t tmp;
 	UNUSED(tmp);
+	this->__timing_budget = 15;
 	status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
 	status |= this->SetDistanceMode(1);
-	status |= this->SetInterMeasurementInMs(this->__timing_budget);
+	status |= this->SetTimingBudgetInMs(this->__timing_budget);
+	status |= this->SetInterMeasurementInMs(20);
 	status |= this->StartRanging();
 	tmp  = 0;
+	vTaskDelay(10);
 	while(tmp==0){
 			status |= CheckForDataReady( &tmp);
 	}
-	status |= this->ClearInterrupt();
+//	status |= this->ClearInterrupt();
+	// clear interrupt
+	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
 	return (status)? HAL_ERROR:HAL_OK;
 }
 
@@ -243,6 +248,8 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 
 void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
 	this->__distance = this->__comm_buffer[1] | (this->__comm_buffer[0] << 8);
+	this->__Status = TOF_STATE_OK;
+	this->last_update_tick = HAL_GetTick();
 	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
 }
 
@@ -303,7 +310,6 @@ HAL_StatusTypeDef VL53L1X::SetDistanceMode(uint16_t DM)
 
 	if (status == HAL_OK)
 	{
-		this->__timing_budget = TB;
 		status = this->SetTimingBudgetInMs(TB);
 	}
 	return status;
@@ -477,8 +483,8 @@ HAL_StatusTypeDef VL53L1X::SetInterMeasurementInMs(uint32_t InterMeasMs)
 	value = (uint32_t)(ClockPLL * InterMeasMs * 1.075);
 	temp8[0] = uint8_t(value >> 24);
 	temp8[1] = uint8_t((value & 0x00FF0000) >> 16);
-	temp8[0] = uint8_t((value & 0x0000FF00) >> 8);
-	temp8[1] = uint8_t(value & 0x00FF);
+	temp8[2] = uint8_t((value & 0x0000FF00) >> 8);
+	temp8[3] = uint8_t(value & 0x00FF);
 	VL53L1X_WrMulti(this->__address, VL53L1_SYSTEM__INTERMEASUREMENT_PERIOD,
 			temp8, 4);
 	return status;
