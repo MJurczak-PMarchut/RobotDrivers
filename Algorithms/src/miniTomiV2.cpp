@@ -64,6 +64,8 @@ void Robot::begin(void)
 	HAL_Delay(100);
 	IMU.Init();
 	HAL_Delay(100);
+	IMU.StartCalibrationOrientation();
+	HAL_Delay(150);
 	IMU.CalibrateOrientation();
 
 
@@ -92,6 +94,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		if(GPIO_Pin == TOF_INT5_Pin){
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
+	}
+	if(GPIO_Pin == IMU_INT1_Pin){
+		IMU.InterruptCallback(GPIO_Pin);
 	}
 }
 

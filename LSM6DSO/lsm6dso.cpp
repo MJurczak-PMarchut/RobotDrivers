@@ -133,8 +133,10 @@ LSM6DSO::LSM6DSO(CommManager *CommunicationManager, SPI_HandleTypeDef *hspi)
 	this->dev_ctx.mdelay = platform_delay;
 	this->dev_ctx.read_reg = platform_read;
 	this->dev_ctx.write_reg = platform_write;
+	this->_hspi = hspi;
+	this->__init_completed = false;
 	memset(this->pTxGyData, 0, 7);
-	this->pTxGyData[0] = LSM6DSO_OUTX_L_G;
+	this->pTxGyData[0] = LSM6DSO_OUTX_L_G | (1<<7);
 	this->_CallbackFuncGy = std::bind(&LSM6DSO::GyDataReceivedCB, this, std::placeholders::_1);
 	SPIMutex = xSemaphoreCreateBinary();
 	if(SPIMutex == NULL){
@@ -166,12 +168,14 @@ HAL_StatusTypeDef LSM6DSO::Init(void)
 	lsm6dso_gy_full_scale_set(&dev_ctx, LSM6DSO_2000dps);
 	lsm6dso_xl_hp_path_on_out_set(&dev_ctx, LSM6DSO_LP_ODR_DIV_100);
 	lsm6dso_xl_filter_lp2_set(&dev_ctx, PROPERTY_ENABLE);
+	lsm6dso_gy_filter_lp1_set(&dev_ctx, PROPERTY_ENABLE);
 	int1_route.drdy_g = 1;
 	int2_route.drdy_xl = 1;
 	lsm6dso_dataready_pulsed_t drdy_mode = LSM6DSO_DRDY_PULSED;
 	lsm6dso_data_ready_mode_set(&dev_ctx, drdy_mode);
 	lsm6dso_pin_int1_route_set(&dev_ctx, int1_route);
 	lsm6dso_pin_int2_route_set(&dev_ctx, NULL, int2_route);
+	this->__init_completed = true;
 	return HAL_OK;
 }
 
@@ -184,7 +188,9 @@ void LSM6DSO::GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
 		this->angular_rate_mdps[plane] = lsm6dso_from_fs2000_to_mdps(this->data_raw_angular_rate[plane]);
 		this->angular_orientation[plane] = this->angular_orientation[plane] +
 				((this->angular_rate_mdps[plane] - this->gyro_offset[plane])/(1000 * 1667));
+		this->gyro_cal_offset[plane] = this->gyro_cal_offset[plane] + this->angular_rate_mdps[plane];
 	}
+	this->measurements_no = this->measurements_no + 1;
 
 }
 
@@ -205,15 +211,33 @@ void LSM6DSO::GetGyData(void)
 	__CommManager->PushCommRequestIntoQueue(&MsgInfo);
 }
 
-void LSM6DSO::CalibrateOrientation(void)
+void LSM6DSO::StartCalibrationOrientation(void)
 {
+	this->measurements_no = 0;
 	for(uint8_t plane=0; plane < 3; plane++){
-		this->angular_orientation[plane] = 0;
-		this->gyro_offset[plane] = this->angular_rate_mdps[plane];
+		this->gyro_offset[plane] = 0;
+		this->gyro_cal_offset[plane] = 0;
 	}
 }
 
+void LSM6DSO::CalibrateOrientation(void)
+{
+	for(uint8_t plane=0; plane < 3; plane++){
+		this->gyro_offset[plane] = this->gyro_cal_offset[plane] / this->measurements_no;
+		this->angular_orientation[plane] = 0;
+	}
+}
+
+HAL_StatusTypeDef LSM6DSO::IsInitCompleted(void)
+{
+	return (this->__init_completed)? HAL_OK : HAL_ERROR;
+}
+
 void LSM6DSO::InterruptCallback(uint16_t InterruptPin){
+	if(IsInitCompleted() != HAL_OK)
+	{
+		return;
+	}
 	if(InterruptPin == IMU_INT1_Pin)
 	{
 		GetGyData();
