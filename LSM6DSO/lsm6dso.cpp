@@ -19,11 +19,7 @@ static SemaphoreHandle_t SPIMutex;
 static uint8_t pTXBuf[257] = {0};
 static uint8_t pRxBuf[257] = {0};
 
-static int16_t data_raw_acceleration[3];
-static int16_t data_raw_angular_rate[3];
-static int16_t data_raw_temperature;
-static float_t acceleration_mg[3];
-static float_t angular_rate_mdps[3];
+//static int16_t data_raw_temperature;
 
 static float angle[3] = {0};
 static float angle_rate_offset[3] ={910, 560, -350};
@@ -137,6 +133,9 @@ LSM6DSO::LSM6DSO(CommManager *CommunicationManager, SPI_HandleTypeDef *hspi)
 	this->dev_ctx.mdelay = platform_delay;
 	this->dev_ctx.read_reg = platform_read;
 	this->dev_ctx.write_reg = platform_write;
+	memset(this->pTxGyData, 0, 7);
+	this->pTxGyData[0] = LSM6DSO_OUTX_L_G;
+	this->_CallbackFuncGy = std::bind(&LSM6DSO::GyDataReceivedCB, this, std::placeholders::_1);
 	SPIMutex = xSemaphoreCreateBinary();
 	if(SPIMutex == NULL){
 		Error_Handler();
@@ -146,13 +145,14 @@ LSM6DSO::LSM6DSO(CommManager *CommunicationManager, SPI_HandleTypeDef *hspi)
 HAL_StatusTypeDef LSM6DSO::Init(void)
 {
 	static uint8_t whoamI, rst;
+	lsm6dso_pin_int1_route_t int1_route = {0};
+	lsm6dso_pin_int2_route_t int2_route = {0};
 	whoamI = 0;
 	vTaskDelay(100);
-//	platform_read(this->dev_ctx.handle, 0xf, pRxBuf, 3);
 	lsm6dso_device_id_get(&dev_ctx, &whoamI);
 
-//	if (whoamI != LSM6DSO_ID)
-//	    return HAL_ERROR;
+	if (whoamI != LSM6DSO_ID)
+	    return HAL_ERROR;
 	lsm6dso_reset_set(&dev_ctx, PROPERTY_ENABLE);
 	do {
 		lsm6dso_reset_get(&dev_ctx, &rst);
@@ -160,51 +160,64 @@ HAL_StatusTypeDef LSM6DSO::Init(void)
 	lsm6dso_device_id_get(&dev_ctx, &whoamI);
 	lsm6dso_i3c_disable_set(&dev_ctx, LSM6DSO_I3C_DISABLE);
 	lsm6dso_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
-	lsm6dso_xl_data_rate_set(&dev_ctx, LSM6DSO_XL_ODR_12Hz5);
-	lsm6dso_device_id_get(&dev_ctx, &whoamI);
-	lsm6dso_device_id_get(&dev_ctx, &whoamI);
-	lsm6dso_device_id_get(&dev_ctx, &whoamI);
-	lsm6dso_device_id_get(&dev_ctx, &whoamI);
-	lsm6dso_gy_data_rate_set(&dev_ctx, LSM6DSO_GY_ODR_12Hz5);
+	lsm6dso_xl_data_rate_set(&dev_ctx, LSM6DSO_XL_ODR_1667Hz);
+	lsm6dso_gy_data_rate_set(&dev_ctx, LSM6DSO_GY_ODR_1667Hz);
 	lsm6dso_xl_full_scale_set(&dev_ctx, LSM6DSO_2g);
 	lsm6dso_gy_full_scale_set(&dev_ctx, LSM6DSO_2000dps);
 	lsm6dso_xl_hp_path_on_out_set(&dev_ctx, LSM6DSO_LP_ODR_DIV_100);
 	lsm6dso_xl_filter_lp2_set(&dev_ctx, PROPERTY_ENABLE);
-	uint8_t reg;
-	while (1){
-		lsm6dso_xl_flag_data_ready_get(&dev_ctx, &reg);
-		if (reg) {
-		  /* Read acceleration field data */
-		  memset(data_raw_acceleration, 0x00, 3 * sizeof(int16_t));
-		  lsm6dso_acceleration_raw_get(&dev_ctx, data_raw_acceleration);
-		  acceleration_mg[0] =
-			lsm6dso_from_fs2_to_mg(data_raw_acceleration[0]);
-		  acceleration_mg[1] =
-			lsm6dso_from_fs2_to_mg(data_raw_acceleration[1]);
-		  acceleration_mg[2] =
-			lsm6dso_from_fs2_to_mg(data_raw_acceleration[2]);
-		}
-	    lsm6dso_gy_flag_data_ready_get(&dev_ctx, &reg);
-
-	    if (reg) {
-	      /* Read angular rate field data */
-	      memset(data_raw_angular_rate, 0x00, 3 * sizeof(int16_t));
-	      lsm6dso_angular_rate_raw_get(&dev_ctx, data_raw_angular_rate);
-	      angular_rate_mdps[0] =
-	        lsm6dso_from_fs2000_to_mdps(data_raw_angular_rate[0]);
-	      angular_rate_mdps[1] =
-	        lsm6dso_from_fs2000_to_mdps(data_raw_angular_rate[1]);
-	      angular_rate_mdps[2] =
-	        lsm6dso_from_fs2000_to_mdps(data_raw_angular_rate[2]);
-		    angle[0] = angle[0] + ((angular_rate_mdps[0] - angle_rate_offset[0])/1000)/12.5;
-		    angle[1] = angle[1] + ((angular_rate_mdps[1] - angle_rate_offset[1])/1000)/12.5;
-		    angle[2] = angle[2] + ((angular_rate_mdps[2] - angle_rate_offset[2])/1000)/12.5;
-	    }
-
-	}
+	int1_route.drdy_g = 1;
+	int2_route.drdy_xl = 1;
+	lsm6dso_dataready_pulsed_t drdy_mode = LSM6DSO_DRDY_PULSED;
+	lsm6dso_data_ready_mode_set(&dev_ctx, drdy_mode);
+	lsm6dso_pin_int1_route_set(&dev_ctx, int1_route);
+	lsm6dso_pin_int2_route_set(&dev_ctx, NULL, int2_route);
 	return HAL_OK;
 }
 
+void LSM6DSO::GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
+{
+	uint8_t buffer_index = 0;
+	for(uint8_t plane=0; plane < 3; plane++){
+		buffer_index = 1 + (plane*2);
+		this->data_raw_angular_rate[plane] = (this->pRxGyData[buffer_index] | (this->pRxGyData[buffer_index + 1] << 8));
+		this->angular_rate_mdps[plane] = lsm6dso_from_fs2000_to_mdps(this->data_raw_angular_rate[plane]);
+		this->angular_orientation[plane] = this->angular_orientation[plane] +
+				((this->angular_rate_mdps[plane] - this->gyro_offset[plane])/(1000 * 1667));
+	}
 
+}
+
+void LSM6DSO::GetGyData(void)
+{
+	memset(pRxGyData, 0, 7);
+	MessageInfoTypeDef<SPI> MsgInfo = {0};
+	MsgInfo.IntHandle = this->_hspi;
+	MsgInfo.len = 7;
+	MsgInfo.spi_cpol_high = 1;
+	MsgInfo.context = RX_CONTEXT;
+	MsgInfo.pTxData = this->pTxGyData;
+	MsgInfo.pRxData = this->pRxGyData;
+	MsgInfo.eCommType = COMM_INT_TXRX;
+	MsgInfo.pCB = &this->_CallbackFuncGy;
+	MsgInfo.GPIO_PIN = LSM6DSO_nCS_PIN;
+	MsgInfo.GPIOx = LSM6DSO_nCS_PORT;
+	__CommManager->PushCommRequestIntoQueue(&MsgInfo);
+}
+
+void LSM6DSO::CalibrateOrientation(void)
+{
+	for(uint8_t plane=0; plane < 3; plane++){
+		this->angular_orientation[plane] = 0;
+		this->gyro_offset[plane] = this->angular_rate_mdps[plane];
+	}
+}
+
+void LSM6DSO::InterruptCallback(uint16_t InterruptPin){
+	if(InterruptPin == IMU_INT1_Pin)
+	{
+		GetGyData();
+	}
+}
 
 

@@ -62,13 +62,9 @@ void Robot::begin(void)
 	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
-//	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
-//	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
-//	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
-//	{taskYIELD();}
-//	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
-//	{taskYIELD();}
 	IMU.Init();
+	HAL_Delay(100);
+	IMU.CalibrateOrientation();
 
 
 }

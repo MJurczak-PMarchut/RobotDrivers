@@ -21,8 +21,21 @@ public:
 	HAL_StatusTypeDef Init(void);
 	void InterruptCallback(uint16_t InterruptPin);
 	void CalibrateOrientation(void);
+	HAL_StatusTypeDef IsInitCompleted(void);
+	void GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 protected:
+	void GetGyData(void);
 private:
+	std::function<void(MessageInfoTypeDef<SPI> *MsgInfo)> _CallbackFuncGy;
+	uint8_t pRxGyData[7];
+	uint8_t pTxGyData[7];
+	int16_t data_raw_acceleration[3];
+	int16_t data_raw_angular_rate[3];
+	float_t acceleration_mg[3];
+	float_t angular_rate_mdps[3];
+	float_t angular_orientation[3];
+	float_t gyro_offset[3];
+	bool __init_completed;
 	SPI_HandleTypeDef *_hspi;
 	CommManager *__CommManager;
 	stmdev_ctx_t dev_ctx;
