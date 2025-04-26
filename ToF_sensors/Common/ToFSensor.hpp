@@ -17,7 +17,7 @@
 
 typedef enum  {vl53l5, vl53l1}e_ToF_Type;
 
-typedef enum  {FRONT_LEFT=2, FRONT_RIGHT, FRONT}e_ToF_Position;
+typedef enum  {FRONT_LEFT=2, FRONT_RIGHT, FRONT, BACK}e_ToF_Position;
 typedef enum {
 	TOF_STATE_OK = 0,
 	TOF_INIT_NOT_DONE,

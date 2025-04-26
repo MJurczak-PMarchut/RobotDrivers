@@ -28,8 +28,9 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
 static VL53L1X Sensors[] = {
-		VL53L1X(FRONT, &MainCommManager, &hi2c1),
-		VL53L1X(FRONT, &MainCommManager, &hi2c1)
+		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
+		VL53L1X(BACK, &MainCommManager, &hi2c1),
+		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
 }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
@@ -64,22 +65,21 @@ void Robot::begin(void)
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-//	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
-//	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
-//	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
-//	{taskYIELD();}
-//	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
+	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
+	{taskYIELD();}
+	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
 //	{taskYIELD();}
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
-//	Sensors[0].SetI2CAddress();
-//	Sensors[0].SensorInit();
-//	Sensors[0].StartRanging();
-//	MCInterface::run();
-//	logger.Log("Starting loop", LOGLEVEL_INFO);
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
+	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(800);
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(800);
+	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
 
-//	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
-//	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 
 
 
