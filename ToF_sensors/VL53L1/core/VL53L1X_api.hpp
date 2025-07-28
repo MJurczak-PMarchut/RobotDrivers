@@ -242,6 +242,7 @@ typedef struct {
 //0x00  /* 0x87 : start ranging, use StartRanging() or StopRanging(), If you want an automatic start after VL53L1X_init() call, put 0x40 in location 0x87 */
 //};
 
+
 //class VL53L1X: public ToF_Sensor
 //{
 //private:

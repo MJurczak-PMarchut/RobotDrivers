@@ -33,9 +33,9 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
 static VL53L1X Sensors[] = {
-		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1)
-//		VL53L1X(BACK, &MainCommManager, &hi2c1),
-//		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
+		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
+		VL53L1X(BACK, &MainCommManager, &hi2c1),
+		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
 }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
@@ -65,7 +65,7 @@ void Robot::begin(void)
 	//Enable power
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
-	HAL_Delay(1000);
+	HAL_Delay(100);
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(200);
 	ToF_Sensor::StartSensorTask();
@@ -85,7 +85,6 @@ void Robot::begin(void)
 	{taskYIELD();}
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-
 }
 
 void prepare_sensor_data(char *pData, VL53L1X Sensors[])
@@ -220,7 +219,6 @@ void Robot::loop(void)
 	}
 	//check if we can move
 	taskYIELD();
-
 }
 
 void Robot::end(void)
@@ -233,6 +231,7 @@ void Robot::end(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
+	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
 	if(ToF_Sensor::CheckInitializationCplt()){
 		if (GPIO_Pin == TOF_INT4_Pin)
 		{
@@ -245,6 +244,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
 	}
+	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)

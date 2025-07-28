@@ -89,7 +89,6 @@ typedef struct {
 	uint16_t NumSPADs;	/*!< ResultNumSPADs */
 } VL53L1X_Result_t;
 
-
 //typedef struct
 //{
 //	bool Active;
