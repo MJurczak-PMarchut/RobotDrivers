@@ -11,8 +11,13 @@
 #include "DirtyLogger.hpp"
 #include <string>
 
-#define FULL_SPEED 600
-#define MANOUVER_SPEED 350
+#define INIT_TIMEOUT_MS  3000
+
+
+#define DETECTION_DISTANCE 200
+#define FULL_SPEED 0.6
+#define MANOUVER_SPEED 0.35
+
 
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
@@ -28,9 +33,9 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
 
 static VL53L1X Sensors[] = {
-		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
-		VL53L1X(BACK, &MainCommManager, &hi2c1),
-		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
+		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1)
+//		VL53L1X(BACK, &MainCommManager, &hi2c1),
+//		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
 }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
@@ -54,13 +59,15 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 
 void Robot::begin(void)
 {
+	was_running = true;
+	flash_period_ms = 100;
 //	logger.Init();
 	//Enable power
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
-	HAL_Delay(100);
+	HAL_Delay(1000);
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
-	HAL_Delay(100);
+	HAL_Delay(200);
 	ToF_Sensor::StartSensorTask();
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
@@ -69,22 +76,15 @@ void Robot::begin(void)
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
 	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
 	{taskYIELD();}
+	flash_period_ms = 300;
 	while(MOTOR_CONTROLLERS[MOTOR_RIGHT].CheckIfControllerInitializedOk() != HAL_OK)
-//	{taskYIELD();}
+	{taskYIELD();}
+	MCInterface::run();
+	flash_period_ms = 2000;
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
-	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
-	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorPowerPWM(800);
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorPowerPWM(800);
-	MOTOR_CONTROLLERS[MOTOR_LEFT].SetMotorDirection(MOTOR_DIR_FORWARD);
-	MOTOR_CONTROLLERS[MOTOR_RIGHT].SetMotorDirection(MOTOR_DIR_FORWARD);
-
-
-
-
-
-
+	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
+	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 
 }
 
@@ -92,38 +92,147 @@ void prepare_sensor_data(char *pData, VL53L1X Sensors[])
 {
 }
 
+typedef enum{WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS} State_t;
+
+State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
+{
+	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin))//dummy
+	{
+		obj->SetFlashPeriodMS(1000);
+		MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
+		MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
+		return WAIT_FOR_START;
+	}
+	else{
+		MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
+		MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
+		return  (eFSM_state == WAIT_FOR_START)? FIGHT : eFSM_state;
+	}
+}
+
+void FightAlgorithm(Robot *obj)
+{
+	EventBits_t u32_updated_Sensors;
+	bool forward_det;
+	static bool lastDetOnLeft = false;
+	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
+	if(u32_updated_Sensors != TOF_EVENT_MASK)
+	{
+		return;
+	}
+	uint16_t sensor_left= Sensors[0].GetDistance();
+	uint16_t sensor_right= Sensors[2].GetDistance();
+	VL53L1X_Result_t result_left = Sensors[0].GetResult();
+	VL53L1X_Result_t result_right = Sensors[2].GetResult();
+	sensor_left = (result_left.NumSPADs < 80)?
+			sensor_left: DETECTION_DISTANCE + 100;
+	sensor_right = (result_right.NumSPADs < 80)?
+			sensor_right: DETECTION_DISTANCE + 100;
+	if((sensor_left < DETECTION_DISTANCE) || (sensor_right < DETECTION_DISTANCE)){
+		// detected
+		obj->SetFlashPeriodMS(100);
+		if(sensor_left > sensor_right){
+			forward_det = ((sensor_left - sensor_right) < 60)? true:false;
+		}
+		else
+		{
+			forward_det = ((sensor_right - sensor_left) < 60)? true:false;
+		}
+		if (forward_det){
+			MCInterface::SetMotorsPower(FULL_SPEED, FULL_SPEED);
+		}
+		else if(sensor_left < sensor_right)
+		{
+			// on the left
+			MCInterface::SetMotorsPower(MANOUVER_SPEED, FULL_SPEED);
+			lastDetOnLeft = true;
+		}
+		else{
+			MCInterface::SetMotorsPower(FULL_SPEED, MANOUVER_SPEED);
+			lastDetOnLeft = false;
+		}
+	}
+	else{
+		obj->SetFlashPeriodMS(1000);
+		if(lastDetOnLeft)
+		{
+			MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
+		}
+		else{
+			MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
+		}
+	}
+
+
+}
+
+void Robot::SetFlashPeriodMS(uint16_t flashPeriod)
+{
+	this->flash_period_ms = flashPeriod;
+}
+
 void Robot::loop(void)
 {
-	HAL_StatusTypeDef status = HAL_OK;
-	uint8_t isDataReady = 0;
-//	char message[100];
-//	static uint16_t speed = 0;
-//	UNUSED(speed);
-//	char message_data[400] = {0};
-//	EventBits_t u32_updated_Sensors;
-//	UNUSED(u32_updated_Sensors);
-//	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin)){
-//	}
-//	else{
-//	}
-//	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 1000);
-//	prepare_sensor_data(message_data, Sensors);
-//	logger.Log(message_data, LOGLEVEL_INFO);
-//	Sensors[0].CheckForDataReady(*isDataReady);
-//	if (isDataReady == 1)
-//	{
-//		status = Sensors[0].GetRangingData();
-//	}
+	static State_t eFSM_state = WAIT_FOR_START;
+	eFSM_state = CheckStartCondition(this, eFSM_state);
+	switch(eFSM_state)
+	{
+		case WAIT_FOR_START:
+		{
+			vTaskDelay(1);
+		}
+		break;
+		case FIGHT:
+		{
+			//First fight
+			FightAlgorithm(this);
+			//Then check OOB condition
+			if((HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin) == GPIO_PIN_RESET) ||
+					(HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin) == GPIO_PIN_RESET))
+			{
+				eFSM_state = OUT_OF_BOUNDS;
+			}
+		}
+		break;
+		case OUT_OF_BOUNDS:
+		{
+			//Check where we crossed the line
+			bool left = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin);
+			bool right = !HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
+			HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+			MCInterface::SetMotorsPower(0, 0);
+			vTaskDelay(10);
+			if(left || right)
+			{
+				//back for a sec
+				MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
+				vTaskDelay(200);
+				MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
+				vTaskDelay(100);
+				eFSM_state = FIGHT;
+				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+			}
+		}
+		break;
+		default:
+			taskYIELD();
+			break;
+	}
+	//check if we can move
+	taskYIELD();
+
 }
 
 void Robot::end(void)
 {
-	Error_Handler();
+//		Error_Handler();
+// Facilitate reset
+
+
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
 	if(ToF_Sensor::CheckInitializationCplt()){
 		if (GPIO_Pin == TOF_INT4_Pin)
 		{
@@ -136,7 +245,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
 	}
-	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
@@ -152,9 +260,36 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 void Robot::PeriodicCheckCall(void)
 {
 	static uint8_t call_count = 0;
+	static uint16_t flash_counter = flash_period_ms/2;
+	static uint16_t current_fc = flash_period_ms;
+	static uint32_t start_tick = xTaskGetTickCount();
 	static uint8_t diver = 0;
-	if(!isInitCompleted()){
-		return;
+	static uint8_t reset_counter = 0;
+
+	if(current_fc != flash_period_ms)
+	{
+		flash_counter = flash_period_ms/2;
+		current_fc = flash_period_ms;
+	}
+	if(!isInitCompleted())
+	{
+		if(!this->isRunning() && was_running)
+		{
+			this->run();
+		}
+		else if((xTaskGetTickCount() - start_tick) > INIT_TIMEOUT_MS)
+		{
+			if(reset_counter >= 1)
+			{
+				NVIC_SystemReset();
+			}
+			reset_counter++;
+			this->forceKill();
+			ToF_Sensor::KillSensors();
+			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+			start_tick = xTaskGetTickCount();
+		}
+
 	}
 	// we could use mod, but that might not be fast for architectures other than ARM
 	switch(call_count)
@@ -189,6 +324,10 @@ void Robot::PeriodicCheckCall(void)
 			break;
 	}
 	call_count = (call_count >= 100)? 0: call_count+1;
+	if(flash_counter == 0){
+		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
+	}
+	flash_counter = (flash_counter == 0)? flash_period_ms/2: flash_counter-1;
 }
 
 void Robot::PeriodCB(void)

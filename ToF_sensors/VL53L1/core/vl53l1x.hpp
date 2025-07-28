@@ -81,6 +81,15 @@ typedef uint8_t VL53L1X_ERROR;
 #define VL53L1_IDENTIFICATION__MODEL_ID                     0x010F
 #define VL53L1_ROI_CONFIG__MODE_ROI_CENTRE_SPAD				0x013E
 
+typedef struct {
+	uint8_t Status;		/*!< ResultStatus */
+	uint16_t Distance;	/*!< ResultDistance */
+	uint16_t Ambient;	/*!< ResultAmbient */
+	uint16_t SigPerSPAD;/*!< ResultSignalPerSPAD */
+	uint16_t NumSPADs;	/*!< ResultNumSPADs */
+} VL53L1X_Result_t;
+
+
 //typedef struct
 //{
 //	bool Active;
@@ -98,6 +107,8 @@ public:
 	ToF_Status_t CheckSensorStatus(void);
 	HAL_StatusTypeDef GetRangingData(void);
 	HAL_StatusTypeDef  StartRanging();
+	uint16_t GetDistance(void);
+	VL53L1X_Result_t GetResult(void);
 	uint16_t GetSensorITPin(void);
 	HAL_StatusTypeDef __GetData(void);
 	HAL_StatusTypeDef DisableSensorComm(void);
@@ -115,9 +126,10 @@ protected:
 	HAL_StatusTypeDef GetDistanceMode(uint16_t *DM);
 	HAL_StatusTypeDef SetInterMeasurementInMs(uint32_t InterMeasMs);
 private:
-	uint8_t __comm_buffer[10];
+	uint8_t __comm_buffer[20];
 	I2C_HandleTypeDef *__hi2c1;
 	static uint8_t __sensor_nb;
+	VL53L1X_Result_t Result;
 	uint8_t __sensor_index;
 	TickType_t __wait_until_tick;
 	ToF_Status_t __Status;

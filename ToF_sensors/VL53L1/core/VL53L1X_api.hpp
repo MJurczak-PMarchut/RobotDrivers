@@ -135,18 +135,18 @@ typedef struct {
 	uint8_t      build;    /*!< build number */
 	uint32_t     revision; /*!< revision number */
 } VL53L1X_Version_t;
-
-/**
- *  @brief defines packed reading results type
- */
-typedef struct {
-	uint8_t Status;		/*!< ResultStatus */
-	uint16_t Distance;	/*!< ResultDistance */
-	uint16_t Ambient;	/*!< ResultAmbient */
-	uint16_t SigPerSPAD;/*!< ResultSignalPerSPAD */
-	uint16_t NumSPADs;	/*!< ResultNumSPADs */
-} VL53L1X_Result_t;
-
+//
+///**
+// *  @brief defines packed reading results type
+// */
+//typedef struct {
+//	uint8_t Status;		/*!< ResultStatus */
+//	uint16_t Distance;	/*!< ResultDistance */
+//	uint16_t Ambient;	/*!< ResultAmbient */
+//	uint16_t SigPerSPAD;/*!< ResultSignalPerSPAD */
+//	uint16_t NumSPADs;	/*!< ResultNumSPADs */
+//} VL53L1X_Result_t;
+//
 
 //uint8_t VL51L1X_DEFAULT_CONFIGURATION[] = {
 //0x00, /* 0x2d : set bit 2 and 5 to 1 for fast plus mode (1MHz I2C), else don't touch */

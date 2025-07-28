@@ -101,6 +101,14 @@ void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 	}
 }
 
+void ToF_Sensor::KillSensors(void){
+	if(Thread.isRunning())
+	{
+		InitCompleted= false;
+		Thread.forceKill();
+	}
+}
+
 ToF_Sensor::~ToF_Sensor() {
 	// TODO Auto-generated destructor stub
 }

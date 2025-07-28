@@ -235,8 +235,8 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 	MsgInfoToSend.context = 10;
 	MsgInfoToSend.eCommType = COMM_INT_MEM_RX;
 	MsgInfoToSend.I2C_Addr = this->__address;
-	MsgInfoToSend.I2C_MemAddr = VL53L1_RESULT__FINAL_CROSSTALK_CORRECTED_RANGE_MM_SD0;
-	MsgInfoToSend.len = 2;
+	MsgInfoToSend.I2C_MemAddr = VL53L1_RESULT__RANGE_STATUS;
+	MsgInfoToSend.len = 17;
 	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
 	MsgInfoToSend.IntHandle = this->__hi2c1;
 	MsgInfoToSend.pCB = &this->_CallbackFunc;
@@ -247,7 +247,11 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 }
 
 void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
-	this->__distance = this->__comm_buffer[1] | (this->__comm_buffer[0] << 8);
+	Result.Distance = 0;
+	Result.Ambient = (this->__comm_buffer[7] << 8 | this->__comm_buffer[8]) * 8;
+	Result.NumSPADs = this->__comm_buffer[3];
+	Result.SigPerSPAD = (this->__comm_buffer[15] << 8 | this->__comm_buffer[16]) * 8;
+	Result.Distance = this->__comm_buffer[13] << 8 | this->__comm_buffer[14];
 	this->__Status = TOF_STATE_OK;
 	this->last_update_tick = HAL_GetTick();
 	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
@@ -259,6 +263,15 @@ HAL_StatusTypeDef VL53L1X::__GetData(void)
 		this->__Status = TOF_STATE_DATA_RDY;
 	}
 	return HAL_OK;
+}
+
+uint16_t VL53L1X::GetDistance(void){
+	return Result.Distance;
+}
+
+VL53L1X_Result_t VL53L1X::GetResult(void)
+{
+	return Result;
 }
 
 uint16_t VL53L1X::GetSensorITPin(void)

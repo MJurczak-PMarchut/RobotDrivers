@@ -16,7 +16,7 @@
 
 typedef enum {MOTOR_LEFT = 0, MOTOR_RIGHT = 1} MotorSideTypeDef;
 typedef enum {NONE = 0, VESC_CONTROLLER, l9960T_CONTROLLER} ControllerTypeTypeDef;
-typedef enum {MOTOR_DIR_FORWARD = 0, MOTOR_DIR_BACKWARD} MotorDirectionTypeDef;
+typedef enum {MOTOR_DIR_FORWARD = 0, MOTOR_DIR_BACKWARD = 1} MotorDirectionTypeDef;
 typedef enum {MOTOR_DISABLED, MOTOR_ENABLED} MotorEnabledTypeDef;
 
 
@@ -29,8 +29,10 @@ typedef struct {
 
 class MCInterface{
 	public:
-		MCInterface();
+		MCInterface(MotorSideTypeDef side);
 		~MCInterface(){};
+		static HAL_StatusTypeDef SetMotorsPower(float PowerL, float PowerR);
+		HAL_StatusTypeDef SetMotorPower(float Power);
 		virtual HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM) = 0;
 		virtual HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir) = 0;
 		virtual HAL_StatusTypeDef Disable(void) = 0;
@@ -40,16 +42,15 @@ class MCInterface{
 		virtual HAL_StatusTypeDef CheckIfControllerInitializedOk(void) = 0;
 		static void run(void);
 		static void RunStateCheck(void);
-
-
+	protected:
+		static uint8_t NoOfControllers;
+		static uint8_t __Instantiated_sides;
+		MotorSideTypeDef __side;
 	private:
 		static bool _isRunning;
 		static void _check_state(void* pvParam);
 		static MCInterface*  _MCInterfacePointers[2];
 		static TaskHandle_t xHandle;
-	protected:
-		static uint8_t NoOfControllers;
-		static uint8_t __Instantiated_sides;
 };
 
 
