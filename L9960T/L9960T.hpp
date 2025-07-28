@@ -65,7 +65,7 @@ class L9960T : public MCInterface{
 		uint16_t _status_regs[3] = {0};
 		uint16_t __powerPWM;
 		uint8_t __InitMessageID;
-		L9660_SCS_t _L9660_SCS[20] = {0};
+		L9660_SCS_t _L9660_SCS[25] = {0};
 		bool __inverted_pwm;
 		bool __use_sw_pwm;
 		bool __linerize_change;

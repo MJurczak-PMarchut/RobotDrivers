@@ -240,7 +240,7 @@ HAL_StatusTypeDef L9960T::SetMotorPower(float Power)
 		int16_t space_diff = 0;
 		uint16_t current_power_space = 0;
 		uint16_t set_power_space = 0;
-		MotorDirectionTypeDef current_dir = MOTOR_DIR_BACKWARD;
+		MotorDirectionTypeDef current_dir = __motorDir;
 		MotorDirectionTypeDef expected_dir = (Power>0)? MOTOR_DIR_FORWARD :
 					(Power == 0)? __motorDir : MOTOR_DIR_BACKWARD;
 		float _power = (Power > 1)? 1:
@@ -269,13 +269,23 @@ HAL_StatusTypeDef L9960T::SetMotorPower(float Power)
 			// translate to scs
 			if(current_power_space < 999){
 				// Move backward
-				current_dir = MOTOR_DIR_BACKWARD;
+				if(current_dir != MOTOR_DIR_BACKWARD){
+					current_dir = MOTOR_DIR_BACKWARD;
+					_L9660_SCS[SCS_index].dir = current_dir;
+					_L9660_SCS[SCS_index].power = 0;
+					SCS_index++;
+				}
 				_L9660_SCS[SCS_index].dir = current_dir;
 				_L9660_SCS[SCS_index].power = 999 - current_power_space;
 			}
 			else if(current_power_space > 999){
 				// Move forward
-				current_dir = MOTOR_DIR_FORWARD;
+				if(current_dir != MOTOR_DIR_FORWARD){
+					current_dir = MOTOR_DIR_FORWARD;
+					_L9660_SCS[SCS_index].dir = current_dir;
+					_L9660_SCS[SCS_index].power = 0;
+					SCS_index++;
+				}
 				_L9660_SCS[SCS_index].dir = current_dir;
 				_L9660_SCS[SCS_index].power = current_power_space - 999;
 			}
