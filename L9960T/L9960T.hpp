@@ -46,6 +46,7 @@ class L9960T : public MCInterface{
 	private:
 		void __delay_ms(uint32_t TimeMs);
 		void __delay_us(uint32_t TimeUs);
+		void __PrepareSCS(float Power);
 		SPI_HandleTypeDef *__hspi;
 		CommManager *__CommunicationManager;
 		uint16_t __CS_Pin;
