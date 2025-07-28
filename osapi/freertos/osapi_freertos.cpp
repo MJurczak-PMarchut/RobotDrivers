@@ -30,6 +30,16 @@ void Thread::threadFunction(void* argument) {
     vTaskDelete(NULL); // this is required in FreeRTOS to make sure that the thread does not just simply return
 }
 
+int Thread::forceKill(void)
+{
+	if(__taskHandle != 0){
+		vTaskDelete(__taskHandle);
+		__taskHandle = 0;
+		return 0;
+	}
+	return 255;
+}
+
 Thread::~Thread() 
 {
     if(this->isJoinable()){

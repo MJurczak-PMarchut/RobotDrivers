@@ -18,10 +18,9 @@
 //	BRAKE = 0b01
 //}TLE5205_STATE_TypeDef;
 
-TLE5205::TLE5205(MotorSideTypeDef side, TIM_HandleTypeDef *htim, uint32_t Channel)
+TLE5205::TLE5205(MotorSideTypeDef side, TIM_HandleTypeDef *htim, uint32_t Channel): MCInterface(side)
 {
 	__htim = htim;
-	__side = side;
 	__Dir = MOTOR_DIR_FORWARD;
 	__PowerPWM = 0;
 	__IN1_STATE = (GPIO_PinState)(FREEWHELING & 0x1);

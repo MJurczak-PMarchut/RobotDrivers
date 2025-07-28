@@ -11,12 +11,32 @@ uint8_t MCInterface::__Instantiated_sides = 0;
 MCInterface*  MCInterface::_MCInterfacePointers[2] = {0};
 uint8_t MCInterface::NoOfControllers = 0;
 
-MCInterface::MCInterface()
+MCInterface::MCInterface(MotorSideTypeDef side):  __side{side}
 {
-	_MCInterfacePointers[NoOfControllers] = this;
+	_MCInterfacePointers[side] = this;
 	NoOfControllers++;
 }
 
+HAL_StatusTypeDef MCInterface::SetMotorPower(float Power)
+{
+	uint8_t ret = HAL_OK;
+	MotorDirectionTypeDef dir = (Power>0)? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD;
+	float _power = (Power > 1)? 1:
+			(Power < -1)? -1:
+			(Power < 0)?  -Power: Power;
+	uint16_t _PWM = _power * 999;
+	ret |= this->SetMotorDirection(dir);
+	ret |= this->SetMotorPowerPWM(_PWM);
+	return (HAL_StatusTypeDef)ret;
+}
+
+HAL_StatusTypeDef MCInterface::SetMotorsPower(float PowerL, float PowerR)
+{
+	uint8_t ret = HAL_OK;
+	ret |= _MCInterfacePointers[MOTOR_LEFT]->SetMotorPower(PowerL);
+	ret |= _MCInterfacePointers[MOTOR_RIGHT]->SetMotorPower(PowerR);
+	return (HAL_StatusTypeDef)ret;
+}
 
 #ifdef USES_RTOS
 
@@ -26,6 +46,10 @@ bool MCInterface::_isRunning = false;
 void MCInterface::run(void)
 {
 	BaseType_t xReturned;
+	if(_isRunning)
+	{
+		return;
+	}
 	if(NoOfControllers > 0)
 	{
 		xReturned = xTaskCreate(MCInterface::_check_state,

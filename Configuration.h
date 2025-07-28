@@ -65,7 +65,7 @@
 
 //#define ROBOT_IS_FIDOL
 //#define ROBOT_IS_TOMISLAW
-
+//#define ROBOT_MT_V2
 
 
 

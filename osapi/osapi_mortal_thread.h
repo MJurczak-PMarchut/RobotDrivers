@@ -14,6 +14,12 @@ class MortalThread : public Thread
       ;
     }
 
+    bool run()
+    {
+    	InitCompleted = false;
+    	return Thread::run();
+    }
+
     /** Sends termination signal to the thread. */
     void kill() {
         this->killSignal = 1;
