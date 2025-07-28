@@ -290,8 +290,8 @@ HAL_StatusTypeDef L9960T::SetMotorPower(float Power)
 				_L9660_SCS[SCS_index].power = current_power_space - 999;
 			}
 			else if(current_power_space == 999){
-				// PWM to 0, no dir change
-				_L9660_SCS[SCS_index].dir = current_dir;
+				// PWM to 0, dir to expected
+				_L9660_SCS[SCS_index].dir = expected_dir;
 				_L9660_SCS[SCS_index].power = 0;
 			}
 			SCS_index++;
