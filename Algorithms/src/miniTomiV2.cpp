@@ -18,6 +18,8 @@
 #define FULL_SPEED 0.6
 #define MANOUVER_SPEED 0.35
 
+#define LED2_ON HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET)
+#define LED2_OFF HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET)
 
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
@@ -198,7 +200,7 @@ void Robot::loop(void)
 			//Check where we crossed the line
 			bool left = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin);
 			bool right = !HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
-			HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+			LED2_ON;
 			MCInterface::SetMotorsPower(0, 0);
 			vTaskDelay(10);
 			if(left || right)
@@ -209,7 +211,7 @@ void Robot::loop(void)
 				MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
 				vTaskDelay(100);
 				eFSM_state = FIGHT;
-				HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+				LED2_OFF;
 			}
 		}
 		break;
