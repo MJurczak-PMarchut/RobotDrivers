@@ -18,7 +18,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	__inverted_pwm{inverted_pwm},
 	__use_sw_pwm{use_sw_pwm},
 	__linerize_change(linerize_change),
-	SCS_index{0},
+	SCS_index{-1},
 	_StatusSemaphore{NULL}
 {
 	__InitMessageID = 0;
