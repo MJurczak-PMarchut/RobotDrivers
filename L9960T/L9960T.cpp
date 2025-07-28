@@ -246,21 +246,25 @@ HAL_StatusTypeDef L9960T::SetMotorPower(float Power)
 		float _power = (Power > 1)? 1:
 				(Power < -1)? -1:
 				(Power < 0)?  -Power: Power;
+		uint16_t _PWM = _power * 999;
 		//Prepare sequence
 		SCS_index = 0; //
 		current_power_space = (__motorDir == MOTOR_DIR_FORWARD)? 999 + __powerPWM : 999 - __powerPWM;
-		set_power_space = (expected_dir == MOTOR_DIR_FORWARD)? 999 + _power : 999 - _power;
+		set_power_space = (expected_dir == MOTOR_DIR_FORWARD)? 999 + _PWM : 999 - _PWM;
 		int8_t sign = ((current_power_space - set_power_space) > 0)? 1 : -1;
 		while(current_power_space != set_power_space)
 		{
 			space_diff = current_power_space - set_power_space;
 			space_diff = (space_diff > 0)? space_diff : -space_diff;
 			// move closer to set space
-			if(space_diff < 200){
+			if(space_diff < 150){
 				current_power_space = set_power_space;
 			}
 			else{
-				current_power_space = current_power_space - (sign*200);
+				current_power_space = current_power_space - (sign * 100);
+			}
+			if(current_power_space > 1998){
+				current_power_space = set_power_space;
 			}
 			// translate to scs
 			if(current_power_space < 999){
