@@ -20,15 +20,19 @@
 
 typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CURRENT_RANGE_3 = 3} L9960T_CurrentRange;
 
-
+typedef struct {
+	uint16_t power;
+	MotorDirectionTypeDef dir;
+} L9660_SCS_t;
 
 class L9960T : public MCInterface{
 	public:
 		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,
 				CommManager *CommunicationManager, uint32_t Channel,
-				TIM_HandleTypeDef *htim, bool inverted_pwm=false, bool use_sw_pwm=false);
+				TIM_HandleTypeDef *htim, bool inverted_pwm=false, bool use_sw_pwm=false, bool linerize_change=true);
 		HAL_StatusTypeDef AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint32_t Channel);
 		HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM);
+		HAL_StatusTypeDef SetMotorPower(float Power);
 		HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir);
 		HAL_StatusTypeDef SetMaxCurrent(L9960T_CurrentRange CurrentRange);
 		HAL_StatusTypeDef Disable(void);
@@ -60,10 +64,12 @@ class L9960T : public MCInterface{
 		uint8_t pTxData[2];
 		uint16_t _status_regs[3] = {0};
 		uint16_t __powerPWM;
-		MotorDirectionTypeDef  __motorDir;
 		uint8_t __InitMessageID;
+		L9660_SCS_t _L9660_SCS[20];
 		bool __inverted_pwm;
 		bool __use_sw_pwm;
+		bool __linerize_change;
+		int8_t SCS_index;
 
 #ifdef USES_RTOS
 public:

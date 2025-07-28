@@ -32,7 +32,7 @@ class MCInterface{
 		MCInterface(MotorSideTypeDef side);
 		~MCInterface(){};
 		static HAL_StatusTypeDef SetMotorsPower(float PowerL, float PowerR);
-		HAL_StatusTypeDef SetMotorPower(float Power);
+		virtual HAL_StatusTypeDef SetMotorPower(float Power);
 		virtual HAL_StatusTypeDef SetMotorPowerPWM(uint16_t PowerPWM) = 0;
 		virtual HAL_StatusTypeDef SetMotorDirection(MotorDirectionTypeDef Dir) = 0;
 		virtual HAL_StatusTypeDef Disable(void) = 0;
@@ -46,6 +46,7 @@ class MCInterface{
 		static uint8_t NoOfControllers;
 		static uint8_t __Instantiated_sides;
 		MotorSideTypeDef __side;
+		MotorDirectionTypeDef  __motorDir;
 	private:
 		static bool _isRunning;
 		static void _check_state(void* pvParam);

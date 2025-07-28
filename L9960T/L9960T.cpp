@@ -8,7 +8,7 @@
 #include "L9960T.hpp"
 
 
-L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim, bool inverted_pwm, bool use_sw_pwm):
+L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim, bool inverted_pwm, bool use_sw_pwm, bool linerize_change):
 	MCInterface(side),
 	__hspi{hspi},
 	__CommunicationManager{CommunicationManager},
@@ -17,6 +17,8 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	__Channel{Channel},
 	__inverted_pwm{inverted_pwm},
 	__use_sw_pwm{use_sw_pwm},
+	__linerize_change(linerize_change),
+	SCS_index{0},
 	_StatusSemaphore{NULL}
 {
 	__InitMessageID = 0;
@@ -231,6 +233,63 @@ HAL_StatusTypeDef L9960T::AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint
 	return HAL_OK;
 }
 
+HAL_StatusTypeDef L9960T::SetMotorPower(float Power)
+{
+	if(__linerize_change)
+	{
+		int16_t space_diff = 0;
+		uint16_t current_power_space = 0;
+		uint16_t set_power_space = 0;
+		MotorDirectionTypeDef current_dir = MOTOR_DIR_BACKWARD;
+		MotorDirectionTypeDef expected_dir = (Power>0)? MOTOR_DIR_FORWARD :
+					(Power == 0)? __motorDir : MOTOR_DIR_BACKWARD;
+		float _power = (Power > 1)? 1:
+				(Power < -1)? -1:
+				(Power < 0)?  -Power: Power;
+		//Prepare sequence
+		SCS_index = 0; //
+		current_power_space = (__motorDir == MOTOR_DIR_FORWARD)? 999 + __powerPWM : 999 - __powerPWM;
+		set_power_space = (expected_dir == MOTOR_DIR_FORWARD)? 999 + _power : 999 - _power;
+		int8_t sign = ((current_power_space - set_power_space) > 0)? 1 : -1;
+		while(current_power_space != set_power_space)
+		{
+			space_diff = current_power_space - set_power_space;
+			space_diff = (space_diff > 0)? space_diff : -space_diff;
+			// move closer to set space
+			if(space_diff < 200){
+				current_power_space = set_power_space;
+			}
+			else{
+				current_power_space = current_power_space - (sign*200);
+			}
+			// translate to scs
+			if(current_power_space < 999){
+				// Move backward
+				current_dir = MOTOR_DIR_BACKWARD;
+				_L9660_SCS[SCS_index].dir = current_dir;
+				_L9660_SCS[SCS_index].power = 999 - current_power_space;
+			}
+			else if(current_power_space > 999){
+				// Move forward
+				current_dir = MOTOR_DIR_FORWARD;
+				_L9660_SCS[SCS_index].dir = current_dir;
+				_L9660_SCS[SCS_index].power = current_power_space - 999;
+			}
+			else if(current_power_space == 999){
+				// PWM to 0, no dir change
+				_L9660_SCS[SCS_index].dir = current_dir;
+				_L9660_SCS[SCS_index].power = 0;
+			}
+			SCS_index++;
+		}
+		return HAL_OK;
+	}
+	else{
+		return MCInterface::SetMotorPower(Power);
+	}
+}
+
+
 HAL_StatusTypeDef L9960T::SetMotorPowerPWM(uint16_t PowerPWM)
 {
 	__powerPWM = PowerPWM;
@@ -310,6 +369,12 @@ void L9960T::SoftPWMCB_pulse()
 
 void L9960T::SoftPWMCB_period()
 {
+	if(__linerize_change & (SCS_index > 0))
+	{
+		SCS_index--;
+		SetMotorPowerPWM(_L9660_SCS[SCS_index].power);
+		SetMotorDirection(_L9660_SCS[SCS_index].dir);
+	}
 	__IN1_PWM_PORT->BSRR = (uint32_t)__IN1_PWM_PIN << 16;
 }
 

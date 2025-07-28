@@ -20,7 +20,8 @@ MCInterface::MCInterface(MotorSideTypeDef side):  __side{side}
 HAL_StatusTypeDef MCInterface::SetMotorPower(float Power)
 {
 	uint8_t ret = HAL_OK;
-	MotorDirectionTypeDef dir = (Power>0)? MOTOR_DIR_FORWARD : MOTOR_DIR_BACKWARD;
+	MotorDirectionTypeDef dir = (Power>0)? MOTOR_DIR_FORWARD :
+			(Power == 0)? __motorDir : MOTOR_DIR_BACKWARD;
 	float _power = (Power > 1)? 1:
 			(Power < -1)? -1:
 			(Power < 0)?  -Power: Power;
