@@ -22,7 +22,7 @@ typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CUR
 
 
 
-class L9960T : protected MCInterface{
+class L9960T : public MCInterface{
 	public:
 		L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi,
 				CommManager *CommunicationManager, uint32_t Channel,
@@ -41,7 +41,7 @@ class L9960T : protected MCInterface{
 		void Init(MessageInfoTypeDef<SPI>* MsgInfo);
 	private:
 		void __delay_ms(uint32_t TimeMs);
-		MotorSideTypeDef __side;
+		void __delay_us(uint32_t TimeUs);
 		SPI_HandleTypeDef *__hspi;
 		CommManager *__CommunicationManager;
 		uint16_t __CS_Pin;
@@ -59,6 +59,8 @@ class L9960T : protected MCInterface{
 		uint8_t pRxData[2];
 		uint8_t pTxData[2];
 		uint16_t _status_regs[3] = {0};
+		uint16_t __powerPWM;
+		MotorDirectionTypeDef  __motorDir;
 		uint8_t __InitMessageID;
 		bool __inverted_pwm;
 		bool __use_sw_pwm;

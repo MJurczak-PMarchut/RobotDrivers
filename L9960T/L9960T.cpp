@@ -9,7 +9,7 @@
 
 
 L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *CommunicationManager, uint32_t Channel, TIM_HandleTypeDef *htim, bool inverted_pwm, bool use_sw_pwm):
-	__side{side},
+	MCInterface(side),
 	__hspi{hspi},
 	__CommunicationManager{CommunicationManager},
 	_prev_context{0},
@@ -233,6 +233,7 @@ HAL_StatusTypeDef L9960T::AttachPWMTimerAndChannel(TIM_HandleTypeDef *htim, uint
 
 HAL_StatusTypeDef L9960T::SetMotorPowerPWM(uint16_t PowerPWM)
 {
+	__powerPWM = PowerPWM;
 	if(((1 << this->__side) << MOTOR_NDIS_OFFSET) & this->__Instantiated_sides)
 	{
 		return HAL_ERROR;
@@ -249,6 +250,7 @@ HAL_StatusTypeDef L9960T::SetMotorDirection(MotorDirectionTypeDef Dir)
 {
 
 	GPIO_PinState Pin_STATE;
+	__motorDir = Dir;
 	if((Dir == MOTOR_DIR_FORWARD) || (Dir == MOTOR_DIR_BACKWARD))
 	{
 		Pin_STATE = (GPIO_PinState)(((GPIO_PinState)Dir ^ __Direction) & 0x01); //Do xor and take last bit
@@ -303,12 +305,12 @@ HAL_StatusTypeDef L9960T::StartPWM(void)
 
 void L9960T::SoftPWMCB_pulse()
 {
-	__IN1_PWM_PORT->BSRR = (uint32_t)__IN1_PWM_PIN << 16;
+	__IN1_PWM_PORT->BSRR = __IN1_PWM_PIN;
 }
 
 void L9960T::SoftPWMCB_period()
 {
-	__IN1_PWM_PORT->BSRR = __IN1_PWM_PIN;
+	__IN1_PWM_PORT->BSRR = (uint32_t)__IN1_PWM_PIN << 16;
 }
 
 #ifdef USES_RTOS
@@ -378,7 +380,23 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
  * Handle errors here, but remember that reading the faults clears them if bit @DIAG_CLR_OFFSET is set to 1
  */
 
+	if(~_status_regs[0] & (1<<9))
+	{
+		// bridge disabled ?
+		if(((1 << this->__side) << MOTOR_NDIS_OFFSET) & this->__Instantiated_sides)
+		{
+			//disabled correctly
+		}
+		else
+		{
+			//error
+			this->Disable();
+			this->Enable();
+			this->SetMotorPowerPWM(__powerPWM);
 
+		}
+
+	}
 	return HAL_OK; //dummy
 }
 
@@ -387,10 +405,10 @@ void L9960T::_ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo)
 	xSemaphoreGiveFromISR(this->_StatusSemaphore, NULL);
 	if(((MsgInfo->context & 0xFF) >> CONTEXT_OFFSET) == STATUS_CHECK_CONTEXT) //redundant check
 	{
-		if((this->_status_regs[MsgInfo->context >> 8] >> ADDRESS_OFFSET) != STATUS_REQUEST_ADDR){
-			//this is different msg, can not be handled here
-			return;
-		}
+//		if((this->_status_regs[MsgInfo->context >> 8] >> ADDRESS_OFFSET) != STATUS_REQUEST_ADDR){
+//			//this is different msg, can not be handled here
+//			return;
+//		}
 	}
 	//we can handle this message here
 	switch((this->_prev_context >> CONTEXT_OFFSET) & 0xF)
@@ -422,6 +440,26 @@ void L9960T::_ControllerStateCB(MessageInfoTypeDef<SPI>* MsgInfo)
 }
 
 #endif
+
+void L9960T::__delay_us(uint32_t TimeUs)
+{
+	uint32_t actWaitCNT = 0;
+	TimeUs = TimeUs + 1;
+	if(TimeUs > 998)
+	{
+		return;  //wrong value
+	}
+	if (this->__htim->Instance->CNT + TimeUs > 999)
+	{
+		actWaitCNT = TimeUs - (999 - this->__htim->Instance->CNT);
+	}
+	else
+	{
+		actWaitCNT = this->__htim->Instance->CNT + TimeUs;
+	}
+	while(this->__htim->Instance->CNT != actWaitCNT)
+	{}
+}
 
 void L9960T::__delay_ms(uint32_t TimeMs)
 {

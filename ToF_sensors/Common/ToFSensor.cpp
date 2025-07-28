@@ -10,7 +10,7 @@
 #ifndef USES_RTOS
 #error("RTOS is needed for current implementation of Tof Sensor drivers")
 #else
-#define NO_OF_WORKERS 2
+#define NO_OF_WORKERS 1
 #endif
 
 
@@ -98,6 +98,14 @@ void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 				SensorObj->GetRangingData();
 			}
 		}
+	}
+}
+
+void ToF_Sensor::KillSensors(void){
+	if(Thread.isRunning())
+	{
+		InitCompleted= false;
+		Thread.forceKill();
 	}
 }
 

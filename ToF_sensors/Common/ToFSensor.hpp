@@ -8,7 +8,7 @@
 #ifndef TOF_SENSORS_COMMON_TOFSENSOR_HPP_
 #define TOF_SENSORS_COMMON_TOFSENSOR_HPP_
 
-#define TOF_EVENT_MASK  ((1<<ToF_Sensor::GetNoOfSensors())-1)
+#define TOF_EVENT_MASK  (EventBits_t)((1<<ToF_Sensor::GetNoOfSensors())-1)
 
 #include "CommManager.hpp"
 #include "Configuration.h"
@@ -17,7 +17,7 @@
 
 typedef enum  {vl53l5, vl53l1}e_ToF_Type;
 
-typedef enum  {FRONT_LEFT=2, FRONT_RIGHT, FRONT}e_ToF_Position;
+typedef enum  {FRONT_LEFT=2, FRONT_RIGHT, FRONT, BACK}e_ToF_Position;
 typedef enum {
 	TOF_STATE_OK = 0,
 	TOF_INIT_NOT_DONE,
@@ -50,6 +50,7 @@ public:
 	static ToF_Sensor* GetSensorPointer(uint8_t);
 	static void EXTI_Callback_func(uint16_t pin);
 	static void StartSensorTask(void);
+	static void KillSensors(void);
 	static const EventGroupHandle_t GetEventHandle(void);
 	virtual ~ToF_Sensor();
 	static void RunSensorCheck(void);

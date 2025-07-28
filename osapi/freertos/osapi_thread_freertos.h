@@ -69,6 +69,11 @@ class Thread : public ThreadInterface
          *  @return name of the thread
          */
         virtual const char* getName();
+
+        /** Deletes the thread if not null
+		 *  @return 0 if success
+		 */
+        virtual int forceKill();
     
     protected:
         
