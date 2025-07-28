@@ -44,6 +44,7 @@ struct MessageInfoTypeDef{
 	uint8_t *pTxData;
 	uint16_t I2C_Addr;
 	uint16_t I2C_MemAddr;
+	uint8_t spi_cpol_high;
 	std::function<void(MessageInfoTypeDef* MsgInfo)> *pCB;
 	void (*pRxCompletedCB)(MessageInfoTypeDef* MsgInfo);
 	void (*pTxCompletedCB)(MessageInfoTypeDef* MsgInfo);

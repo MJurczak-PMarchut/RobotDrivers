@@ -10,6 +10,7 @@
 #include "L9960T.hpp"
 #include "DirtyLogger.hpp"
 #include <string>
+#include "lsm6dso.hpp"
 
 #define INIT_TIMEOUT_MS  3000
 
@@ -31,6 +32,9 @@ uint16_t sens;
 static  L9960T MOTOR_CONTROLLERS[] = {
 		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true),
 		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true)};
+
+
+static LSM6DSO IMU = LSM6DSO(&MainCommManager, &hspi2);
 
 static VL53L1X Sensors[] = {
 		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
@@ -57,6 +61,7 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 {
 }
 
+
 void Robot::begin(void)
 {
 	was_running = true;
@@ -65,7 +70,16 @@ void Robot::begin(void)
 	//Enable power
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(NCS1_GPIO_Port, NCS1_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
+	IMU.Init();
+	HAL_Delay(100);
+	IMU.StartCalibrationOrientation();
+	HAL_Delay(150);
+	IMU.CalibrateOrientation();
+
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(200);
 	ToF_Sensor::StartSensorTask();
@@ -243,6 +257,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		if(GPIO_Pin == TOF_INT5_Pin){
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
+	}
+	if(GPIO_Pin == IMU_INT1_Pin){
+		IMU.InterruptCallback(GPIO_Pin);
 	}
 	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
 }
