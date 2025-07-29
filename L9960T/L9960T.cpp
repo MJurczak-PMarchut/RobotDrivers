@@ -252,6 +252,13 @@ void L9960T::__PrepareSCS(float Power)
 	int8_t sign = ((current_power_space - set_power_space) > 0)? 1 : -1;
 	while(current_power_space != set_power_space)
 	{
+		if(SCS_index > 20){
+			//Too many steps
+			_L9660_SCS[SCS_index].dir = expected_dir;
+			_L9660_SCS[SCS_index].power = _PWM;
+			SCS_index++;
+			break;
+		}
 		space_diff = current_power_space - set_power_space;
 		space_diff = (space_diff > 0)? space_diff : -space_diff;
 		// move closer to set space
@@ -289,7 +296,8 @@ void L9960T::__PrepareSCS(float Power)
 		}
 		else if(current_power_space == 999){
 			// PWM to 0, dir to expected
-			_L9660_SCS[SCS_index].dir = expected_dir;
+			current_dir = expected_dir;
+			_L9660_SCS[SCS_index].dir = current_dir;
 			_L9660_SCS[SCS_index].power = 0;
 		}
 		SCS_index++;
@@ -300,7 +308,9 @@ HAL_StatusTypeDef L9960T::SetMotorPower(float Power)
 {
 	if(__linerize_change)
 	{
+		__linerize_change = false;
 		__PrepareSCS(Power);
+		__linerize_change = true;
 		return HAL_OK;
 	}
 	else{
