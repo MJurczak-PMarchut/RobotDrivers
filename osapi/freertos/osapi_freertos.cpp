@@ -48,9 +48,12 @@ Thread::~Thread()
 }
 bool Thread::isRunning() 
 {
-    return 	(__taskHandle == 0)? false :
-    		(eTaskGetState(this->__taskHandle) == eReady)? true :
-			(eTaskGetState(this->__taskHandle) == eRunning)? true: false;
+	if(__taskHandle == 0)
+		return false;
+	eTaskState eState = eTaskGetState(this->__taskHandle);
+	if (eState == eReady || eState == eRunning)
+		return true;
+	return false;
 }
 
 bool Thread::join(unsigned int timeout) 

@@ -12,7 +12,7 @@
 #include <string>
 #include "lsm6dso.hpp"
 
-#define INIT_TIMEOUT_MS  3000
+#define INIT_TIMEOUT_MS  60000
 
 
 #define DETECTION_DISTANCE 200
@@ -68,6 +68,7 @@ void Robot::begin(void)
 {
 	was_running = true;
 	flash_period_ms = 100;
+	HAL_StatusTypeDef imuret;
 //	logger.Init();
 	//Enable power
 	//Enable power
@@ -76,12 +77,12 @@ void Robot::begin(void)
 	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
-	IMU.Init();
+	imuret = IMU.Init();
 	HAL_Delay(100);
 	IMU.StartCalibrationOrientation();
 	HAL_Delay(150);
 	IMU.CalibrateOrientation();
-
+	while(1){}
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(200);
 	ToF_Sensor::StartSensorTask();
@@ -247,7 +248,7 @@ void Robot::end(void)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
+//	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
 	if(ToF_Sensor::CheckInitializationCplt()){
 		if (GPIO_Pin == TOF_INT4_Pin)
 		{
@@ -263,7 +264,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	if(GPIO_Pin == IMU_INT1_Pin){
 		IMU.InterruptCallback(GPIO_Pin);
 	}
-	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
+//	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
@@ -292,21 +293,23 @@ void Robot::PeriodicCheckCall(void)
 	}
 	if(!isInitCompleted())
 	{
-		if(!this->isRunning() && was_running)
+		if((xTaskGetTickCount() - start_tick) > INIT_TIMEOUT_MS)
 		{
-			this->run();
-		}
-		else if((xTaskGetTickCount() - start_tick) > INIT_TIMEOUT_MS)
-		{
-			if(reset_counter >= 1)
+			if(!this->isRunning() && was_running)
 			{
-				NVIC_SystemReset();
+				this->run();
 			}
-			reset_counter++;
-			this->forceKill();
-			ToF_Sensor::KillSensors();
-			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-			start_tick = xTaskGetTickCount();
+			else{
+				if(reset_counter >= 1)
+				{
+					NVIC_SystemReset();
+				}
+				reset_counter++;
+				this->forceKill();
+				ToF_Sensor::KillSensors();
+				HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+				start_tick = xTaskGetTickCount();
+			}
 		}
 
 	}
