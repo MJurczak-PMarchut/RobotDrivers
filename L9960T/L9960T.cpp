@@ -19,6 +19,7 @@ L9960T::L9960T(MotorSideTypeDef side, SPI_HandleTypeDef *hspi, CommManager *Comm
 	__use_sw_pwm{use_sw_pwm},
 	__linerize_change(linerize_change),
 	SCS_index{-1},
+	current_SCS_index{-1},
 	_StatusSemaphore{NULL}
 {
 	__InitMessageID = 0;
@@ -80,6 +81,7 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 	uint16_t Message, Comp_message;
 	static uint16_t retry_count = 0;
 	MessageInfoTypeDef<SPI> MsgInfoToSend = {0};
+	MsgInfoToSend.spi_cpol_high = 0;
 	MsgInfoToSend.GPIO_PIN = this->__CS_Pin;
 	MsgInfoToSend.GPIOx = this->__CS_Port;
 	MsgInfoToSend.context = (1 << this->__side) |
@@ -189,7 +191,7 @@ void L9960T::Init(MessageInfoTypeDef<SPI>* MsgInfo)
 #ifndef USES_RTOS
 			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
 #else
-			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (1 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
+			Message = (RESET_TRIGGER_CONF_ADDR << ADDRESS_OFFSET) | (0 << RESET_TRIGGER_CONF_CC_CONFIG_SHIFT);
 #endif
 			Message |= (~__builtin_parity(Message) & 1);
 			MsgInfoToSend.context = (1 << this->__side) |
@@ -252,7 +254,7 @@ void L9960T::__PrepareSCS(float Power)
 	int8_t sign = ((current_power_space - set_power_space) > 0)? 1 : -1;
 	while(current_power_space != set_power_space)
 	{
-		if(SCS_index > 20){
+		if(SCS_index >= MAX_SCS_NO){
 			//Too many steps
 			_L9660_SCS[SCS_index].dir = expected_dir;
 			_L9660_SCS[SCS_index].power = _PWM;
@@ -302,6 +304,7 @@ void L9960T::__PrepareSCS(float Power)
 		}
 		SCS_index++;
 	}
+	current_SCS_index = 0;
 }
 
 HAL_StatusTypeDef L9960T::SetMotorPower(float Power)
@@ -398,11 +401,16 @@ void L9960T::SoftPWMCB_pulse()
 
 void L9960T::SoftPWMCB_period()
 {
-	if(__linerize_change & (SCS_index > 0))
+	if(__linerize_change && (SCS_index > 0) && (current_SCS_index < SCS_index) && (current_SCS_index >= 0))
 	{
-		SCS_index--;
-		SetMotorPowerPWM(_L9660_SCS[SCS_index].power);
-		SetMotorDirection(_L9660_SCS[SCS_index].dir);
+		SetMotorPowerPWM(_L9660_SCS[current_SCS_index].power);
+		SetMotorDirection(_L9660_SCS[current_SCS_index].dir);
+		current_SCS_index++;
+		if(current_SCS_index >= SCS_index)
+		{
+			SCS_index = -1;
+			current_SCS_index = -1;
+		}
 	}
 	__IN1_PWM_PORT->BSRR = (uint32_t)__IN1_PWM_PIN << 16;
 }
@@ -474,7 +482,7 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
  * Handle errors here, but remember that reading the faults clears them if bit @DIAG_CLR_OFFSET is set to 1
  */
 
-	if(~_status_regs[0] & (1<<9))
+	if((_status_regs[0] & (1<<9)) == 0)
 	{
 		// bridge disabled ?
 		if(((1 << this->__side) << MOTOR_NDIS_OFFSET) & this->__Instantiated_sides)
@@ -484,10 +492,9 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 		else
 		{
 			//error
-			this->Disable();
-			this->Enable();
-			this->SetMotorPowerPWM(__powerPWM);
-
+//			this->Disable();
+//			this->Enable();
+//			this->SetMotorPowerPWM(__powerPWM);
 		}
 
 	}

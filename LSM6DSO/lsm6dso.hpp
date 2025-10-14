@@ -22,8 +22,10 @@ public:
 	void InterruptCallback(uint16_t InterruptPin);
 	void StartCalibrationOrientation(void);
 	void CalibrateOrientation(void);
+	void ResetAngularOrientation(void);
 	HAL_StatusTypeDef IsInitCompleted(void);
 	void GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
+	double GetAngularOrientationForAxis(uint8_t axis);
 protected:
 	void GetGyData(void);
 private:

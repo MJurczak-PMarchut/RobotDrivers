@@ -228,6 +228,13 @@ void LSM6DSO::CalibrateOrientation(void)
 	}
 }
 
+void LSM6DSO::ResetAngularOrientation(void)
+{
+	for(uint8_t plane=0; plane < 3; plane++){
+		this->angular_orientation[plane] = 0;
+	}
+}
+
 HAL_StatusTypeDef LSM6DSO::IsInitCompleted(void)
 {
 	return (this->__init_completed)? HAL_OK : HAL_ERROR;
@@ -244,4 +251,11 @@ void LSM6DSO::InterruptCallback(uint16_t InterruptPin){
 	}
 }
 
+double LSM6DSO::GetAngularOrientationForAxis(uint8_t axis)
+{
+	if(axis < 3)
+		return angular_orientation[axis];
+	else
+		return NAN;
+}
 

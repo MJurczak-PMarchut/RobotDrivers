@@ -29,15 +29,19 @@ HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_Handl
 		return ret;
 	}
 	// check if cpol change needed
-	if(MsgInfo->spi_cpol_high != 0)
+	if(MsgInfo->spi_cpol_high != this->cpol_high)
 	{
 		//disable spi
 		__HAL_SPI_DISABLE(MsgInfo->IntHandle);
 		// chsnge cpol
-		SET_BIT(MsgInfo->IntHandle->Instance->CFG2, SPI_POLARITY_HIGH);
+		if(MsgInfo->spi_cpol_high)
+			SET_BIT(MsgInfo->IntHandle->Instance->CFG2, SPI_POLARITY_HIGH);
+		else
+			CLEAR_BIT(MsgInfo->IntHandle->Instance->CFG2, SPI_POLARITY_HIGH);
 		// enable spi
 		__HAL_SPI_ENABLE(MsgInfo->IntHandle);
 	}
+	this->cpol_high = MsgInfo->spi_cpol_high;
 	if(_commType != COMM_DUMMY)
 	{
 		__CheckAndSetCSPinsGeneric(MsgInfo);
@@ -128,18 +132,9 @@ HAL_StatusTypeDef CommSPI::MsgReceivedCB(SPI_HandleTypeDef *hint)
 {
 	HAL_StatusTypeDef ret;
 	MessageInfoTypeDef<SPI_HandleTypeDef> MsgInfo ={0};
-	xQueuePeekFromISR(_MsgQueue, &MsgInfo);
+//	xQueuePeekFromISR(_MsgQueue, &MsgInfo);
 	// check if cpol change needed
 	ret = CommBaseClass::MsgReceivedCB(hint);
-	if(MsgInfo.spi_cpol_high != 0)
-	{
-		//disable spi
-		__HAL_SPI_DISABLE(MsgInfo.IntHandle);
-		// chsnge cpol
-		CLEAR_BIT(MsgInfo.IntHandle->Instance->CFG2, SPI_POLARITY_HIGH);
-		// enable spi
-		__HAL_SPI_ENABLE(MsgInfo.IntHandle);
-	}
 	return ret;
 }
 

@@ -81,7 +81,7 @@ void MCInterface::_check_state(void* pvParam)
 			}
 		}
 		if(ommit_delay == 0){
-			vTaskDelay(50);
+			vTaskDelay(10);
 		}
 		call_count++;
 	}

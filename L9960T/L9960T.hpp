@@ -17,6 +17,7 @@
 
 #define INIT_SEQUENCE_CONTEXT 3
 #define STATUS_CHECK_CONTEXT 6
+#define MAX_SCS_NO  35
 
 typedef enum {CURRENT_RANGE_0 = 0, CURRENT_RANGE_1 = 1, CURRENT_RANGE_2 = 2, CURRENT_RANGE_3 = 3} L9960T_CurrentRange;
 
@@ -66,11 +67,12 @@ class L9960T : public MCInterface{
 		uint16_t _status_regs[3] = {0};
 		uint16_t __powerPWM;
 		uint8_t __InitMessageID;
-		L9660_SCS_t _L9660_SCS[25] = {0};
+		L9660_SCS_t _L9660_SCS[MAX_SCS_NO + 5] = {0};
 		bool __inverted_pwm;
 		bool __use_sw_pwm;
 		bool __linerize_change;
 		int8_t SCS_index;
+		int8_t current_SCS_index;
 
 #ifdef USES_RTOS
 public:

@@ -19,8 +19,8 @@ public:
 protected:
 	virtual HAL_StatusTypeDef __CheckIfInterfaceFree(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo);
 	virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo);
-
-
+private:
+	uint8_t cpol_high = 0;
 };
 
 
