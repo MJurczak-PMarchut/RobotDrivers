@@ -26,6 +26,7 @@ HAL_StatusTypeDef MCInterface::SetMotorPower(float Power)
 			(Power < -1)? -1:
 			(Power < 0)?  -Power: Power;
 	uint16_t _PWM = _power * 999;
+	_PWM = (_PWM > 999)? 999:_PWM;
 	ret |= this->SetMotorDirection(dir);
 	ret |= this->SetMotorPowerPWM(_PWM);
 	return (HAL_StatusTypeDef)ret;

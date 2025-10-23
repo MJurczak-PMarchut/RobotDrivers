@@ -15,13 +15,14 @@
 #define INIT_TIMEOUT_MS  6000
 
 
-#define DETECTION_DISTANCE 250
+#define DETECTION_DISTANCE 350
 #define FULL_SPEED 0.85
 #define MANOUVER_SPEED 0.65
 
 #define SEARCH_STRATEGY_CHANGE_TIME  3000
 #define ROTATION_TIMEOUT 150
 
+#define MAX_SIG_PER_SPAD	8000
 
 #define LED2_ON HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET)
 #define LED2_OFF HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET)
@@ -49,6 +50,7 @@ static VL53L1X Sensors[] = {
 }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
 volatile bool lastDetOnLeft = false;
+bool sensor_detected_item[2]= {false, false};
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*
  * static functions definitions
@@ -68,6 +70,7 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 {
 }
 
+volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
 
 void Robot::begin(void)
 {
@@ -104,7 +107,8 @@ void Robot::begin(void)
 	flash_period_ms = 2000;
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
-	HAL_Delay(100);
+
+
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 }
@@ -131,17 +135,22 @@ bool isOpponentDetected(void)
 	uint16_t sensor_right= Sensors[2].GetDistance();
 	VL53L1X_Result_t result_left = Sensors[0].GetResult();
 	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	sensor_left = (result_left.SigPerSPAD > 5000)?
+	sensor_left = (result_left.SigPerSPAD > maxVal_perSPAD[0])?
 			sensor_left: DETECTION_DISTANCE + 100;
-	sensor_right = (result_right.SigPerSPAD > 5000)?
+	sensor_right = (result_right.SigPerSPAD > maxVal_perSPAD[1])?
 			sensor_right: DETECTION_DISTANCE + 100;
+	sensor_detected_item[0] = sensor_left < DETECTION_DISTANCE;
+	sensor_detected_item[1] = sensor_right < DETECTION_DISTANCE;
 	return (sensor_left < DETECTION_DISTANCE) || (sensor_right < DETECTION_DISTANCE);
 }
 
-typedef enum{WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS, LOOK_FOR_OPPONENT_1, LOOK_FOR_OPPONENT_2} State_t;
+typedef enum{CALIBRATE, WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS, LOOK_FOR_OPPONENT_1, LOOK_FOR_OPPONENT_2} State_t;
 
 State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 {
+	if(eFSM_state ==  CALIBRATE){
+		return eFSM_state;
+	}
 	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin))//dummy
 	{
 		obj->SetFlashPeriodMS(1000);
@@ -163,9 +172,9 @@ void FightAlgorithm(Robot *obj)
 	uint16_t sensor_right= Sensors[2].GetDistance();
 	VL53L1X_Result_t result_left = Sensors[0].GetResult();
 	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	sensor_left = (result_left.NumSPADs < 80)?
+	sensor_left = (result_left.SigPerSPAD > 5000)?
 			sensor_left: DETECTION_DISTANCE + 100;
-	sensor_right = (result_right.NumSPADs < 80)?
+	sensor_right = (result_right.SigPerSPAD < 5000)?
 			sensor_right: DETECTION_DISTANCE + 100;
 	// detected
 	obj->SetFlashPeriodMS(100);
@@ -236,13 +245,31 @@ State_t LookForOpponent2(Robot *obj)
 
 void Robot::loop(void)
 {
-	static State_t eFSM_state = WAIT_FOR_START;
+	static State_t eFSM_state = CALIBRATE;
 	eFSM_state = CheckStartCondition(this, eFSM_state);
 	static TickType_t last_detection_tick = 0;
 	switch(eFSM_state)
 	{
+		case CALIBRATE:
+		{
+			TickType_t start_time = xTaskGetTickCount();
+			while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
+				EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
+				VL53L1X_Result_t result_left = Sensors[0].GetResult();
+				VL53L1X_Result_t result_right = Sensors[2].GetResult();
+				maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
+				maxVal_perSPAD[1] = (maxVal_perSPAD[1] < result_right.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[1];
+			}
+			maxVal_perSPAD[0] = maxVal_perSPAD[0]*2;
+			maxVal_perSPAD[1] = maxVal_perSPAD[1]*2;
+			maxVal_perSPAD[0] = (maxVal_perSPAD[0] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[0]:MAX_SIG_PER_SPAD;
+			maxVal_perSPAD[1] = (maxVal_perSPAD[1] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[1]:MAX_SIG_PER_SPAD;
+			eFSM_state = WAIT_FOR_START;
+		}
+		break;
 		case WAIT_FOR_START:
 		{
+			isOpponentDetected();
 			vTaskDelay(1);
 		}
 		break;
