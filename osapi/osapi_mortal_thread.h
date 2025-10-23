@@ -29,6 +29,7 @@ class MortalThread : public Thread
     {
     	return this->InitCompleted;
     }
+
                 
   protected:
         virtual void begin(void) {};

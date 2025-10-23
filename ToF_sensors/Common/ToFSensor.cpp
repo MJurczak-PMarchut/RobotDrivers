@@ -14,7 +14,8 @@
 #endif
 
 
-TaskHandle_t* ToF_Sensor::__pTaskHandle;
+TaskHandle_t ToF_Sensor::__TaskHandle;
+TaskHandle_t* ToF_Sensor::__pTaskHandle = NULL;
 ToF_Sensor*  ToF_Sensor::__ToFSensorPointers[10];
 uint8_t ToF_Sensor::__no_of_sensors = 0;
 StaticEventGroup_t  ToF_Sensor::SensorUpdateEventBuffer;
@@ -78,6 +79,8 @@ const EventGroupHandle_t ToF_Sensor::GetEventHandle(void)
 
 void ToF_Sensor::StartSensorTask(void) {
 	Thread.run();
+	__TaskHandle = Thread.GetTaskHandle();
+	__pTaskHandle = &__TaskHandle;
 }
 
 void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
@@ -93,10 +96,11 @@ void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 		SensorObj = __ToFSensorPointers[i];
 		if(SensorObj->GetSensorITPin() == pin)
 		{
-			if(SensorObj->CheckSensorStatus() == TOF_STATE_OK){
-				SensorObj->times_since_last_update = HAL_GetTick() - SensorObj->last_update_tick;
-				SensorObj->last_update_tick = HAL_GetTick();
-				SensorObj->GetRangingData();
+			SensorObj->times_since_last_update = HAL_GetTick() - SensorObj->last_update_tick;
+			SensorObj->last_update_tick = HAL_GetTick();
+			SensorObj->GetRangingData();
+			if(__pTaskHandle != NULL){
+				vTaskNotifyGiveFromISR(*__pTaskHandle, NULL);
 			}
 		}
 	}
@@ -123,12 +127,24 @@ void ToF_Sensor::RunSensorCheck(void)
 
 void ToF_Sensor::__ToFSensorThread(void *pvParameters) {
 	ToF_Sensor* SensorObj;
+	static bool broken = false;
+	ulTaskNotifyTake(pdTRUE, 25);
+	if(broken)
+	{
+		for (uint8_t i = 0; i < __no_of_sensors; i++)
+		{
+			SensorObj = ToF_Sensor::GetSensorPointer(i);
+			SensorObj->CheckSensorStatus();
+			vTaskDelay(1);
+		}
+		return;
+	}
+
 	for (uint8_t i = 0; i < __no_of_sensors; i++)
 	{
 		SensorObj = ToF_Sensor::GetSensorPointer(i);
-		switch (SensorObj->CheckSensorStatus()) {
+		switch (SensorObj->CheckSensorStatus()){
 			case TOF_STATE_OK: {
-
 			}
 				break;
 			case TOF_STATE_INIT_WAIT: {
@@ -139,7 +155,7 @@ void ToF_Sensor::__ToFSensorThread(void *pvParameters) {
 			}
 				break;
 			case TOF_STATE_ERROR: {
-
+				broken = true;
 			}
 				break;
 			case TOF_STATE_BUSY: {
@@ -233,7 +249,7 @@ void ToF_Sensor::ToF_SensorMortalThread::begin()
 void ToF_Sensor::ToF_SensorMortalThread::loop()
 	{
 		ToF_Sensor::__ToFSensorThread(NULL);
-		this->sleep(12);
+//		this->sleep(12);
 	}
 
 void ToF_Sensor::ToF_SensorMortalThread::InitWorkerThread(void *pvParametes)

@@ -128,6 +128,7 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 	uint8_t tmp;
 	UNUSED(tmp);
 	uint8_t pinterupt;
+	VL53L1_GPIO_interrupt_config_t pconfig;
 	uint8_t interrupt;
 	dev_struct.i2c_slave_address = this->__address;
 	Dev = &dev_struct;
@@ -139,6 +140,7 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
     status = VL53L1_SetPresetMode(Dev, VL53L1_PRESETMODE_LITE_RANGING);
     status = VL53L1_SetDistanceMode(Dev, VL53L1_DISTANCEMODE_SHORT);
     status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 10000);
+//    status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, 20);
     VL53L1X_RdByte(this->__address,0x30, &pinterupt);
     VL53L1X_RdByte(this->__address, 0x46, &interrupt);
     status = VL53L1_StartMeasurement(Dev);
@@ -152,11 +154,11 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 //	status |= this->StartRanging();
 	tmp  = 0;
 //	vTaskDelay(10);
-	while(tmp==0){
-		status = VL53L1_WaitMeasurementDataReady(Dev);
-		tmp = (status == VL53L1_ERROR_NONE)?1:0;
-	}
-	status = VL53L1_ClearInterruptAndStartMeasurement(Dev);
+//	while(tmp==0){
+//		status = VL53L1_GetMeasurementDataReady(Dev, &tmp);
+//	}
+//	status = VL53L1_ClearInterruptAndStartMeasurement(Dev);
+    VL53L1_get_GPIO_interrupt_config(Dev, &pconfig);
 //	status |= this->ClearInterrupt();
 //	// clear interrupt
 //	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
@@ -189,29 +191,66 @@ HAL_StatusTypeDef VL53L1X::SetI2CAddress() {
 	ret = VL53L1X_WrByte(this->__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, (__ToFAddr[this->__sensor_index]>>1));
 	this->__address = (ret)? TOF_DEFAULT_ADDRESS: __ToFAddr[this->__sensor_index];
 	this->__address = __ToFAddr[this->__sensor_index];
-	this->__Status = (ret)?TOF_STATE_ERROR:TOF_STATE_OK;
 	return ret;
 }
 
 ToF_Status_t VL53L1X::CheckSensorStatus(void) {
 	VL53L1_Error status = VL53L1_ERROR_NONE;
+	uint8_t tmp;
 	switch (this->__Status) {
+	case TOF_STATE_ERROR:
+	{
+		status = VL53L1_GetMeasurementDataReady(Dev, &tmp);
+		if(tmp){
+			times_since_last_update = HAL_GetTick() - last_update_tick;
+			last_update_tick = HAL_GetTick();
+			VL53L1_RangingMeasurementData_t data;
+			VL53L1_GetRangingMeasurementData(Dev, &data);
+			VL53L1_ClearInterruptAndStartMeasurement(Dev);
+			this->Result.Distance=data.RangeMilliMeter;
+			this->Result.Ambient=data.AmbientRateRtnMegaCps >> 16;
+			this->Result.NumSPADs=data.EffectiveSpadRtnCount;
+			this->Result.SigPerSPAD=data.SignalRateRtnMegaCps>>16;
+			this->Result.Status = data.RangeStatus;
+			xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
+		}
+		break;
+	}
+	case TOF_INIT_NOT_DONE:
+	{
+		this->__Status = TOF_STATE_OK;
+		VL53L1_ClearInterruptAndStartMeasurement(Dev);
+		break;
+	}
 	case TOF_STATE_INIT_WAIT:
 
 		break;
 	case TOF_STATE_OK:
-	case TOF_STATE_DATA_RDY:
-		VL53L1_RangingMeasurementData_t data;
+	{
 		if(HAL_GetTick() - last_update_tick > 100)//no update since 100ms;
 		{
-//			status = VL53L1_WaitMeasurementDataReady(Dev);
-//			status = VL53L1_GetRangingMeasurementData(Dev, &data);
-			if(GetRangingData() == HAL_ERROR)
-			{
-				this->__Status = TOF_STATE_ERROR;
-			}
+			this->__Status = TOF_STATE_ERROR;
+//			if(GetRangingData() == HAL_ERROR)
+//			{
+//				this->__Status = TOF_STATE_ERROR;
+//			}
 		}
 		break;
+	}
+	case TOF_STATE_DATA_RDY:
+	{
+		this->__Status = TOF_STATE_OK;
+		VL53L1_RangingMeasurementData_t data;
+		VL53L1_GetRangingMeasurementData(Dev, &data);
+		VL53L1_ClearInterruptAndStartMeasurement(Dev);
+		this->Result.Distance=data.RangeMilliMeter;
+		this->Result.Ambient=data.AmbientRateRtnMegaCps;
+		this->Result.NumSPADs=data.EffectiveSpadRtnCount;
+		this->Result.SigPerSPAD=data.SignalRateRtnMegaCps;
+		this->Result.Status = data.RangeStatus;
+		this->__Status = TOF_STATE_OK;
+		break;
+	}
 	default:
 		break;
 	}
@@ -253,21 +292,9 @@ uint8_t  VL53L1X::GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity
 }
 
 HAL_StatusTypeDef VL53L1X::GetRangingData(void){
-	HAL_StatusTypeDef ret = HAL_OK;
-	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
-	MsgInfoToSend.context = 10;
-	MsgInfoToSend.eCommType = COMM_INT_MEM_RX;
-	MsgInfoToSend.I2C_Addr = this->__address;
-	MsgInfoToSend.I2C_MemAddr = VL53L1_RESULT__RANGE_STATUS;
-	MsgInfoToSend.len = 17;
-	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
-	MsgInfoToSend.IntHandle = this->__hi2c1;
-	MsgInfoToSend.pCB = &this->_CallbackFunc;
-	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+
 	this->__Status = TOF_STATE_DATA_RDY;
-//	VL53L1_ClearInterruptAndStartMeasurement(Dev);
-	this->ClearInterrupt();
-	return ret;
+	return HAL_OK;
 }
 
 void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){

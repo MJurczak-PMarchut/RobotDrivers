@@ -102,3 +102,8 @@ const char* Thread::getName()
     return __name;
 }
 
+TaskHandle_t Thread::GetTaskHandle()
+{
+	return __taskHandle;
+}
+

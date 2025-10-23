@@ -84,7 +84,8 @@ private:
 	static ToF_Sensor* GetSensorPointerFromPool();
 	static void __ToFSensorThread(void  *pvParameters);
 	static ToF_Sensor*  __ToFSensorPointers[10];
-	static TaskHandle_t *__pTaskHandle;
+	static TaskHandle_t* __pTaskHandle;
+	static TaskHandle_t __TaskHandle;
 	static ToF_SensorMortalThread Thread;
 	static StaticEventGroup_t  SensorUpdateEventBuffer;
 	static bool InitCompleted;

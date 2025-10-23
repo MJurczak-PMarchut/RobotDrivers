@@ -22,7 +22,7 @@
 #define SEARCH_STRATEGY_CHANGE_TIME  3000
 #define ROTATION_TIMEOUT 150
 
-#define MAX_SIG_PER_SPAD	8000
+#define MAX_SIG_PER_SPAD	50000
 
 #define LED2_ON HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET)
 #define LED2_OFF HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET)
@@ -70,7 +70,7 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 {
 }
 
-volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
+volatile uint16_t maxVal_perSPAD[2] = {40000, 40000};
 
 void Robot::begin(void)
 {
@@ -126,18 +126,18 @@ bool isOutOfBounds(void)
 
 bool isOpponentDetected(void)
 {
-	EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 300);
-	if(u32_updated_Sensors != TOF_EVENT_MASK)
-	{
-		return false;
-	}
+	EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 12);
+//	if(u32_updated_Sensors != TOF_EVENT_MASK)
+//	{
+//		return false;
+//	}
 	uint16_t sensor_left= Sensors[0].GetDistance();
 	uint16_t sensor_right= Sensors[2].GetDistance();
 	VL53L1X_Result_t result_left = Sensors[0].GetResult();
 	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	sensor_left = (result_left.SigPerSPAD > maxVal_perSPAD[0])?
+	sensor_left = (result_left.NumSPADs < maxVal_perSPAD[0])?
 			sensor_left: DETECTION_DISTANCE + 100;
-	sensor_right = (result_right.SigPerSPAD > maxVal_perSPAD[1])?
+	sensor_right = (result_right.NumSPADs < maxVal_perSPAD[1])?
 			sensor_right: DETECTION_DISTANCE + 100;
 	sensor_detected_item[0] = sensor_left < DETECTION_DISTANCE;
 	sensor_detected_item[1] = sensor_right < DETECTION_DISTANCE;
@@ -174,9 +174,9 @@ void FightAlgorithm(Robot *obj)
 	uint16_t sensor_right= Sensors[2].GetDistance();
 	VL53L1X_Result_t result_left = Sensors[0].GetResult();
 	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	sensor_left = (result_left.SigPerSPAD > 5000)?
+	sensor_left = (result_left.NumSPADs < maxVal_perSPAD[0])?
 			sensor_left: DETECTION_DISTANCE + 100;
-	sensor_right = (result_right.SigPerSPAD < 5000)?
+	sensor_right = (result_right.NumSPADs < maxVal_perSPAD[1])?
 			sensor_right: DETECTION_DISTANCE + 100;
 	// detected
 	obj->SetFlashPeriodMS(100);
@@ -248,23 +248,24 @@ State_t LookForOpponent2(Robot *obj)
 static State_t eFSM_state = CALIBRATE;
 void Robot::loop(void)
 {
-
+	bool Opponent = false;
 	eFSM_state = CheckStartCondition(this, eFSM_state);
 	static TickType_t last_detection_tick = 0;
 	switch(eFSM_state)
 	{
 		case CALIBRATE:
 		{
+			vTaskDelay(200);
 			TickType_t start_time = xTaskGetTickCount();
 			while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
 				EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
 				VL53L1X_Result_t result_left = Sensors[0].GetResult();
 				VL53L1X_Result_t result_right = Sensors[2].GetResult();
-				maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
-				maxVal_perSPAD[1] = (maxVal_perSPAD[1] < result_right.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[1];
+				maxVal_perSPAD[0] = (maxVal_perSPAD[0] > result_left.NumSPADs)? result_left.NumSPADs: maxVal_perSPAD[0];
+				maxVal_perSPAD[1] = (maxVal_perSPAD[1] > result_right.NumSPADs)? result_left.NumSPADs: maxVal_perSPAD[1];
 			}
-			maxVal_perSPAD[0] = maxVal_perSPAD[0]*2;
-			maxVal_perSPAD[1] = maxVal_perSPAD[1]*2;
+			maxVal_perSPAD[0] = maxVal_perSPAD[0]/2;
+			maxVal_perSPAD[1] = maxVal_perSPAD[1]/2;
 			maxVal_perSPAD[0] = (maxVal_perSPAD[0] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[0]:MAX_SIG_PER_SPAD;
 			maxVal_perSPAD[1] = (maxVal_perSPAD[1] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[1]:MAX_SIG_PER_SPAD;
 			eFSM_state = WAIT_FOR_START;
@@ -278,7 +279,8 @@ void Robot::loop(void)
 		break;
 		case FIGHT:
 		{
-			if(isOpponentDetected())
+			Opponent = isOpponentDetected();
+			if(Opponent)
 			{
 			//First fight
 				FightAlgorithm(this);
@@ -371,7 +373,7 @@ void Robot::end(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 //	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
-	if(ToF_Sensor::CheckInitializationCplt()){
+//	if(ToF_Sensor::CheckInitializationCplt()){
 		if (GPIO_Pin == TOF_INT4_Pin)
 		{
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
@@ -382,7 +384,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		if(GPIO_Pin == TOF_INT5_Pin){
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
-	}
+//	}
 	if(GPIO_Pin == IMU_INT1_Pin){
 		IMU.InterruptCallback(GPIO_Pin);
 	}

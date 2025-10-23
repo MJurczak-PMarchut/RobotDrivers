@@ -75,6 +75,8 @@ class Thread : public ThreadInterface
 		 */
         virtual int forceKill();
     
+        virtual TaskHandle_t GetTaskHandle();
+
     protected:
         
         /** Delays thread execution for a given time.

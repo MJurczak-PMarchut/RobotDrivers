@@ -68,6 +68,8 @@ class ThreadInterface
          *  @return name of the thread
          */
         virtual const char* getName() = 0;
+
+        virtual TaskHandle_t GetTaskHandle() = 0;
     
     protected:
         
