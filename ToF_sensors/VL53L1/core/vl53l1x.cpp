@@ -5,10 +5,10 @@
  *      Author: Paulina
  */
 
+#include <vl53l1_api.hpp>
+#include <vl53l1_platform.hpp>
 #include "vl53l1x.hpp"
 #include "RobotSpecificDefines.hpp"
-#include "vl53l1_platform.hpp"
-#include "VL53L1X_api.hpp"
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
 static uint8_t start_ranging_const = 0x40;
@@ -127,20 +127,39 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 	uint8_t status = 0;
 	uint8_t tmp;
 	UNUSED(tmp);
-	this->__timing_budget = 15;
-	status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
-	status |= this->SetDistanceMode(1);
-	status |= this->SetTimingBudgetInMs(this->__timing_budget);
-	status |= this->SetInterMeasurementInMs(20);
-	status |= this->StartRanging();
+	uint8_t pinterupt;
+	uint8_t interrupt;
+	dev_struct.i2c_slave_address = this->__address;
+	Dev = &dev_struct;
+    status = VL53L1_WaitDeviceBooted(Dev);
+    status = VL53L1_DataInit(Dev);
+    status = VL53L1_StaticInit(Dev);
+    status = VL53L1_SetInterruptPolarity(Dev, VL53L1_DEVICEINTERRUPTPOLARITY_ACTIVE_HIGH);
+    /* (1) Three important functions to use to configure the sensor in fast mode */
+    status = VL53L1_SetPresetMode(Dev, VL53L1_PRESETMODE_LITE_RANGING);
+    status = VL53L1_SetDistanceMode(Dev, VL53L1_DISTANCEMODE_SHORT);
+    status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 10000);
+    VL53L1X_RdByte(this->__address,0x30, &pinterupt);
+    VL53L1X_RdByte(this->__address, 0x46, &interrupt);
+    status = VL53L1_StartMeasurement(Dev);
+
+//
+//	this->__timing_budget = 15;
+//	status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
+//	status |= this->SetDistanceMode(1);
+//	status |= this->SetTimingBudgetInMs(this->__timing_budget);
+//	status |= this->SetInterMeasurementInMs(20);
+//	status |= this->StartRanging();
 	tmp  = 0;
-	vTaskDelay(10);
+//	vTaskDelay(10);
 	while(tmp==0){
-			status |= CheckForDataReady( &tmp);
+		status = VL53L1_WaitMeasurementDataReady(Dev);
+		tmp = (status == VL53L1_ERROR_NONE)?1:0;
 	}
+	status = VL53L1_ClearInterruptAndStartMeasurement(Dev);
 //	status |= this->ClearInterrupt();
-	// clear interrupt
-	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
+//	// clear interrupt
+//	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
 	return (status)? HAL_ERROR:HAL_OK;
 }
 
@@ -175,14 +194,18 @@ HAL_StatusTypeDef VL53L1X::SetI2CAddress() {
 }
 
 ToF_Status_t VL53L1X::CheckSensorStatus(void) {
+	VL53L1_Error status = VL53L1_ERROR_NONE;
 	switch (this->__Status) {
 	case TOF_STATE_INIT_WAIT:
 
 		break;
 	case TOF_STATE_OK:
 	case TOF_STATE_DATA_RDY:
+		VL53L1_RangingMeasurementData_t data;
 		if(HAL_GetTick() - last_update_tick > 100)//no update since 100ms;
 		{
+//			status = VL53L1_WaitMeasurementDataReady(Dev);
+//			status = VL53L1_GetRangingMeasurementData(Dev, &data);
 			if(GetRangingData() == HAL_ERROR)
 			{
 				this->__Status = TOF_STATE_ERROR;
@@ -242,6 +265,7 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 	MsgInfoToSend.pCB = &this->_CallbackFunc;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->__Status = TOF_STATE_DATA_RDY;
+//	VL53L1_ClearInterruptAndStartMeasurement(Dev);
 	this->ClearInterrupt();
 	return ret;
 }

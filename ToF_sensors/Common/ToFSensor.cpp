@@ -94,6 +94,7 @@ void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 		if(SensorObj->GetSensorITPin() == pin)
 		{
 			if(SensorObj->CheckSensorStatus() == TOF_STATE_OK){
+				SensorObj->times_since_last_update = HAL_GetTick() - SensorObj->last_update_tick;
 				SensorObj->last_update_tick = HAL_GetTick();
 				SensorObj->GetRangingData();
 			}

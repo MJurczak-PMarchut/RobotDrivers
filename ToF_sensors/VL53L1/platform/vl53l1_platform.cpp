@@ -36,7 +36,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include "vl53l1_platform.hpp"
+#include <vl53l1_platform.hpp>
 
 extern I2C_HandleTypeDef hi2c1;
 
@@ -185,6 +185,68 @@ void VL53L1X_SwapBuffer(
 	}
 }
 
+
+VL53L1_Error VL53L1_WaitValueMaskEx(
+	VL53L1_Dev_t *pdev,
+	uint32_t      timeout_ms,
+	uint16_t      index,
+	uint8_t       value,
+	uint8_t       mask,
+	uint32_t      poll_delay_ms)
+{
+	/*
+	 * Platform implementation of WaitValueMaskEx V2WReg script command
+	 *
+	 * WaitValueMaskEx(
+	 *          duration_ms,
+	 *          index,
+	 *          value,
+	 *          mask,
+	 *          poll_delay_ms);
+	 */
+
+	VL53L1_Error status         = VL53L1_ERROR_NONE;
+	uint32_t     start_time_ms   = 0;
+	uint32_t     current_time_ms = 0;
+	uint8_t      byte_value      = 0;
+	uint8_t      found           = 0;
+
+	/* calculate time limit in absolute time */
+
+	VL53L1_GetTickCount(pdev, &start_time_ms);
+	pdev->new_data_ready_poll_duration_ms = 0;
+
+	/* remember current trace functions and temporarily disable
+	 * function logging
+	 */
+	/* wait until value is found, timeout reached on error occurred */
+
+	while ((status == VL53L1_ERROR_NONE) &&
+		   (pdev->new_data_ready_poll_duration_ms < timeout_ms) &&
+		   (found == 0))
+	{
+		status = VL53L1_RdByte(
+						pdev,
+						index,
+						&byte_value);
+
+		if ((byte_value & mask) == value)
+		{
+			found = 1;
+		}
+
+		/* Update polling time (Compare difference rather than absolute to
+		negate 32bit wrap around issue) */
+		VL53L1_GetTickCount(pdev, &current_time_ms);
+		pdev->new_data_ready_poll_duration_ms = current_time_ms - start_time_ms;
+	}
+
+	if (found == 0 && status == VL53L1_ERROR_NONE)
+		status = VL53L1_ERROR_TIME_OUT;
+
+	return status;
+}
+
 uint8_t VL53L1X_WaitMs(
 		uint32_t TimeMs)
 {
@@ -201,6 +263,77 @@ uint8_t VL53L1X_WaitMs(
 	return status;
 }
 
+
+VL53L1_Error VL53L1_CommsInitialise(
+	VL53L1_Dev_t *pdev,
+	uint8_t       comms_type,
+	uint16_t      comms_speed_khz){ return VL53L1_ERROR_NONE;}
+
+
+VL53L1_Error VL53L1_WaitUs(VL53L1_Dev_t *pdev, int32_t wait_us){
+	(void)pdev;
+	HAL_Delay(wait_us/1000);
+    return VL53L1_ERROR_NONE;
+}
+
+VL53L1_Error VL53L1_WriteMulti(
+		VL53L1_Dev_t *pdev,
+		uint16_t      index,
+		uint8_t      *pdata,
+		uint32_t      count)
+{
+	return (VL53L1X_WrMulti(pdev->i2c_slave_address, index, pdata, count) == HAL_OK)?VL53L1_ERROR_NONE: VL53L1_ERROR_UNDEFINED ;
+}
+
+VL53L1_Error VL53L1_ReadMulti(
+		VL53L1_Dev_t *pdev,
+		uint16_t      index,
+		uint8_t      *pdata,
+		uint32_t      count){
+	return (VL53L1X_RdMulti(pdev->i2c_slave_address, index, pdata, count) == HAL_OK)?VL53L1_ERROR_NONE: VL53L1_ERROR_UNDEFINED ;
+}
+
+VL53L1_Error VL53L1_WrByte(
+		VL53L1_Dev_t *pdev,
+		uint16_t      index,
+		uint8_t       data)
+{
+	return (VL53L1X_WrByte(pdev->i2c_slave_address, index, data) == HAL_OK)?VL53L1_ERROR_NONE: VL53L1_ERROR_UNDEFINED ;
+}
+
+
+VL53L1_Error VL53L1_WrWord(
+		VL53L1_Dev_t *pdev,
+		uint16_t      index,
+		uint16_t      data)
+{
+	return (VL53L1X_WrWord(pdev->i2c_slave_address, index, data) == HAL_OK)?VL53L1_ERROR_NONE: VL53L1_ERROR_UNDEFINED ;
+}
+
+VL53L1_Error VL53L1_RdByte(
+		VL53L1_Dev_t *pdev,
+		uint16_t      index,
+		uint8_t      *pdata)
+{
+	return (VL53L1X_RdByte(pdev->i2c_slave_address, index, pdata) == HAL_OK)?VL53L1_ERROR_NONE: VL53L1_ERROR_UNDEFINED ;
+}
+
+VL53L1_Error VL53L1_RdWord(
+		VL53L1_Dev_t *pdev,
+		uint16_t      index,
+		uint16_t     *pdata)
+{
+	return (VL53L1X_RdWord(pdev->i2c_slave_address, index, pdata) == HAL_OK)?VL53L1_ERROR_NONE: VL53L1_ERROR_UNDEFINED ;
+}
+
+
+VL53L1_Error VL53L1_GetTickCount(
+		VL53L1_Dev_t *pdev,
+	uint32_t *ptime_ms)
+{
+	*ptime_ms = xTaskGetTickCount();
+	return VL53L1_ERROR_NONE;
+}
 
 //int8_t VL53L1_WriteMulti( uint16_t dev, uint16_t index, uint8_t *pdata, uint16_t count, CommManager *CommunicationManager, MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo) {
 //	int8_t status = 0;

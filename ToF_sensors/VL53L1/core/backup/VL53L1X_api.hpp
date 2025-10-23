@@ -68,7 +68,7 @@
 #ifndef _API_H_
 #define _API_H_
 
-#include "vl53l1_platform.hpp"
+#include <vl53l1_platform.hpp>
 #include "ToFSensor.hpp"
 
 #define VL53L1X_IMPLEMENTATION_VER_MAJOR       3

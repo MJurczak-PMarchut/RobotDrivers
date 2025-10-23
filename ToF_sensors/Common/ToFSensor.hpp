@@ -54,6 +54,7 @@ public:
 	static const EventGroupHandle_t GetEventHandle(void);
 	virtual ~ToF_Sensor();
 	static void RunSensorCheck(void);
+	uint32_t times_since_last_update;
 
 
 protected:

@@ -50,7 +50,7 @@ static VL53L1X Sensors[] = {
 }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
 volatile bool lastDetOnLeft = false;
-bool sensor_detected_item[2]= {false, false};
+volatile bool sensor_detected_item[2]= {false, false};
 //static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*
  * static functions definitions
@@ -126,7 +126,7 @@ bool isOutOfBounds(void)
 
 bool isOpponentDetected(void)
 {
-	EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
+	EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 300);
 	if(u32_updated_Sensors != TOF_EVENT_MASK)
 	{
 		return false;
@@ -141,16 +141,18 @@ bool isOpponentDetected(void)
 			sensor_right: DETECTION_DISTANCE + 100;
 	sensor_detected_item[0] = sensor_left < DETECTION_DISTANCE;
 	sensor_detected_item[1] = sensor_right < DETECTION_DISTANCE;
-	return (sensor_left < DETECTION_DISTANCE) || (sensor_right < DETECTION_DISTANCE);
+	return sensor_detected_item[0] || sensor_detected_item[1];
 }
 
 typedef enum{CALIBRATE, WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS, LOOK_FOR_OPPONENT_1, LOOK_FOR_OPPONENT_2} State_t;
 
 State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 {
+	GPIO_PinState aaa = GPIO_PIN_RESET;
 	if(eFSM_state ==  CALIBRATE){
 		return eFSM_state;
 	}
+	aaa = HAL_GPIO_ReadPin(TOF_INT3_GPIO_Port, TOF_INT3_Pin);
 	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin))//dummy
 	{
 		obj->SetFlashPeriodMS(1000);
@@ -243,9 +245,10 @@ State_t LookForOpponent2(Robot *obj)
 	return LOOK_FOR_OPPONENT_2;
 }
 
+static State_t eFSM_state = CALIBRATE;
 void Robot::loop(void)
 {
-	static State_t eFSM_state = CALIBRATE;
+
 	eFSM_state = CheckStartCondition(this, eFSM_state);
 	static TickType_t last_detection_tick = 0;
 	switch(eFSM_state)

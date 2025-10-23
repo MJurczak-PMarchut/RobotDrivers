@@ -8,10 +8,11 @@
 #ifndef TOF_SENSORS_CORE_VL53L1X_H_
 #define TOF_SENSORS_CORE_VL53L1X_H_
 
-#include "VL53L1X_api.hpp"
+#include <vl53l1_api.hpp>
 #include "../../Configuration.h"
 #include "CommManager.hpp"
 #include "ToFSensor.hpp"
+#include "vl53l1_platform_user_data.hpp"
 
 #define TOF_DEFAULT_ADDRESS 0x52
 #define TIMING_BUDGET_MS         100U
@@ -137,6 +138,8 @@ private:
 	uint16_t __address = TOF_DEFAULT_ADDRESS;
 	std::function<void(MessageInfoTypeDef<I2C> *MsgInfo)> _CallbackFunc;
 	uint32_t __timing_budget;
+	VL53L1_Dev_t dev_struct;
+	VL53L1_DEV Dev;
 };
 
 
