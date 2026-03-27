@@ -224,7 +224,7 @@
 	#define RIGHT_MOTOR_INVERTED_PWM true
 
 
-#elif defined(ROBOT_MT_V3)
+#elif defined(ROBOT_MT_V3) or defined(ROBOT_MT_V4)
 	#define MOTOR_INVERTED_SIDE
 	#define RIGHT_MOTOR_INVERT_DIRECTION
 //	#define LEFT_MOTOR_INVERT_DIRECTION
