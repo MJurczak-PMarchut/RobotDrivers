@@ -222,6 +222,7 @@
 	#define LEFT_MOTOR_INVERTED_PWM  true
 
 	#define RIGHT_MOTOR_INVERTED_PWM true
+	#define MOTOR_POLE_PAIRS 7
 
 
 #elif defined(ROBOT_MT_V3) or defined(ROBOT_MT_V4)

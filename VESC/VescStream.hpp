@@ -28,7 +28,8 @@ public:
 		MsgInfo.eCommType = COMM_INT_RX;
 		MsgInfo.IntHandle = _UART;
 		MsgInfo.len = 1;
-		MsgInfo.pCB=std::bind(&VescStream::Callback, this, std::placeholders::_1);
+		_CallbackFunc = std::bind(&VescStream::Callback, this, std::placeholders::_1);
+		MsgInfo.pCB = &_CallbackFunc;
 		MsgInfo.pRxData = message;
 		_CommManager->PushCommRequestIntoQueue(&MsgInfo);
 	}
@@ -60,7 +61,8 @@ public:
 		MsgInfo.IntHandle = _UART;
 		MsgInfo.len = count;
 		MsgInfo.pTxData = pTempCharArray;
-		MsgInfo.pCB=std::bind(&VescStream::Callback, this, std::placeholders::_1);
+		_CallbackFunc = std::bind(&VescStream::Callback, this, std::placeholders::_1);
+		MsgInfo.pCB = &_CallbackFunc;
 		_CommManager->PushCommRequestIntoQueue(&MsgInfo);
 	}
 private:
@@ -68,6 +70,7 @@ private:
 	UART_HandleTypeDef* _UART;
 	CommManager* _CommManager;
 	uint8_t message[2];
+	std::function<void(MessageInfoTypeDef<UART>*)> _CallbackFunc;
 	void *Vesc_memset (void *dest, int val, size_t len)
 	{
 	  unsigned char *ptr = reinterpret_cast<unsigned char *>(dest);

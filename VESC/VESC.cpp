@@ -14,6 +14,7 @@ VescUart *VESC::_Vesc = 0;
 VESC* VESC::ptrVESC[2] ={0};
 
 VESC::VESC(MotorSideTypeDef side, UART_HandleTypeDef *huart, CommManager *CommunicationManager) :
+		MCInterface(side),
 		_side(side),
 		_CanID((side == MOTOR_LEFT)?VESC_LEFT_CANID : VESC_RIGHT_CANID),
 		_DirectionInverted(false)
