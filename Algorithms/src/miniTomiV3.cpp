@@ -24,6 +24,14 @@
 
 #define MAX_SIG_PER_SPAD	8000
 
+#define HEADING_PID_KP 0.02f
+#define HEADING_PID_KI 0.0005f
+#define HEADING_PID_KD 0.01f
+#define HEADING_PID_OUTPUT_LIMIT 0.65f
+// Errors smaller than this are treated as zero, so sensor noise / motor response lag
+// doesn't make the robot hunt back and forth for a negligible heading difference.
+#define HEADING_PID_DEADBAND_DEG 15.0f
+
 #define LED2_ON HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET)
 #define LED2_OFF HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET)
 
@@ -72,11 +80,16 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 
 volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
 
+// Live heading-PID gains; PID_CalibrateHeading() overwrites these at runtime.
+static float headingPID_Kp = HEADING_PID_KP;
+static float headingPID_Ki = HEADING_PID_KI;
+static float headingPID_Kd = HEADING_PID_KD;
+
 void Robot::begin(void)
 {
 	was_running = true;
 	flash_period_ms = 100;
-	HAL_StatusTypeDef imuret;
+	// HAL_StatusTypeDef imuret;
 //	logger.Init();
 	//Enable power
 	//Enable power
@@ -85,7 +98,7 @@ void Robot::begin(void)
 	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
-	imuret = IMU.Init();
+	IMU.Init();
 	HAL_Delay(100);
 	IMU.StartCalibrationOrientation();
 	HAL_Delay(150);
@@ -200,6 +213,158 @@ void FightAlgorithm(Robot *obj)
 	}
 }
 
+// Returns a steering correction in the same range as MCInterface::SetMotorsPower,
+// computed from the IMU's Z-axis (yaw) angle vs. targetAngleDeg.
+float PID_HeadingCorrection(float targetAngleDeg)
+{
+	static float integral = 0.0f;
+	static float lastError = 0.0f;
+	static TickType_t lastTick = 0;
+	static float lastTargetAngle = NAN;
+
+	bool targetChanged = (targetAngleDeg != lastTargetAngle);
+	if (targetChanged)
+	{
+		integral = 0.0f;
+		lastTargetAngle = targetAngleDeg;
+	}
+
+	TickType_t now = xTaskGetTickCount();
+	float dt = (lastTick == 0) ? 0.0f : (float)(now - lastTick) / 1000.0f;
+	lastTick = now;
+
+	float currentAngle = (float)IMU.GetAngularOrientationForAxis(2);
+	float error = targetAngleDeg - currentAngle;
+
+	if (targetChanged)
+	{
+		lastError = error; // avoid a derivative kick from the previous target's error
+	}
+
+	float derivative = (dt > 0.0f) ? (error - lastError) / dt : 0.0f;
+	lastError = error;
+	float integral_tmp = error * dt;
+	integral += integral_tmp;
+	float integralLimit = (headingPID_Ki > 0.0f) ? 2.0f * (HEADING_PID_OUTPUT_LIMIT / headingPID_Ki) : 0.0f;
+	if (integral > integralLimit)
+	{
+		integral = integralLimit;
+	}
+	else if (integral < -integralLimit)
+	{
+		integral = -integralLimit;
+	}
+
+	float output = headingPID_Kp * error + headingPID_Ki * integral + headingPID_Kd * derivative;
+
+	if (output > HEADING_PID_OUTPUT_LIMIT)
+	{
+		output = HEADING_PID_OUTPUT_LIMIT;
+		integral -= integral_tmp; // anti-windup
+	}
+	else if (output < -HEADING_PID_OUTPUT_LIMIT)
+	{
+		output = -HEADING_PID_OUTPUT_LIMIT;
+		integral -= integral_tmp; // anti-windup
+	}
+
+	return output;
+}
+
+// Relay (Astrom-Hagglund) auto-tune for the heading PID: drives the motors in a
+// bang-bang pattern around the current heading to force a sustained oscillation,
+// measures its period/amplitude, and derives Kp/Ki/Kd via the standard Ziegler-Nichols
+// relay formulas. Runs for at most maxDurationMs, so it always returns in finite time.
+// The robot WILL spin in place while this runs - only call it with the robot on a stand
+// or clear of obstacles, never during a match.
+void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
+{
+	const uint8_t targetHalfCycles = 10; // stop early once enough oscillations are captured
+	float targetAngle = (float)IMU.GetAngularOrientationForAxis(2);
+
+	TickType_t startTick = xTaskGetTickCount();
+	TickType_t lastCrossingTick = startTick;
+	float peakAmplitude = 0.0f;
+	float amplitudeSum = 0.0f;
+	uint32_t halfPeriodSum = 0;
+	uint8_t halfCycles = 0;
+	bool firstCrossingSeen = false;
+	bool relayHigh = true; // which side of the relay we're currently driving
+
+	while ((xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(maxDurationMs) && halfCycles < targetHalfCycles)
+	{
+		float currentAngle = (float)IMU.GetAngularOrientationForAxis(2);
+		float error = targetAngle - currentAngle;
+
+		float absError = (error < 0.0f) ? -error : error;
+		if (absError > peakAmplitude)
+		{
+			peakAmplitude = absError;
+		}
+
+		// Hysteresis around the deadband: only flip once the error clearly crosses to the
+		// other side, so sensor noise near zero doesn't register as extra spurious cycles.
+		bool relayFlipped = false;
+		if (relayHigh && error < -HEADING_PID_DEADBAND_DEG)
+		{
+			relayHigh = false;
+			relayFlipped = true;
+		}
+		else if (!relayHigh && error > HEADING_PID_DEADBAND_DEG)
+		{
+			relayHigh = true;
+			relayFlipped = true;
+		}
+
+		if (relayFlipped)
+		{
+			// Relay flip => half oscillation cycle complete
+			TickType_t now = xTaskGetTickCount();
+			if (firstCrossingSeen)
+			{
+				halfPeriodSum += (now - lastCrossingTick);
+				amplitudeSum += peakAmplitude;
+				halfCycles++;
+			}
+			firstCrossingSeen = true;
+			lastCrossingTick = now;
+			peakAmplitude = 0.0f;
+		}
+
+		if (relayHigh)
+		{
+			MCInterface::SetMotorsPower(-relayPower, relayPower);
+		}
+		else
+		{
+			MCInterface::SetMotorsPower(relayPower, -relayPower);
+		}
+		vTaskDelay(pdMS_TO_TICKS(10));
+	}
+
+	MCInterface::SetMotorsPower(0.0f, 0.0f);
+
+	if (halfCycles == 0)
+	{
+		return; // no oscillation captured within maxDurationMs; leave existing gains untouched
+	}
+
+	float averageAmplitudeDeg = amplitudeSum / halfCycles;
+	float periodS = 2.0f * ((float)halfPeriodSum / halfCycles) / 1000.0f; // half-cycle -> full period
+
+	if (averageAmplitudeDeg <= 0.0f || periodS <= 0.0f)
+	{
+		return;
+	}
+
+	float Ku = (4.0f * relayPower) / (3.14159265f * averageAmplitudeDeg); // ultimate gain
+	float Tu = periodS;                                                   // ultimate period
+
+	headingPID_Kp = 0.6f * Ku;
+	headingPID_Ki = 1.2f * Ku / Tu;   // Ti = Tu/2  ->  Ki = Kp/Ti = 2*Kp/Tu
+	headingPID_Kd = 0.075f * Ku * Tu; // Td = Tu/8  ->  Kd = Kp*Td = Kp*Tu/8
+}
+
 void Robot::SetFlashPeriodMS(uint16_t flashPeriod)
 {
 	this->flash_period_ms = flashPeriod;
@@ -208,6 +373,7 @@ void Robot::SetFlashPeriodMS(uint16_t flashPeriod)
 State_t LookForOpponent2(Robot *obj)
 {
 	TickType_t start_tick;
+	double_t starting_orientation = NAN;
 	double_t angularOrientation = NAN;
 	obj->SetFlashPeriodMS(500);
 	if(isOutOfBounds())
@@ -216,8 +382,8 @@ State_t LookForOpponent2(Robot *obj)
 		//move back slightly
 		MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
 		vTaskDelay(250);
-		// moev into last det
-		IMU.ResetAngularOrientation();
+		// move into last det
+		starting_orientation = IMU.GetAngularOrientationForAxis(2);
 		start_tick = xTaskGetTickCount();
 		if(lastDetOnLeft)
 			MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
@@ -225,7 +391,7 @@ State_t LookForOpponent2(Robot *obj)
 			MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
 		while(xTaskGetTickCount() - start_tick < ROTATION_TIMEOUT)
 		{
-			angularOrientation = IMU.GetAngularOrientationForAxis(2);
+			angularOrientation = IMU.GetAngularOrientationForAxis(2) - starting_orientation;
 			angularOrientation = (angularOrientation > 0)? angularOrientation : -angularOrientation;
 			if(angularOrientation >= 60)
 			{
@@ -254,7 +420,7 @@ void Robot::loop(void)
 		{
 			TickType_t start_time = xTaskGetTickCount();
 			while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
-				EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
+				xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
 				VL53L1X_Result_t result_left = Sensors[0].GetResult();
 				VL53L1X_Result_t result_right = Sensors[2].GetResult();
 				maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
@@ -469,6 +635,10 @@ void Robot::PeriodicCheckCall(void)
 		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 	}
 	flash_counter = (flash_counter == 0)? flash_period_ms/2: flash_counter-1;
+
+// PID calculations
+	this->power_correction = PID_HeadingCorrection(this->set_angle);
+
 }
 
 void Robot::PeriodCB(void)

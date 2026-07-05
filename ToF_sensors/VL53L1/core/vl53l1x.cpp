@@ -16,6 +16,11 @@ const static uint16_t __ToFX_SHUT_Pin[] = XSHUT_PINS;
 const static uint16_t __ToFX_GPIO_Pin[] = TOFx_GPIO_PINS;
 static GPIO_TypeDef *__ToFX_SHUT_Port[] = TOFx_XSHUT_PORTS;
 
+static const uint8_t status_rtn[24] = { 255, 255, 255, 5, 2, 4, 1, 7, 3, 0,
+	255, 255, 9, 13, 255, 255, 255, 255, 10, 6,
+	255, 255, 11, 12
+};
+
 uint8_t VL51L1X_DEFAULT_CONFIGURATION[] = {
 0x00, /* 0x2d : set bit 2 and 5 to 1 for fast plus mode (1MHz I2C), else don't touch */
 0x00, /* 0x2e : bit 0 if I2C pulled up at 1.8V, else set bit 0 to 1 (pull up at AVDD) */
@@ -248,6 +253,11 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 
 void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
 	Result.Distance = 0;
+	Result.Status = this->__comm_buffer[0] & 0x1F;
+	if (Result.Status < 24)
+		Result.Status = status_rtn[Result.Status];
+	else
+		Result.Status = 255;
 	Result.Ambient = (this->__comm_buffer[7] << 8 | this->__comm_buffer[8]) * 8;
 	Result.NumSPADs = this->__comm_buffer[3];
 	Result.SigPerSPAD = (this->__comm_buffer[15] << 8 | this->__comm_buffer[16]) * 8;

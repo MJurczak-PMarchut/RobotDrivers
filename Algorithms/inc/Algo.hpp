@@ -22,6 +22,8 @@ protected:
     void end(void);
 private:
     uint16_t flash_period_ms = 100;
+    float set_angle = 0;
+    float power_correction = 0;
     bool was_running = false;
 };
 
