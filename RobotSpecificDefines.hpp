@@ -252,6 +252,7 @@
 	#define TOFx_GPIO_PINS {TOF_GPIO_4_Pin, TOF_GPIO_2_Pin, TOF_GPIO_5_Pin, XSHUT_5_Pin, XSHUT_6_Pin}
 	#define TOFx_XSHUT_PORTS  {XSHUT_4_GPIO_Port, XSHUT_2_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_5_GPIO_Port, XSHUT_6_GPIO_Port}
 	#define MOTOR_POLE_PAIRS 7
+	#define USES_VESC
 
 
 #endif

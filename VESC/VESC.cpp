@@ -8,6 +8,9 @@
 
 #include "VESC.hpp"
 #include "string.h"
+
+#ifdef USES_VESC
+
 VescStream *VESC::_VescStream = 0;;
 VescUart *VESC::_Vesc = 0;
 
@@ -115,3 +118,5 @@ HAL_StatusTypeDef VESC::SetMotorCurrent(float current)
 	_Vesc->setCurrent(current, _CanID);
 	return HAL_OK;
 }
+
+#endif // USES_VESC

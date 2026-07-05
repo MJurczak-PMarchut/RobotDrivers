@@ -18,6 +18,9 @@
     */
 
 #include "crc.h"
+#include "RobotSpecificDefines.hpp"
+
+#ifdef USES_VESC
 
 // CRC Table
 const unsigned short crc16_tab[] = { 0x0000, 0x1021, 0x2042, 0x3063, 0x4084,
@@ -58,3 +61,5 @@ unsigned short crc16(unsigned char *buf, unsigned int len) {
 	}
 	return cksum;
 }
+
+#endif // USES_VESC

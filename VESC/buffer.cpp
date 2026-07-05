@@ -20,6 +20,9 @@
 #include "buffer.h"
 #include <math.h>
 #include <stdbool.h>
+#include "RobotSpecificDefines.hpp"
+
+#ifdef USES_VESC
 
 void buffer_append_int16(uint8_t* buffer, int16_t number, int32_t *index) {
 	buffer[(*index)++] = number >> 8;
@@ -208,3 +211,5 @@ void buffer_append_bool(uint8_t *buffer,bool value, int32_t *index) {
 	}
 
 }
+
+#endif // USES_VESC

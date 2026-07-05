@@ -1,5 +1,8 @@
 #include <stdint.h>
 #include "VescUart.h"
+#include "RobotSpecificDefines.hpp"
+
+#ifdef USES_VESC
 
 void* memcpy (void *dest, const void *src, size_t len)
 {
@@ -408,4 +411,5 @@ void VescUart::sendKeepalive(uint8_t canId) {
 	packSendPayload(payload, payloadSize);
 }
 
+#endif // USES_VESC
 
