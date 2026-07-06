@@ -59,7 +59,7 @@ static VL53L1X Sensors[] = {
 
 volatile bool lastDetOnLeft = false;
 bool sensor_detected_item[2]= {false, false};
-//static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
+static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 /*
  * static functions definitions
  */
@@ -90,7 +90,8 @@ void Robot::begin(void)
 	was_running = true;
 	flash_period_ms = 100;
 	// HAL_StatusTypeDef imuret;
-//	logger.Init();
+	logger.Init();
+	logger.StartTimestamp();
 	//Enable power
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
@@ -623,7 +624,7 @@ void Robot::PeriodicCheckCall(void)
 //				MCInterface::RunStateCheck();
 
 				if(diver == 20){
-//					logger.Sync();
+					logger.Sync();
 //					HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 				}
 				diver = (diver >= 20)? 0: diver+1;

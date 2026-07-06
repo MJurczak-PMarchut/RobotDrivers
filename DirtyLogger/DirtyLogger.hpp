@@ -21,6 +21,7 @@ public:
 private:
 	static bool _instance_exists;
 	uint32_t _start_time;
+	bool _available;    /* False if the SD card failed to mount / open a log file; Log/Sync become no-ops */
 	uint8_t *_retSD;    /* Return value for SD */
 	char *_SDPath;   /* SD logical drive path */
 	FATFS *_SDFatFS;    /* File system object for SD logical drive */
