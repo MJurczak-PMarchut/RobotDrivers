@@ -22,6 +22,8 @@ static SemaphoreHandle_t SPIMutex;
 #define COLLISION_ACCEL_JERK_THRESHOLD_MG 400.0
 #define COLLISION_GYRO_JERK_THRESHOLD_MDPS 500000.0
 
+#define ACCEL_SAMPLE_DT_S (1.0/1667.0)
+
 static uint8_t pTXBuf[257] = {0};
 static uint8_t pRxBuf[257] = {0};
 
@@ -176,7 +178,7 @@ HAL_StatusTypeDef LSM6DSO::Init(void)
 	lsm6dso_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
 	lsm6dso_xl_data_rate_set(&dev_ctx, LSM6DSO_XL_ODR_1667Hz);
 	lsm6dso_gy_data_rate_set(&dev_ctx, LSM6DSO_GY_ODR_1667Hz);
-	lsm6dso_xl_full_scale_set(&dev_ctx, LSM6DSO_16g);
+	lsm6dso_xl_full_scale_set(&dev_ctx, LSM6DSO_8g);
 	lsm6dso_gy_full_scale_set(&dev_ctx, LSM6DSO_2000dps);
 	lsm6dso_xl_hp_path_on_out_set(&dev_ctx, LSM6DSO_LP_ODR_DIV_100);
 	lsm6dso_xl_filter_lp2_set(&dev_ctx, PROPERTY_ENABLE);
@@ -218,7 +220,7 @@ void LSM6DSO::XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
 	for(uint8_t plane=0; plane < 3; plane++){
 		buffer_index = 1 + (plane*2);
 		this->data_raw_acceleration[plane] = (this->pRxXlData[buffer_index] | (this->pRxXlData[buffer_index + 1] << 8));
-		this->acceleration_mg[plane] = lsm6dso_from_fs16_to_mg(this->data_raw_acceleration[plane]);
+		this->acceleration_mg[plane] = lsm6dso_from_fs8_to_mg(this->data_raw_acceleration[plane]);
 	}
 	// Horizontal plane (X/Y) excludes the Z axis, which mostly carries gravity and vertical bounce.
 	double_t horizontal_accel_mg = sqrt(this->acceleration_mg[0]*this->acceleration_mg[0]
@@ -230,6 +232,15 @@ void LSM6DSO::XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
 		this->collision_detected = true;
 	}
 	this->prev_horizontal_accel_mg = horizontal_accel_mg;
+
+	// Attitude (tilt-compensated) + dead-reckoned position, fed with the latest gyro sample
+	// (updated independently by GyDataReceivedCB at the same 1667 Hz ODR, just phase-shifted).
+	this->_positionEstimator.Update(
+			this->angular_rate_mdps[0] - this->gyro_offset[0],
+			this->angular_rate_mdps[1] - this->gyro_offset[1],
+			this->angular_rate_mdps[2] - this->gyro_offset[2],
+			this->acceleration_mg[0], this->acceleration_mg[1], this->acceleration_mg[2],
+			ACCEL_SAMPLE_DT_S);
 }
 
 void LSM6DSO::GetGyData(void)
@@ -316,6 +327,16 @@ double LSM6DSO::GetAngularOrientationForAxis(uint8_t axis)
 		return angular_orientation[axis];
 	else
 		return NAN;
+}
+
+PositionTypeDef LSM6DSO::GetPosition(void)
+{
+	return this->_positionEstimator.GetPosition();
+}
+
+void LSM6DSO::CalibratePosition(void)
+{
+	this->_positionEstimator.CalibratePosition();
 }
 
 bool LSM6DSO::IsCollisionDetected(void)

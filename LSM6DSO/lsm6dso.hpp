@@ -10,6 +10,7 @@
 
 #include "CommManager.hpp"
 #include "lsm6dso_reg.h"
+#include "lsm6dso_quat.hpp"
 
 #ifndef USES_RTOS
 #error "This lib cannot function without RTOS!"
@@ -27,6 +28,8 @@ public:
 	void GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	void XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	double GetAngularOrientationForAxis(uint8_t axis);
+	PositionTypeDef GetPosition(void);
+	void CalibratePosition(void);
 	bool IsCollisionDetected(void);
 	void ClearCollisionDetected(void);
 protected:
@@ -54,6 +57,7 @@ private:
 	SPI_HandleTypeDef *_hspi;
 	CommManager *__CommManager;
 	stmdev_ctx_t dev_ctx;
+	LSM6DSOQuat _positionEstimator;
 //	uint16_t _LSM6DSO_nCS_PIN;
 //	GPIO_TypeDef *_LSM6DSO_nCS_Port;
 };
