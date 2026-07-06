@@ -570,6 +570,7 @@ void Robot::PeriodicCheckCall(void)
 	static uint32_t start_tick = xTaskGetTickCount();
 	static uint8_t diver = 0;
 	static uint8_t reset_counter = 0;
+	static size_t heap_min_size= 0;
 
 	if(current_fc != flash_period_ms)
 	{
@@ -638,7 +639,8 @@ void Robot::PeriodicCheckCall(void)
 
 // PID calculations
 	this->power_correction = PID_HeadingCorrection(this->set_angle);
-
+// Heap check
+	heap_min_size = xPortGetMinimumEverFreeHeapSize();
 }
 
 void Robot::PeriodCB(void)

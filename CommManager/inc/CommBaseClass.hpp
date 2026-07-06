@@ -34,7 +34,7 @@ class CommBaseClass
 
 	private:
 		uint8_t _xQueueStaticBuffer[MAX_MESSAGE_NO_IN_QUEUE*sizeof(MessageInfoTypeDef<T>)];
-		QueueHandle_t  _xStQueue;
+		StaticQueue_t  _xStQueue;
 		uint16_t GPIO_PIN;
 		GPIO_TypeDef *GPIOx;
 

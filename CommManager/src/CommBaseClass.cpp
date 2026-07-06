@@ -10,8 +10,9 @@ template<typename T>
 CommBaseClass<T>::CommBaseClass(T *hint, DMA_HandleTypeDef *hdmaRx, CommModeTypeDef CommMode, const char* CommName)
 :_Handle{hint}, hdmaRx{hdmaRx}, _commType{CommMode}, name{CommName}, GPIO_PIN{0}, GPIOx{NULL}
 {
-	_MsgQueue = xQueueCreate (MAX_MESSAGE_NO_IN_QUEUE,
-										sizeof(MessageInfoTypeDef<T>));
+	// _MsgQueue = xQueueCreate (MAX_MESSAGE_NO_IN_QUEUE,
+	// 									sizeof(MessageInfoTypeDef<T>));
+	_MsgQueue = xQueueCreateStatic(MAX_MESSAGE_NO_IN_QUEUE, sizeof(MessageInfoTypeDef<T>), _xQueueStaticBuffer, &_xStQueue);
 	vQueueAddToRegistry(_MsgQueue, CommName);
 }
 
