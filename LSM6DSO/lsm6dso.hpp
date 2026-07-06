@@ -25,13 +25,20 @@ public:
 	void ResetAngularOrientation(void);
 	HAL_StatusTypeDef IsInitCompleted(void);
 	void GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
+	void XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	double GetAngularOrientationForAxis(uint8_t axis);
+	bool IsCollisionDetected(void);
+	void ClearCollisionDetected(void);
 protected:
 	void GetGyData(void);
+	void GetXlData(void);
 private:
 	std::function<void(MessageInfoTypeDef<SPI> *MsgInfo)> _CallbackFuncGy;
+	std::function<void(MessageInfoTypeDef<SPI> *MsgInfo)> _CallbackFuncXl;
 	uint8_t pRxGyData[7];
 	uint8_t pTxGyData[7];
+	uint8_t pRxXlData[7];
+	uint8_t pTxXlData[7];
 	volatile uint32_t measurements_no;
 	int16_t data_raw_acceleration[3];
 	int16_t data_raw_angular_rate[3];
@@ -40,6 +47,9 @@ private:
 	double_t angular_orientation[3];
 	double_t gyro_offset[3];
 	double_t gyro_cal_offset[3];
+	double_t prev_horizontal_accel_mg;
+	double_t prev_yaw_rate_mdps;
+	volatile bool collision_detected;
 	bool __init_completed;
 	SPI_HandleTypeDef *_hspi;
 	CommManager *__CommManager;

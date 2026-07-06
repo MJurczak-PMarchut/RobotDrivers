@@ -16,6 +16,12 @@ static SemaphoreHandle_t SPIMutex;
 #define RX_CONTEXT 10
 #define TX_CONTEXT 15
 
+// Sample-to-sample jumps above these counts as a collision; own motor-driven acceleration/turning
+// ramps up over several samples (motor + drivetrain inertia), so it stays below these even at a
+// similar peak value. Both are per-sample (1667 Hz ODR) deltas and need tuning on real hardware.
+#define COLLISION_ACCEL_JERK_THRESHOLD_MG 400.0
+#define COLLISION_GYRO_JERK_THRESHOLD_MDPS 500000.0
+
 static uint8_t pTXBuf[257] = {0};
 static uint8_t pRxBuf[257] = {0};
 
@@ -135,9 +141,15 @@ LSM6DSO::LSM6DSO(CommManager *CommunicationManager, SPI_HandleTypeDef *hspi)
 	this->dev_ctx.write_reg = platform_write;
 	this->_hspi = hspi;
 	this->__init_completed = false;
+	this->collision_detected = false;
+	this->prev_horizontal_accel_mg = 0;
+	this->prev_yaw_rate_mdps = 0;
 	memset(this->pTxGyData, 0, 7);
 	this->pTxGyData[0] = LSM6DSO_OUTX_L_G | (1<<7);
 	this->_CallbackFuncGy = std::bind(&LSM6DSO::GyDataReceivedCB, this, std::placeholders::_1);
+	memset(this->pTxXlData, 0, 7);
+	this->pTxXlData[0] = LSM6DSO_OUTX_L_A | (1<<7);
+	this->_CallbackFuncXl = std::bind(&LSM6DSO::XlDataReceivedCB, this, std::placeholders::_1);
 	SPIMutex = xSemaphoreCreateBinary();
 	if(SPIMutex == NULL){
 		Error_Handler();
@@ -164,7 +176,7 @@ HAL_StatusTypeDef LSM6DSO::Init(void)
 	lsm6dso_block_data_update_set(&dev_ctx, PROPERTY_ENABLE);
 	lsm6dso_xl_data_rate_set(&dev_ctx, LSM6DSO_XL_ODR_1667Hz);
 	lsm6dso_gy_data_rate_set(&dev_ctx, LSM6DSO_GY_ODR_1667Hz);
-	lsm6dso_xl_full_scale_set(&dev_ctx, LSM6DSO_2g);
+	lsm6dso_xl_full_scale_set(&dev_ctx, LSM6DSO_16g);
 	lsm6dso_gy_full_scale_set(&dev_ctx, LSM6DSO_2000dps);
 	lsm6dso_xl_hp_path_on_out_set(&dev_ctx, LSM6DSO_LP_ODR_DIV_100);
 	lsm6dso_xl_filter_lp2_set(&dev_ctx, PROPERTY_ENABLE);
@@ -190,8 +202,34 @@ void LSM6DSO::GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
 				((this->angular_rate_mdps[plane] - this->gyro_offset[plane])/(1000 * 1667));
 		this->gyro_cal_offset[plane] = this->gyro_cal_offset[plane] + this->angular_rate_mdps[plane];
 	}
+	// A collision that spins the robot shows up as a sudden jump in yaw rate between samples;
+	// an intentional turn ramps up gradually, so it stays below this even at a similar peak rate.
+	if(fabs(this->angular_rate_mdps[2] - this->prev_yaw_rate_mdps) > COLLISION_GYRO_JERK_THRESHOLD_MDPS){
+		this->collision_detected = true;
+	}
+	this->prev_yaw_rate_mdps = this->angular_rate_mdps[2];
 	this->measurements_no = this->measurements_no + 1;
 
+}
+
+void LSM6DSO::XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
+{
+	uint8_t buffer_index = 0;
+	for(uint8_t plane=0; plane < 3; plane++){
+		buffer_index = 1 + (plane*2);
+		this->data_raw_acceleration[plane] = (this->pRxXlData[buffer_index] | (this->pRxXlData[buffer_index + 1] << 8));
+		this->acceleration_mg[plane] = lsm6dso_from_fs16_to_mg(this->data_raw_acceleration[plane]);
+	}
+	// Horizontal plane (X/Y) excludes the Z axis, which mostly carries gravity and vertical bounce.
+	double_t horizontal_accel_mg = sqrt(this->acceleration_mg[0]*this->acceleration_mg[0]
+			+ this->acceleration_mg[1]*this->acceleration_mg[1]);
+	// A collision arrives as a sudden jump between samples; the robot's own motor-driven
+	// acceleration ramps up over several samples due to motor/drivetrain inertia, so its
+	// sample-to-sample delta stays well below this even at a similar peak magnitude.
+	if(fabs(horizontal_accel_mg - this->prev_horizontal_accel_mg) > COLLISION_ACCEL_JERK_THRESHOLD_MG){
+		this->collision_detected = true;
+	}
+	this->prev_horizontal_accel_mg = horizontal_accel_mg;
 }
 
 void LSM6DSO::GetGyData(void)
@@ -206,6 +244,23 @@ void LSM6DSO::GetGyData(void)
 	MsgInfo.pRxData = this->pRxGyData;
 	MsgInfo.eCommType = COMM_INT_TXRX;
 	MsgInfo.pCB = &this->_CallbackFuncGy;
+	MsgInfo.GPIO_PIN = LSM6DSO_nCS_PIN;
+	MsgInfo.GPIOx = LSM6DSO_nCS_PORT;
+	__CommManager->PushCommRequestIntoQueue(&MsgInfo);
+}
+
+void LSM6DSO::GetXlData(void)
+{
+	memset(pRxXlData, 0, 7);
+	MessageInfoTypeDef<SPI> MsgInfo = {0};
+	MsgInfo.IntHandle = this->_hspi;
+	MsgInfo.len = 7;
+	MsgInfo.spi_cpol_high = 1;
+	MsgInfo.context = RX_CONTEXT;
+	MsgInfo.pTxData = this->pTxXlData;
+	MsgInfo.pRxData = this->pRxXlData;
+	MsgInfo.eCommType = COMM_INT_TXRX;
+	MsgInfo.pCB = &this->_CallbackFuncXl;
 	MsgInfo.GPIO_PIN = LSM6DSO_nCS_PIN;
 	MsgInfo.GPIOx = LSM6DSO_nCS_PORT;
 	__CommManager->PushCommRequestIntoQueue(&MsgInfo);
@@ -249,6 +304,10 @@ void LSM6DSO::InterruptCallback(uint16_t InterruptPin){
 	{
 		GetGyData();
 	}
+	else if(InterruptPin == IMU_INT2_Pin)
+	{
+		GetXlData();
+	}
 }
 
 double LSM6DSO::GetAngularOrientationForAxis(uint8_t axis)
@@ -257,5 +316,15 @@ double LSM6DSO::GetAngularOrientationForAxis(uint8_t axis)
 		return angular_orientation[axis];
 	else
 		return NAN;
+}
+
+bool LSM6DSO::IsCollisionDetected(void)
+{
+	return this->collision_detected;
+}
+
+void LSM6DSO::ClearCollisionDetected(void)
+{
+	this->collision_detected = false;
 }
 

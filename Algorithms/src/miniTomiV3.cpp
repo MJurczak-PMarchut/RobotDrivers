@@ -546,7 +546,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
 		}
 	}
-	if(GPIO_Pin == IMU_INT1_Pin){
+	if(GPIO_Pin == IMU_INT1_Pin || GPIO_Pin == IMU_INT2_Pin){
 		IMU.InterruptCallback(GPIO_Pin);
 	}
 //	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
@@ -571,6 +571,7 @@ void Robot::PeriodicCheckCall(void)
 	static uint8_t diver = 0;
 	static uint8_t reset_counter = 0;
 	static size_t heap_min_size= 0;
+	UNUSED(heap_min_size);
 
 	if(current_fc != flash_period_ms)
 	{
