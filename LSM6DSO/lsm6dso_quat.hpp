@@ -18,7 +18,7 @@
 // Set to 0 to compile out the attitude/position math entirely (Update() becomes a no-op), e.g.
 // for robot variants that don't need it and want to skip the per-sample quaternion + integration cost.
 #ifndef LSM6DSO_QUAT_ESTIMATION_ENABLED
-#define LSM6DSO_QUAT_ESTIMATION_ENABLED 1
+#define LSM6DSO_QUAT_ESTIMATION_ENABLED 0
 #endif
 
 typedef struct {

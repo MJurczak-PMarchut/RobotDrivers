@@ -67,6 +67,7 @@ void DirtyLogger::Init(void){
 	}
 	_available = true;
 }
+
 void DirtyLogger::Log(const char* message, loglevel_t LogLevel)
 {
 	FRESULT res;

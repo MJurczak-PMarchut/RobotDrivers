@@ -42,6 +42,7 @@ class MCInterface{
 		virtual HAL_StatusTypeDef CheckIfControllerInitializedOk(void) = 0;
 		static void run(void);
 		static void RunStateCheck(void);
+		static TaskHandle_t xHandle;
 	protected:
 		static uint8_t NoOfControllers;
 		static uint8_t __Instantiated_sides;
@@ -51,7 +52,7 @@ class MCInterface{
 		static bool _isRunning;
 		static void _check_state(void* pvParam);
 		static MCInterface*  _MCInterfacePointers[2];
-		static TaskHandle_t xHandle;
+		
 };
 
 

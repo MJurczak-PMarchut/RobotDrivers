@@ -28,6 +28,8 @@
 #define HEADING_PID_KI 0.0005f
 #define HEADING_PID_KD 0.01f
 #define HEADING_PID_OUTPUT_LIMIT 0.65f
+
+
 // Errors smaller than this are treated as zero, so sensor noise / motor response lag
 // doesn't make the robot hunt back and forth for a negligible heading difference.
 #define HEADING_PID_DEADBAND_DEG 15.0f
@@ -90,8 +92,8 @@ void Robot::begin(void)
 	was_running = true;
 	flash_period_ms = 100;
 	// HAL_StatusTypeDef imuret;
-	logger.Init();
-	logger.StartTimestamp();
+	// logger.Init();
+	// logger.StartTimestamp();
 	//Enable power
 	//Enable power
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
@@ -409,12 +411,20 @@ State_t LookForOpponent2(Robot *obj)
 	}
 	return LOOK_FOR_OPPONENT_2;
 }
-
+UBaseType_t heap_min_size;
 void Robot::loop(void)
 {
 	static State_t eFSM_state = CALIBRATE;
 	eFSM_state = CheckStartCondition(this, eFSM_state);
 	static TickType_t last_detection_tick = 0;
+	heap_min_size = uxTaskGetStackHighWaterMark(MCInterface::xHandle);
+	// Periodic (not every loop) readback of the IMU's own interrupt-config registers,
+	// so we can see if they drift from expected even after INT1 has gone silent.
+	static uint16_t imu_diag_counter = 1;
+	if((imu_diag_counter++ % 50) == 0)
+	{
+		IMU.DiagnoseInterruptConfig();
+	}
 	switch(eFSM_state)
 	{
 		case CALIBRATE:
@@ -571,7 +581,7 @@ void Robot::PeriodicCheckCall(void)
 	static uint32_t start_tick = xTaskGetTickCount();
 	static uint8_t diver = 0;
 	static uint8_t reset_counter = 0;
-	static size_t heap_min_size= 0;
+
 	UNUSED(heap_min_size);
 
 	if(current_fc != flash_period_ms)
@@ -624,7 +634,7 @@ void Robot::PeriodicCheckCall(void)
 //				MCInterface::RunStateCheck();
 
 				if(diver == 20){
-					logger.Sync();
+					// logger.Sync();
 //					HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 				}
 				diver = (diver >= 20)? 0: diver+1;
@@ -642,7 +652,7 @@ void Robot::PeriodicCheckCall(void)
 // PID calculations
 	this->power_correction = PID_HeadingCorrection(this->set_angle);
 // Heap check
-	heap_min_size = xPortGetMinimumEverFreeHeapSize();
+	
 }
 
 void Robot::PeriodCB(void)

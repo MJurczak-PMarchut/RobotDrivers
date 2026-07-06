@@ -11,6 +11,60 @@ CommSPI::CommSPI(SPI_HandleTypeDef *hint, DMA_HandleTypeDef *hdma, CommModeTypeD
 :CommBaseClass(hint, hdma, CommMode, "SPI")
 {}
 
+// Makes the free-check -> configure -> start-transfer sequence in
+// __CheckIfFreeAndSendRecv atomic against concurrent callers (the "MC Status
+// check" task, the IMU's EXTI interrupt, and the SPI completion ISR all reach
+// this same code path). Without this, a task can be preempted between
+// confirming the peripheral is idle and actually starting its transfer, and
+// the preempting interrupt can start its own transfer on the same shared bus
+// in the meantime - corrupting whichever transaction loses. RAII so every
+// return path (including the existing early return) exits correctly.
+// COMM_WAIT uses blocking HAL calls with a timeout of up to 1000ms - holding this
+// critical section through one of those would mask every interrupt (including
+// SysTick) for that whole duration, which is far worse than the race it prevents.
+// Call Release() before making a COMM_WAIT call; the destructor then becomes a
+// no-op. COMM_INTERRUPT/COMM_DMA calls are quick and non-blocking, so those stay
+// protected all the way through by leaving the guard active until it goes out of scope.
+class SPICriticalSection
+{
+public:
+	SPICriticalSection() : _isISR(xPortIsInsideInterrupt() == pdTRUE), _savedStatus(0), _active(true)
+	{
+		if(_isISR)
+		{
+			_savedStatus = taskENTER_CRITICAL_FROM_ISR();
+		}
+		else
+		{
+			taskENTER_CRITICAL();
+		}
+	}
+	~SPICriticalSection()
+	{
+		Release();
+	}
+	void Release()
+	{
+		if(!_active)
+		{
+			return;
+		}
+		_active = false;
+		if(_isISR)
+		{
+			taskEXIT_CRITICAL_FROM_ISR(_savedStatus);
+		}
+		else
+		{
+			taskEXIT_CRITICAL();
+		}
+	}
+private:
+	bool _isISR;
+	UBaseType_t _savedStatus;
+	bool _active;
+};
+
 HAL_StatusTypeDef CommSPI::__CheckIfInterfaceFree(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_BUSY;
@@ -24,6 +78,7 @@ HAL_StatusTypeDef CommSPI::__CheckIfInterfaceFree(MessageInfoTypeDef<SPI_HandleT
 HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_HandleTypeDef> *MsgInfo)
 {
 	HAL_StatusTypeDef ret =HAL_BUSY;
+	SPICriticalSection guard;
 	if(__CheckIfInterfaceFree(MsgInfo) != HAL_OK)
 	{
 		return ret;
@@ -44,8 +99,16 @@ HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_Handl
 	this->cpol_high = MsgInfo->spi_cpol_high;
 	if(_commType != COMM_DUMMY)
 	{
-		__CheckAndSetCSPinsGeneric(MsgInfo);
+		// Abort any leftover transaction state before selecting the new target's CS -
+		// otherwise any bus-level side effect from the abort lands on the device we
+		// just selected instead of whatever (already-idle) state preceded it.
 		HAL_SPI_Abort(MsgInfo->IntHandle);
+		__CheckAndSetCSPinsGeneric(MsgInfo);
+	}
+	if(_commType == COMM_WAIT)
+	{
+		// Blocking call about to happen (up to 1000ms) - must not hold interrupts off for that.
+		guard.Release();
 	}
 	switch(MsgInfo->eCommType)
 	{

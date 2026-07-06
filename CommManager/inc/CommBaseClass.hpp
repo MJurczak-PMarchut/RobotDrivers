@@ -7,6 +7,7 @@
 #ifndef COMMMANAGER_COMMINTERFACE_HPP_
 #define COMMMANAGER_COMMINTERFACE_HPP_
 #include "Configuration.h"
+#include "FreeRTOS.h"
 #include "queue.h"
 
 template <class T>

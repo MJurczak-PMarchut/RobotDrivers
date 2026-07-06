@@ -54,6 +54,8 @@ CommBaseClass<T>* CommManager::_MatchInstance(queue *VectQueue, T *hint)
 {
 	for(auto instance : *VectQueue)
 	{
+		if(instance == NULL)
+			continue;
 		if(instance->CheckIfSameInstance(hint) == HAL_OK)
 		{
 			return instance;
