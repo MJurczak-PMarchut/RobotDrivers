@@ -233,6 +233,7 @@ void LSM6DSO::XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
 	}
 	this->prev_horizontal_accel_mg = horizontal_accel_mg;
 
+	#if LSM6DSO_QUAT_ESTIMATION_ENABLED
 	// Attitude (tilt-compensated) + dead-reckoned position, fed with the latest gyro sample
 	// (updated independently by GyDataReceivedCB at the same 1667 Hz ODR, just phase-shifted).
 	this->_positionEstimator.Update(
@@ -241,6 +242,7 @@ void LSM6DSO::XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo)
 			this->angular_rate_mdps[2] - this->gyro_offset[2],
 			this->acceleration_mg[0], this->acceleration_mg[1], this->acceleration_mg[2],
 			ACCEL_SAMPLE_DT_S);
+	#endif
 }
 
 void LSM6DSO::GetGyData(void)
@@ -329,6 +331,7 @@ double LSM6DSO::GetAngularOrientationForAxis(uint8_t axis)
 		return NAN;
 }
 
+#if LSM6DSO_QUAT_ESTIMATION_ENABLED
 PositionTypeDef LSM6DSO::GetPosition(void)
 {
 	return this->_positionEstimator.GetPosition();
@@ -338,6 +341,7 @@ void LSM6DSO::CalibratePosition(void)
 {
 	this->_positionEstimator.CalibratePosition();
 }
+#endif
 
 bool LSM6DSO::IsCollisionDetected(void)
 {

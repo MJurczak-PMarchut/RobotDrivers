@@ -41,6 +41,7 @@ void LSM6DSOQuat::NormalizeQuaternion(void)
 void LSM6DSOQuat::Update(double_t gx_mdps, double_t gy_mdps, double_t gz_mdps,
 		double_t ax_mg, double_t ay_mg, double_t az_mg, double_t dt_s)
 {
+#if LSM6DSO_QUAT_ESTIMATION_ENABLED
 	double_t gx = (gx_mdps / 1000.0) * DEG_TO_RAD_FACTOR;
 	double_t gy = (gy_mdps / 1000.0) * DEG_TO_RAD_FACTOR;
 	double_t gz = (gz_mdps / 1000.0) * DEG_TO_RAD_FACTOR;
@@ -107,6 +108,10 @@ void LSM6DSOQuat::Update(double_t gx_mdps, double_t gy_mdps, double_t gz_mdps,
 	this->position_m[0] += this->velocity_mps[0] * dt_s;
 	this->position_m[1] += this->velocity_mps[1] * dt_s;
 	this->position_m[2] += this->velocity_mps[2] * dt_s;
+#else
+	(void)gx_mdps; (void)gy_mdps; (void)gz_mdps;
+	(void)ax_mg; (void)ay_mg; (void)az_mg; (void)dt_s;
+#endif
 }
 
 PositionTypeDef LSM6DSOQuat::GetPosition(void)

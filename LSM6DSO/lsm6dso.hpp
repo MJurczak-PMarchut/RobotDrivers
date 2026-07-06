@@ -28,8 +28,10 @@ public:
 	void GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	void XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	double GetAngularOrientationForAxis(uint8_t axis);
+#if LSM6DSO_QUAT_ESTIMATION_ENABLED
 	PositionTypeDef GetPosition(void);
 	void CalibratePosition(void);
+#endif
 	bool IsCollisionDetected(void);
 	void ClearCollisionDetected(void);
 protected:
@@ -57,7 +59,9 @@ private:
 	SPI_HandleTypeDef *_hspi;
 	CommManager *__CommManager;
 	stmdev_ctx_t dev_ctx;
+#if LSM6DSO_QUAT_ESTIMATION_ENABLED
 	LSM6DSOQuat _positionEstimator;
+#endif
 //	uint16_t _LSM6DSO_nCS_PIN;
 //	GPIO_TypeDef *_LSM6DSO_nCS_Port;
 };

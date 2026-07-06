@@ -15,6 +15,12 @@
 #include <stdint.h>
 #include <math.h>
 
+// Set to 0 to compile out the attitude/position math entirely (Update() becomes a no-op), e.g.
+// for robot variants that don't need it and want to skip the per-sample quaternion + integration cost.
+#ifndef LSM6DSO_QUAT_ESTIMATION_ENABLED
+#define LSM6DSO_QUAT_ESTIMATION_ENABLED 1
+#endif
+
 typedef struct {
 	double_t x;
 	double_t y;
