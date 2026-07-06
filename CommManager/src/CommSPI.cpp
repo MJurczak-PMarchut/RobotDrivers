@@ -131,7 +131,7 @@ HAL_StatusTypeDef CommSPI::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<SPI_Handl
 HAL_StatusTypeDef CommSPI::MsgReceivedCB(SPI_HandleTypeDef *hint)
 {
 	HAL_StatusTypeDef ret;
-	MessageInfoTypeDef<SPI_HandleTypeDef> MsgInfo ={0};
+	// MessageInfoTypeDef<SPI_HandleTypeDef> MsgInfo ={0};
 //	xQueuePeekFromISR(_MsgQueue, &MsgInfo);
 	// check if cpol change needed
 	ret = CommBaseClass::MsgReceivedCB(hint);

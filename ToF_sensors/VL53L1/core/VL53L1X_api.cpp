@@ -203,8 +203,8 @@ static const uint8_t status_rtn[24] = { 255, 255, 255, 5, 2, 4, 1, 7, 3, 0,
 	255, 255, 11, 12
 };
 
-static uint8_t start_ranging_const = 0x40;
-static uint8_t clr_interrupt = 0x01;
+// static uint8_t start_ranging_const = 0x40;
+// static uint8_t clr_interrupt = 0x01;
 
 //VL53L1X::VL53L1X(CommManager *comm, e_ToF_Position position, GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin):
 //		ToF_Sensor(vl53l1, position, comm), __GPIOx{GPIOx}, __GPIO_Pin{GPIO_Pin}

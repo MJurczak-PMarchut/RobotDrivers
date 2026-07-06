@@ -21,8 +21,8 @@ static uint8_t pRxBuf[257] = {0};
 
 //static int16_t data_raw_temperature;
 
-static float angle[3] = {0};
-static float angle_rate_offset[3] ={910, 560, -350};
+// static float angle[3] = {0};
+// static float angle_rate_offset[3] ={910, 560, -350};
 
 void RxCallbackFunc(MessageInfoTypeDef<SPI>* MsgInfo)
 {
