@@ -25,13 +25,20 @@ HAL_StatusTypeDef CommI2C::__CheckIfInterfaceFree(MessageInfoTypeDef<I2C_HandleT
 HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_BUSY;
+	CriticalSectionState csState = __EnterCriticalSection();
 	if(__CheckIfInterfaceFree(MsgInfo) != HAL_OK)
 	{
+		__LeaveCriticalSection(csState);
 		return ret;
 	}
 	if(_commType != COMM_DUMMY)
 	{
 		__CheckAndSetCSPinsGeneric(MsgInfo);
+	}
+	if(_commType == COMM_WAIT)
+	{
+		// Blocking call about to happen (up to 1000ms) - must not hold interrupts off for that.
+		__LeaveCriticalSection(csState);
 	}
 	switch(MsgInfo->eCommType)
 	{
@@ -135,5 +142,6 @@ HAL_StatusTypeDef CommI2C::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<I2C_Handl
 			ret = HAL_ERROR;
 			break;
 	}
+	__LeaveCriticalSection(csState);
 	return ret;
 }

@@ -8,8 +8,18 @@
 #ifndef SPECIALTYPES_HPP_
 #define SPECIALTYPES_HPP_
 #include <functional>
+#include "FreeRTOS.h"
 
 //typedef struct MessageInfoTypeDef MessageInfoTypeDef;
+
+// State token for CommBaseClass::__EnterCriticalSection()/__LeaveCriticalSection() -
+// see CommBaseClass.hpp for usage.
+struct CriticalSectionState
+{
+	bool isISR;
+	UBaseType_t savedStatus;
+	bool active;
+};
 
 typedef enum {
 	COMM_INT_TXRX = 0,

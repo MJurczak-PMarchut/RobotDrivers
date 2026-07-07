@@ -161,6 +161,42 @@ HAL_StatusTypeDef CommBaseClass<T>::CheckIfSameInstance(const T *pIntStruct)
 	return (this->_Handle->Instance == pIntStruct->Instance)? HAL_OK : HAL_ERROR;
 }
 
+template<typename T>
+CriticalSectionState CommBaseClass<T>::__EnterCriticalSection()
+{
+	CriticalSectionState state;
+	state.isISR = (xPortIsInsideInterrupt() == pdTRUE);
+	state.active = true;
+	if(state.isISR)
+	{
+		state.savedStatus = taskENTER_CRITICAL_FROM_ISR();
+	}
+	else
+	{
+		taskENTER_CRITICAL();
+		state.savedStatus = 0;
+	}
+	return state;
+}
+
+template<typename T>
+void CommBaseClass<T>::__LeaveCriticalSection(CriticalSectionState &state)
+{
+	if(!state.active)
+	{
+		return;
+	}
+	state.active = false;
+	if(state.isISR)
+	{
+		taskEXIT_CRITICAL_FROM_ISR(state.savedStatus);
+	}
+	else
+	{
+		taskEXIT_CRITICAL();
+	}
+}
+
 
 //These Interfaces are supported
 template class CommBaseClass<SPI_HandleTypeDef>;

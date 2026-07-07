@@ -25,9 +25,15 @@ HAL_StatusTypeDef CommUART::__CheckIfInterfaceFree(MessageInfoTypeDef<UART_Handl
 HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_HandleTypeDef> *MsgInfo)
 {
 	HAL_StatusTypeDef ret = HAL_BUSY;
+	CriticalSectionState csState = __EnterCriticalSection();
 	if(_commType != COMM_DUMMY)
 	{
 		__CheckAndSetCSPinsGeneric(MsgInfo);
+	}
+	if(_commType == COMM_WAIT)
+	{
+		// Blocking call about to happen (up to 1000ms) - must not hold interrupts off for that.
+		__LeaveCriticalSection(csState);
 	}
 	switch(MsgInfo->eCommType)
 	{
@@ -84,6 +90,7 @@ HAL_StatusTypeDef CommUART::__CheckIfFreeAndSendRecv(MessageInfoTypeDef<UART_Han
 			ret = HAL_ERROR;
 			break;
 	}
+	__LeaveCriticalSection(csState);
 	return ret;
 }
 

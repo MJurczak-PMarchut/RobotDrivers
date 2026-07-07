@@ -34,7 +34,6 @@ public:
 #endif
 	bool IsCollisionDetected(void);
 	void ClearCollisionDetected(void);
-	void DiagnoseInterruptConfig(void);
 protected:
 	void GetGyData(void);
 	void GetXlData(void);

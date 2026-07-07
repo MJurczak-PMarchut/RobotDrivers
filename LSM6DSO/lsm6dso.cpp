@@ -13,15 +13,6 @@
 static CommManager *_CommunicationManagerStatic = NULL;
 static SemaphoreHandle_t SPIMutex;
 
-volatile uint32_t g_imu_int1_count = 0;
-volatile uint32_t g_imu_int2_count = 0;
-volatile HAL_StatusTypeDef g_imu_pushRequestStatus = HAL_ERROR;
-// Live readback of the sensor's own interrupt-routing registers, refreshed by
-// LSM6DSO::DiagnoseInterruptConfig(). Expected: drdy_g=1, drdy_mode=LSM6DSO_DRDY_PULSED (1).
-// If either drifts from that after INT1 has frozen, the sensor's config got corrupted
-// (e.g. a corrupted SPI write meant for a motor controller landing here instead).
-volatile uint8_t g_imu_diag_int1_drdy_g = 0xFF;
-volatile int32_t g_imu_diag_drdy_mode = -1;
 
 #define RX_CONTEXT 10
 #define TX_CONTEXT 15
@@ -269,7 +260,7 @@ void LSM6DSO::GetGyData(void)
 	MsgInfo.pCB = &this->_CallbackFuncGy;
 	MsgInfo.GPIO_PIN = LSM6DSO_nCS_PIN;
 	MsgInfo.GPIOx = LSM6DSO_nCS_PORT;
-	g_imu_pushRequestStatus = __CommManager->PushCommRequestIntoQueue(&MsgInfo);
+	__CommManager->PushCommRequestIntoQueue(&MsgInfo);
 }
 
 void LSM6DSO::GetXlData(void)
@@ -325,12 +316,10 @@ void LSM6DSO::InterruptCallback(uint16_t InterruptPin){
 	}
 	if(InterruptPin == IMU_INT1_Pin)
 	{
-		g_imu_int1_count++;
 		GetGyData();
 	}
 	else if(InterruptPin == IMU_INT2_Pin)
 	{
-		g_imu_int2_count++;
 		GetXlData();
 	}
 }
@@ -364,16 +353,3 @@ void LSM6DSO::ClearCollisionDetected(void)
 {
 	this->collision_detected = false;
 }
-
-void LSM6DSO::DiagnoseInterruptConfig(void)
-{
-	lsm6dso_pin_int1_route_t route = {0};
-	lsm6dso_dataready_pulsed_t mode = LSM6DSO_DRDY_LATCHED;
-
-	lsm6dso_pin_int1_route_get(&dev_ctx, &route);
-	lsm6dso_data_ready_mode_get(&dev_ctx, &mode);
-
-	g_imu_diag_int1_drdy_g = route.drdy_g;
-	g_imu_diag_drdy_mode = mode;
-}
-

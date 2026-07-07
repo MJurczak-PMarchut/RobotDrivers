@@ -4,6 +4,9 @@
  *  Created on: 12 gru 2022
  *      Author: Mateusz
  */
+#include "osapi.h"
+#include "portmacro.h"
+#include <stdio.h>
 #ifdef ROBOT_MT_V3
 #include "Algo.hpp"
 #include "vl53l1x.hpp"
@@ -92,10 +95,11 @@ void Robot::begin(void)
 	was_running = true;
 	flash_period_ms = 100;
 	// HAL_StatusTypeDef imuret;
-	// logger.Init();
-	// logger.StartTimestamp();
+	logger.Init();
+	logger.StartTimestamp();
 	//Enable power
 	//Enable power
+	logger.Log("--- INIT Started ---", LOGLEVEL_INFO);
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(NCS1_GPIO_Port, NCS1_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
@@ -124,7 +128,7 @@ void Robot::begin(void)
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
 
-
+	logger.Log("--- INIT Completed ---", LOGLEVEL_INFO);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 }
@@ -133,41 +137,100 @@ void prepare_sensor_data(char *pData, VL53L1X Sensors[])
 {
 }
 
+// Which line sensor(s) fired on the most recent out-of-bounds event; latched here
+// because the pins may already read clear by the time the OOB handler logs them.
+volatile bool lineDetOnLeft = false;
+volatile bool lineDetOnRight = false;
+
 bool isOutOfBounds(void)
 {
 	bool left = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin);
 	bool right = !HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
+	if(left || right)
+	{
+		lineDetOnLeft = left;
+		lineDetOnRight = right;
+	}
 	return (left || right);
+}
+
+void WaitForNewData(void)
+{	
+	static EventBits_t u32_updated_Sensors = 0;
+	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 20);
+	UNUSED(u32_updated_Sensors);
+}
+
+typedef struct{
+	uint16_t raw_left;
+	uint16_t raw_right;
+	uint16_t left;
+	uint16_t right;
+}SensorDistances_t;
+
+// Reads both front sensors and replaces readings whose signal is weaker than the
+// calibrated threshold with an out-of-detection-range value, so callers only act
+// on distances the calibration deems trustworthy.
+static SensorDistances_t GetValidatedDistances(void)
+{
+	SensorDistances_t distances;
+	distances.raw_left = Sensors[0].GetDistance();
+	distances.raw_right = Sensors[2].GetDistance();
+	VL53L1X_Result_t result_left = Sensors[0].GetResult();
+	VL53L1X_Result_t result_right = Sensors[2].GetResult();
+	distances.left = (result_left.SigPerSPAD > maxVal_perSPAD[0])?
+			distances.raw_left: DETECTION_DISTANCE + 100;
+	distances.right = (result_right.SigPerSPAD > maxVal_perSPAD[1])?
+			distances.raw_right: DETECTION_DISTANCE + 100;
+	return distances;
 }
 
 bool isOpponentDetected(void)
 {
-	EventBits_t u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
-	if(u32_updated_Sensors != TOF_EVENT_MASK)
-	{
-		return false;
+	char sensor_message[100] = {0};
+	static bool was_previously_detected= false;
+
+	WaitForNewData();
+	SensorDistances_t distances = GetValidatedDistances();
+	sprintf(sensor_message, "ToF [0]: %u, [1]: %u ", distances.raw_left, distances.raw_right);
+	logger.Log(sensor_message,LOGLEVEL_TRACE);
+
+	sensor_detected_item[0] = distances.left < DETECTION_DISTANCE;
+	sensor_detected_item[1] = distances.right < DETECTION_DISTANCE;
+	bool detected = sensor_detected_item[0] || sensor_detected_item[1];
+
+	if(was_previously_detected != detected){
+		logger.Log((detected)? "Opponent Detected" : "No Oponnent", LOGLEVEL_INFO);
 	}
-	uint16_t sensor_left= Sensors[0].GetDistance();
-	uint16_t sensor_right= Sensors[2].GetDistance();
-	VL53L1X_Result_t result_left = Sensors[0].GetResult();
-	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	sensor_left = (result_left.SigPerSPAD > maxVal_perSPAD[0])?
-			sensor_left: DETECTION_DISTANCE + 100;
-	sensor_right = (result_right.SigPerSPAD > maxVal_perSPAD[1])?
-			sensor_right: DETECTION_DISTANCE + 100;
-	sensor_detected_item[0] = sensor_left < DETECTION_DISTANCE;
-	sensor_detected_item[1] = sensor_right < DETECTION_DISTANCE;
-	return (sensor_left < DETECTION_DISTANCE) || (sensor_right < DETECTION_DISTANCE);
+
+	sprintf(sensor_message, "Orientation x: %.2f, y: %.2f, z:%.2f ", IMU.GetAngularOrientationForAxis(0), IMU.GetAngularOrientationForAxis(1), IMU.GetAngularOrientationForAxis(2));
+	logger.Log(sensor_message, LOGLEVEL_TRACE);
+
+	was_previously_detected = detected;
+	return detected;
 }
 
 typedef enum{CALIBRATE, WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS, LOOK_FOR_OPPONENT_1, LOOK_FOR_OPPONENT_2} State_t;
 
+static const char* StateName(State_t state)
+{
+	static const char *names[] = {"CALIBRATE", "WAIT_FOR_START", "FIGHT", "OUT_OF_BOUNDS", "LOOK_FOR_OPPONENT_1", "LOOK_FOR_OPPONENT_2"};
+	return (state <= LOOK_FOR_OPPONENT_2)? names[state] : "UNKNOWN";
+}
+
 State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 {
+	static bool start_condition_prev = false;
+	bool start_condition = HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin);
+	if(start_condition != start_condition_prev)
+	{
+		logger.Log((start_condition)? " Start Condition Set" : " Start Condition Reset ", LOGLEVEL_INFO);
+	}
+	start_condition_prev = start_condition;
 	if(eFSM_state ==  CALIBRATE){
 		return eFSM_state;
 	}
-	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin))//dummy
+	if(!start_condition)//dummy
 	{
 		obj->SetFlashPeriodMS(1000);
 		MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
@@ -184,14 +247,9 @@ State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 void FightAlgorithm(Robot *obj)
 {
 	bool forward_det;
-	uint16_t sensor_left= Sensors[0].GetDistance();
-	uint16_t sensor_right= Sensors[2].GetDistance();
-	VL53L1X_Result_t result_left = Sensors[0].GetResult();
-	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	sensor_left = (result_left.SigPerSPAD > 5000)?
-			sensor_left: DETECTION_DISTANCE + 100;
-	sensor_right = (result_right.SigPerSPAD < 5000)?
-			sensor_right: DETECTION_DISTANCE + 100;
+	SensorDistances_t distances = GetValidatedDistances();
+	uint16_t sensor_left = distances.left;
+	uint16_t sensor_right = distances.right;
 	// detected
 	obj->SetFlashPeriodMS(100);
 	if(sensor_left > sensor_right){
@@ -201,18 +259,32 @@ void FightAlgorithm(Robot *obj)
 	{
 		forward_det = ((sensor_right - sensor_left) < 60)? true:false;
 	}
+	const char *fight_move;
 	if (forward_det){
 		MCInterface::SetMotorsPower(FULL_SPEED, FULL_SPEED);
+		fight_move = "ATTACK FWD";
 	}
 	else if(sensor_left < sensor_right)
 	{
 		// on the left
 		MCInterface::SetMotorsPower(MANOUVER_SPEED, FULL_SPEED);
 		lastDetOnLeft = true;
+		fight_move = "TURN LEFT";
 	}
 	else{
 		MCInterface::SetMotorsPower(FULL_SPEED, MANOUVER_SPEED);
 		lastDetOnLeft = false;
+		fight_move = "TURN RIGHT";
+	}
+
+	// Log only when the steering decision changes, with the distances that drove it
+	static const char *last_fight_move = NULL;
+	if(fight_move != last_fight_move)
+	{
+		char fight_message[100];
+		sprintf(fight_message, "Fight: %s L=%u R=%u", fight_move, sensor_left, sensor_right);
+		logger.Log(fight_message, LOGLEVEL_INFO);
+		last_fight_move = fight_move;
 	}
 }
 
@@ -381,6 +453,9 @@ State_t LookForOpponent2(Robot *obj)
 	obj->SetFlashPeriodMS(500);
 	if(isOutOfBounds())
 	{
+		char search_message[100];
+		sprintf(search_message, "Search2: edge hit, backing off, rotate %s", (lastDetOnLeft)? "LEFT" : "RIGHT");
+		logger.Log(search_message, LOGLEVEL_INFO);
 		// On both Or Only One?
 		//move back slightly
 		MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
@@ -412,42 +487,66 @@ State_t LookForOpponent2(Robot *obj)
 	return LOOK_FOR_OPPONENT_2;
 }
 UBaseType_t heap_min_size;
+
+void Calibrate(void)
+{
+	TickType_t start_time = xTaskGetTickCount();
+	while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
+		xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
+		VL53L1X_Result_t result_left = Sensors[0].GetResult();
+		VL53L1X_Result_t result_right = Sensors[2].GetResult();
+		maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
+		maxVal_perSPAD[1] = (maxVal_perSPAD[1] < result_right.SigPerSPAD)? result_right.SigPerSPAD: maxVal_perSPAD[1];
+	}
+	maxVal_perSPAD[0] = maxVal_perSPAD[0]*2;
+	maxVal_perSPAD[1] = maxVal_perSPAD[1]*2;
+	maxVal_perSPAD[0] = (maxVal_perSPAD[0] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[0]:MAX_SIG_PER_SPAD;
+	maxVal_perSPAD[1] = (maxVal_perSPAD[1] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[1]:MAX_SIG_PER_SPAD;
+	
+	char calib_message[100];
+	sprintf(calib_message, "Calib SigPerSPAD thresholds L=%u R=%u", maxVal_perSPAD[0], maxVal_perSPAD[1]);
+	logger.Log(calib_message, LOGLEVEL_INFO);
+	logger.Log("--- CALIBRATION Completed ---", LOGLEVEL_INFO);
+}
+
+
 void Robot::loop(void)
 {
 	static State_t eFSM_state = CALIBRATE;
 	eFSM_state = CheckStartCondition(this, eFSM_state);
 	static TickType_t last_detection_tick = 0;
-	heap_min_size = uxTaskGetStackHighWaterMark(MCInterface::xHandle);
-	// Periodic (not every loop) readback of the IMU's own interrupt-config registers,
-	// so we can see if they drift from expected even after INT1 has gone silent.
-	static uint16_t imu_diag_counter = 1;
-	if((imu_diag_counter++ % 50) == 0)
+	// Collision handling: the IMU driver latches sudden accel/yaw-rate jumps (impacts)
+	// that our own motor-driven moves don't produce.
+	if(eFSM_state == CALIBRATE || eFSM_state == WAIT_FOR_START)
 	{
-		IMU.DiagnoseInterruptConfig();
+		// Discard jolts from handling/placing the robot before the match
+		IMU.ClearCollisionDetected();
+	}
+	else if(IMU.IsCollisionDetected())
+	{
+		IMU.ClearCollisionDetected();
+		char collision_message[100];
+		sprintf(collision_message, "Collision in state %s", StateName(eFSM_state));
+		logger.Log(collision_message, LOGLEVEL_INFO);
+		// Hit while searching means the opponent has contact but our sensors don't see them:
+		// spin in place (search 1) to reacquire instead of driving on blindly.
+		if(eFSM_state == LOOK_FOR_OPPONENT_1 || eFSM_state == LOOK_FOR_OPPONENT_2)
+		{
+			last_detection_tick = xTaskGetTickCount();
+			eFSM_state = LOOK_FOR_OPPONENT_1;
+		}
 	}
 	switch(eFSM_state)
 	{
 		case CALIBRATE:
 		{
-			TickType_t start_time = xTaskGetTickCount();
-			while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
-				xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
-				VL53L1X_Result_t result_left = Sensors[0].GetResult();
-				VL53L1X_Result_t result_right = Sensors[2].GetResult();
-				maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
-				maxVal_perSPAD[1] = (maxVal_perSPAD[1] < result_right.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[1];
-			}
-			maxVal_perSPAD[0] = maxVal_perSPAD[0]*2;
-			maxVal_perSPAD[1] = maxVal_perSPAD[1]*2;
-			maxVal_perSPAD[0] = (maxVal_perSPAD[0] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[0]:MAX_SIG_PER_SPAD;
-			maxVal_perSPAD[1] = (maxVal_perSPAD[1] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[1]:MAX_SIG_PER_SPAD;
+			Calibrate();
 			eFSM_state = WAIT_FOR_START;
 		}
 		break;
 		case WAIT_FOR_START:
 		{
 			isOpponentDetected();
-			vTaskDelay(1);
 		}
 		break;
 		case FIGHT:
@@ -473,13 +572,23 @@ void Robot::loop(void)
 		{
 			//Check where we crossed the line
 			LED2_ON;
+			TickType_t startTicks = xTaskGetTickCount();
 			MCInterface::SetMotorsPower(0, 0);
-			vTaskDelay(10);
-
+			char oob_message[100];
+			sprintf(oob_message, " Out Of Bounds: line %s%s, escape turn %s",
+					(lineDetOnLeft)? "L" : "", (lineDetOnRight)? "R" : "",
+					(lastDetOnLeft)? "LEFT" : "RIGHT");
+			logger.Log(oob_message, LOGLEVEL_INFO);
+			startTicks = xTaskGetTickCount() - startTicks;
+			startTicks = (startTicks < 10)? startTicks : 10;
+			vTaskDelay(10 - startTicks);
 			//back for a sec
 			MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
 			vTaskDelay(200);
-			MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
+			if(lastDetOnLeft)
+				MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
+			else
+				MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
 			vTaskDelay(100);
 			eFSM_state = FIGHT;
 			LED2_OFF;
@@ -494,13 +603,9 @@ void Robot::loop(void)
 			else
 			{
 				this->SetFlashPeriodMS(1000);
-				if(lastDetOnLeft)
-				{
-					MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
-				}
-				else{
-					MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
-				}
+				double SteeringTrim = (!lastDetOnLeft) ? MANOUVER_SPEED : -MANOUVER_SPEED;
+				MCInterface::SetMotorsPower(SteeringTrim, -SteeringTrim);
+
 				// Wait 4s before changing strategy
 				if((xTaskGetTickCount() - last_detection_tick) < SEARCH_STRATEGY_CHANGE_TIME)
 				{
@@ -516,19 +621,21 @@ void Robot::loop(void)
 		break;
 		case LOOK_FOR_OPPONENT_2:
 		{
-			if(isOpponentDetected())
-			{
-				eFSM_state = FIGHT;
-			}
-			else
-			{
-				eFSM_state = LookForOpponent2(this);
-			}
+			eFSM_state = (isOpponentDetected()) ? FIGHT : LookForOpponent2(this);
 		}
 		break;
 		default:
 			eFSM_state = WAIT_FOR_START;
 			break;
+	}
+	// Log every FSM transition so match logs show the full decision timeline
+	static State_t last_logged_state = CALIBRATE;
+	if(last_logged_state != eFSM_state)
+	{
+		char state_message[100];
+		sprintf(state_message, "FSM: %s -> %s", StateName(last_logged_state), StateName(eFSM_state));
+		logger.Log(state_message, LOGLEVEL_INFO);
+		last_logged_state = eFSM_state;
 	}
 	//check if we can move
 	taskYIELD();
@@ -634,7 +741,7 @@ void Robot::PeriodicCheckCall(void)
 //				MCInterface::RunStateCheck();
 
 				if(diver == 20){
-					// logger.Sync();
+					logger.Sync();
 //					HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 				}
 				diver = (diver >= 20)? 0: diver+1;
