@@ -29,6 +29,9 @@ public:
 	void XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	double GetAngularOrientationForAxis(uint8_t axis);
 #if LSM6DSO_QUAT_ESTIMATION_ENABLED
+	// Tilt-corrected orientation from the Mahony quaternion filter (see lsm6dso_quat.hpp);
+	// same axis convention and units (degrees) as GetAngularOrientationForAxis.
+	double GetCorrectedAngularOrientationForAxis(uint8_t axis);
 	PositionTypeDef GetPosition(void);
 	void CalibratePosition(void);
 #endif

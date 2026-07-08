@@ -20,8 +20,8 @@ static SemaphoreHandle_t SPIMutex;
 // Sample-to-sample jumps above these counts as a collision; own motor-driven acceleration/turning
 // ramps up over several samples (motor + drivetrain inertia), so it stays below these even at a
 // similar peak value. Both are per-sample (1667 Hz ODR) deltas and need tuning on real hardware.
-#define COLLISION_ACCEL_JERK_THRESHOLD_MG 400.0
-#define COLLISION_GYRO_JERK_THRESHOLD_MDPS 500000.0
+#define COLLISION_ACCEL_JERK_THRESHOLD_MG 650.0
+#define COLLISION_GYRO_JERK_THRESHOLD_MDPS 600000.0
 
 #define ACCEL_SAMPLE_DT_S (1.0/1667.0)
 
@@ -327,12 +327,21 @@ void LSM6DSO::InterruptCallback(uint16_t InterruptPin){
 double LSM6DSO::GetAngularOrientationForAxis(uint8_t axis)
 {
 	if(axis < 3)
+	#if LSM6DSO_QUAT_ESTIMATION_OVERRIDE  and  LSM6DSO_QUAT_ESTIMATION_ENABLED
+		return this->GetCorrectedAngularOrientationForAxis(axis);
+	#else
 		return angular_orientation[axis];
+	#endif
 	else
 		return NAN;
 }
 
 #if LSM6DSO_QUAT_ESTIMATION_ENABLED
+double LSM6DSO::GetCorrectedAngularOrientationForAxis(uint8_t axis)
+{
+	return this->_positionEstimator.GetOrientationForAxis(axis);
+}
+
 PositionTypeDef LSM6DSO::GetPosition(void)
 {
 	return this->_positionEstimator.GetPosition();

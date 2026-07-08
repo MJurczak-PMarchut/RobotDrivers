@@ -15,10 +15,12 @@
 #include <stdint.h>
 #include <math.h>
 
-// Set to 0 to compile out the attitude/position math entirely (Update() becomes a no-op), e.g.
+// Define to 0 to compile out the attitude/position math entirely (Update() becomes a no-op), e.g.
 // for robot variants that don't need it and want to skip the per-sample quaternion + integration cost.
+// Must be overridden via compiler flag (-D...) so every translation unit agrees on the value.
 #ifndef LSM6DSO_QUAT_ESTIMATION_ENABLED
-#define LSM6DSO_QUAT_ESTIMATION_ENABLED 0
+#define LSM6DSO_QUAT_ESTIMATION_ENABLED 1
+#define LSM6DSO_QUAT_ESTIMATION_OVERRIDE 1
 #endif
 
 typedef struct {
@@ -33,6 +35,10 @@ public:
 	// gx/gy/gz: bias-corrected gyro rate in millidegrees/s. ax/ay/az: accelerometer reading in mg.
 	void Update(double_t gx_mdps, double_t gy_mdps, double_t gz_mdps,
 			double_t ax_mg, double_t ay_mg, double_t az_mg, double_t dt_s);
+	// Euler angles (degrees) extracted from the quaternion, ZYX (yaw-pitch-roll) convention:
+	// axis 0 = roll (X), 1 = pitch (Y), 2 = yaw (Z). Roll/pitch are gravity-corrected; yaw is
+	// order-correct 3D integration but has no absolute reference and drifts like a plain gyro.
+	double_t GetOrientationForAxis(uint8_t axis);
 	PositionTypeDef GetPosition(void);
 	void CalibratePosition(void);
 private:

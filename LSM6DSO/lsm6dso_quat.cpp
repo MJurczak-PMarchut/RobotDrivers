@@ -114,6 +114,35 @@ void LSM6DSOQuat::Update(double_t gx_mdps, double_t gy_mdps, double_t gz_mdps,
 #endif
 }
 
+double_t LSM6DSOQuat::GetOrientationForAxis(uint8_t axis)
+{
+	double_t q0 = this->q[0], q1 = this->q[1], q2 = this->q[2], q3 = this->q[3];
+	double_t angle_rad;
+	switch(axis){
+	case 0: // roll (X)
+		angle_rad = atan2(2.0*(q0*q1 + q2*q3), 1.0 - 2.0*(q1*q1 + q2*q2));
+		break;
+	case 1: // pitch (Y)
+	{
+		double_t sinp = 2.0*(q0*q2 - q3*q1);
+		// Clamp against numeric overshoot; at |sinp|=1 the robot is pointing straight up/down
+		// (gimbal lock of the ZYX extraction - the quaternion itself is unaffected).
+		if(sinp > 1.0)
+			sinp = 1.0;
+		else if(sinp < -1.0)
+			sinp = -1.0;
+		angle_rad = asin(sinp);
+	}
+		break;
+	case 2: // yaw (Z)
+		angle_rad = atan2(2.0*(q0*q3 + q1*q2), 1.0 - 2.0*(q2*q2 + q3*q3));
+		break;
+	default:
+		return NAN;
+	}
+	return angle_rad / DEG_TO_RAD_FACTOR;
+}
+
 PositionTypeDef LSM6DSOQuat::GetPosition(void)
 {
 	PositionTypeDef pos;
