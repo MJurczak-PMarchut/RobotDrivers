@@ -51,9 +51,9 @@ void LSM6DSOQuat::Update(double_t gx_mdps, double_t gy_mdps, double_t gz_mdps,
 	double_t accel_mag_mg = sqrt(ax_mg*ax_mg + ay_mg*ay_mg + az_mg*az_mg);
 	if(accel_mag_mg > 0.0 && fabs(accel_mag_mg - 1000.0) < TILT_CORRECTION_ACCEL_TOLERANCE_MG){
 		// Normalised measured direction of gravity, in body frame.
-		double_t ax = ax_mg / accel_mag_mg;
-		double_t ay = ay_mg / accel_mag_mg;
-		double_t az = az_mg / accel_mag_mg;
+		double_t ax = -ax_mg / accel_mag_mg;
+		double_t ay = -ay_mg / accel_mag_mg;
+		double_t az = -az_mg / accel_mag_mg;
 
 		// Estimated direction of gravity in body frame, from the current attitude estimate.
 		double_t halfvx = q1*q3 - q0*q2;

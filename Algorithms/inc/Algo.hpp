@@ -16,6 +16,10 @@ public:
 	virtual void PeriodCB();
 	virtual void PeriodicCheckCall(void);
 	virtual void SetFlashPeriodMS(uint16_t flashPeriod);
+	// Heading PID interface: the algorithm sets the target and reads the latest
+	// correction; the PID itself runs only in PeriodicCheckCall(), which owns its state.
+	void SetTargetHeading(float targetAngleDeg);
+	float GetHeadingCorrection(void) { return power_correction; }
 protected:
     void begin(void);
     void loop(void);
