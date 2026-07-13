@@ -5,6 +5,7 @@
  *      Author: Mateusz
  */
 #include "../../RobotDrivers/Motor Control/MotorControl.hpp"
+#include "projdefs.h"
 #if (defined(UART_USES_DMA) or defined(UART_USES_IT) or defined(UART_USES_WAIT)) or (defined(SPI_USES_DMA) or defined(SPI_USES_IT) or defined(SPI_USES_WAIT))
 
 uint8_t MCInterface::__Instantiated_sides = 0;
@@ -47,7 +48,7 @@ bool MCInterface::_isRunning = false;
 
 void MCInterface::run(void)
 {
-	BaseType_t xReturned;
+	BaseType_t xReturned= pdFALSE;
 	if(_isRunning)
 	{
 		return;

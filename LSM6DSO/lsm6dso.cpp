@@ -20,7 +20,7 @@ static SemaphoreHandle_t SPIMutex;
 // Sample-to-sample jumps above these counts as a collision; own motor-driven acceleration/turning
 // ramps up over several samples (motor + drivetrain inertia), so it stays below these even at a
 // similar peak value. Both are per-sample (1667 Hz ODR) deltas and need tuning on real hardware.
-#define COLLISION_ACCEL_JERK_THRESHOLD_MG 650.0
+#define COLLISION_ACCEL_JERK_THRESHOLD_MG 950.0
 #define COLLISION_GYRO_JERK_THRESHOLD_MDPS 600000.0
 
 #define ACCEL_SAMPLE_DT_S (1.0/1667.0)

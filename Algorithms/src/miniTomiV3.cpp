@@ -10,6 +10,7 @@
 #include <stdio.h>
 #ifdef ROBOT_MT_V3
 #include "Algo.hpp"
+#include "HeadingPID.hpp"
 #include "vl53l1x.hpp"
 #include "L9960T.hpp"
 #include "DirtyLogger.hpp"
@@ -28,15 +29,9 @@
 
 #define MAX_SIG_PER_SPAD	8000
 
-// #define HEADING_PID_KP 0.02f
-// #define HEADING_PID_KI 0.0005f
-// #define HEADING_PID_KD 0.01f
-
-// #define HEADING_PID_KP 0.007524f
 #define HEADING_PID_KP 0.03f
 #define HEADING_PID_KI 0.04f
 #define HEADING_PID_KD 0.00065f
-// #define HEADING_PID_KD 0.001
 
 #define HEADING_PID_OUTPUT_LIMIT 0.25f
 
@@ -99,10 +94,9 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 
 volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
 
-// Live heading-PID gains; PID_CalibrateHeading() overwrites these at runtime.
-static float headingPID_Kp = HEADING_PID_KP;
-static float headingPID_Ki = HEADING_PID_KI;
-static float headingPID_Kd = HEADING_PID_KD;
+// Heading-hold PID; PID_CalibrateHeading() may overwrite the gains at runtime.
+static HeadingPID HeadingController = HeadingPID(HEADING_PID_KP, HEADING_PID_KI, HEADING_PID_KD,
+		HEADING_PID_OUTPUT_LIMIT, HEADING_ANTIPODE_HYST_DEG);
 
 void Robot::begin(void)
 {
@@ -127,10 +121,12 @@ void Robot::begin(void)
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(200);
 	ToF_Sensor::StartSensorTask();
+	logger.Log("--- Sensor Task Started---", LOGLEVEL_INFO);
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
+	logger.Log("--- Motors Started ---", LOGLEVEL_INFO);
 	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
 	{taskYIELD();}
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Init(0);
@@ -141,7 +137,6 @@ void Robot::begin(void)
 	flash_period_ms = 2000;
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
-
 	logger.Log("--- INIT Completed ---", LOGLEVEL_INFO);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
@@ -152,94 +147,9 @@ void prepare_sensor_data(char *pData, VL53L1X Sensors[])
 }
 
 
-// Wraps an angle difference into [-180, 180). The IMU yaw loops at +/-180 deg, so a raw
-// target-minus-current subtraction jumps by ~360 whenever the heading crosses that seam;
-// wrapping restores the shortest-way-around error the controllers expect.
-static float WrapAngleDeg180(float angleDeg)
-{
-	angleDeg = fmodf(angleDeg + 180.0f, 360.0f);
-	if (angleDeg < 0.0f)
-	{
-		angleDeg += 360.0f;
-	}
-	return angleDeg - 180.0f;
-}
-
-volatile float integral = 0.0f;
-volatile bool targetChanged= false;
-
- void Robot::SetTargetHeading(float targetAngleDeg){ 
+void Robot::SetTargetHeading(float targetAngleDeg){
 	set_angle = targetAngleDeg;
-	integral = 0;
-	targetChanged = true;
-}
-
-// Returns a steering correction in the same range as MCInterface::SetMotorsPower,
-// computed from the IMU's Z-axis (yaw) angle vs. targetAngleDeg.
-float PID_HeadingCorrection(float targetAngleDeg)
-{
-	static float lastError = 0.0f;
-	static TickType_t lastTick = 0;
-	static float output = 0;
-
-	TickType_t now = xTaskGetTickCount();
-	if(lastTick == now){
-		return output;
-	}
-	float dt = (lastTick == 0) ? 0.0f : (float)(now - lastTick) / 1000.0f;
-	lastTick = now;
-
-	float currentAngle = (float)IMU.GetAngularOrientationForAxis(2);
-	float error = WrapAngleDeg180(targetAngleDeg - currentAngle);
-
-	if (targetChanged)
-	{
-		lastError = error; // avoid a derivative kick from the previous target's error
-	}
-	// Antipode hysteresis: inside the band the turn direction follows the previous error's
-	// sign instead of the noise-flipped wrapped sign; outside the band the plain shortest-way
-	// error always wins, so a disturbance that genuinely shortens the other way takes over.
-	else if (error > (180.0f - HEADING_ANTIPODE_HYST_DEG) && lastError < 0.0f)
-	{
-		error -= 360.0f;
-	}
-	else if (error < -(180.0f - HEADING_ANTIPODE_HYST_DEG) && lastError > 0.0f)
-	{
-		error += 360.0f;
-	}
-	targetChanged =  false;
-
-	float derivative = (dt > 0.0f) ? (error - lastError) / dt : 0.0f;
-	lastError = error;
-	float integral_tmp = error * dt;
-	integral += integral_tmp;
-	float integralLimit = (headingPID_Ki > 0.0f) ? 2.0f * (HEADING_PID_OUTPUT_LIMIT / headingPID_Ki) : 0.0f;
-	if (integral > integralLimit)
-	{
-		integral = integralLimit;
-	}
-	else if (integral < -integralLimit)
-	{
-		integral = -integralLimit;
-	}
-
-	output = headingPID_Kp * error + headingPID_Ki * integral + headingPID_Kd * derivative;
-
-	if (output > HEADING_PID_OUTPUT_LIMIT)
-	{
-		output = HEADING_PID_OUTPUT_LIMIT;
-		integral -= integral_tmp; // anti-windup
-	}
-	else if (output < -HEADING_PID_OUTPUT_LIMIT)
-	{
-		output = -HEADING_PID_OUTPUT_LIMIT;
-		integral -= integral_tmp; // anti-windup
-	}
-	char string [100] = {0};
-	sprintf(string, "PID:\n\rE= %.3f\n\rI= %.3f\n\rIT= %.3f\n\rD= %.3f\n\rO=%.3f\n\rA= %.0f\n\rT= %.0f\n\rdt= %.3f\n\r",
-		 error, integral, integral_tmp, derivative, output, currentAngle, targetAngleDeg, dt);
-	logger.Log(string, LOGLEVEL_TRACE);
-	return output;
+	HeadingController.SetTarget(targetAngleDeg);
 }
 
 // Relay (Astrom-Hagglund) auto-tune for the heading PID: drives the motors in a
@@ -265,7 +175,7 @@ void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
 	while ((xTaskGetTickCount() - startTick) < pdMS_TO_TICKS(maxDurationMs) && halfCycles < targetHalfCycles)
 	{
 		float currentAngle = (float)IMU.GetAngularOrientationForAxis(2);
-		float error = WrapAngleDeg180(targetAngle - currentAngle);
+		float error = HeadingPID::WrapAngleDeg180(targetAngle - currentAngle);
 
 		float absError = (error < 0.0f) ? -error : error;
 		if (absError > peakAmplitude)
@@ -331,11 +241,12 @@ void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
 	float Ku = (4.0f * relayPower) / (3.14159265f * averageAmplitudeDeg); // ultimate gain
 	float Tu = periodS;                                                   // ultimate period
 
-	headingPID_Kp = 0.6f * Ku;
-	headingPID_Ki = 1.2f * Ku / Tu;   // Ti = Tu/2  ->  Ki = Kp/Ti = 2*Kp/Tu
-	headingPID_Kd = 0.075f * Ku * Tu; // Td = Tu/8  ->  Kd = Kp*Td = Kp*Tu/8
+	float tunedKp = 0.6f * Ku;
+	float tunedKi = 1.2f * Ku / Tu;   // Ti = Tu/2  ->  Ki = Kp/Ti = 2*Kp/Tu
+	float tunedKd = 0.075f * Ku * Tu; // Td = Tu/8  ->  Kd = Kp*Td = Kp*Tu/8
+	HeadingController.SetGains(tunedKp, tunedKi, tunedKd);
 	char string[100] = {0};
-	sprintf(string, "\n\rP= %f\n\rI= %f\n\rD= %f\n\r", headingPID_Kp, headingPID_Ki, headingPID_Kd);
+	sprintf(string, "\n\rP= %f\n\rI= %f\n\rD= %f\n\r", tunedKp, tunedKi, tunedKd);
 	logger.Log(string, LOGLEVEL_TRACE);
 }
 
@@ -359,7 +270,7 @@ bool isOutOfBounds(void)
 void WaitForNewData(void)
 {	
 	static EventBits_t u32_updated_Sensors = 0;
-	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 20);
+	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
 	UNUSED(u32_updated_Sensors);
 }
 
@@ -394,7 +305,7 @@ bool isOpponentDetected(void)
 
 	WaitForNewData();
 	SensorDistances_t distances = GetValidatedDistances();
-	sprintf(sensor_message, "ToF [0]: %u, [1]: %u ", distances.raw_left, distances.raw_right);
+	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\r", distances.raw_left, distances.raw_right);
 	logger.Log(sensor_message,LOGLEVEL_TRACE);
 
 	sensor_detected_item[0] = distances.left < DETECTION_DISTANCE;
@@ -405,7 +316,7 @@ bool isOpponentDetected(void)
 		logger.Log((detected)? "Opponent Detected" : "No Oponnent", LOGLEVEL_INFO);
 	}
 
-	sprintf(sensor_message, "Orientation x: %.2f, y: %.2f, z:%.2f ", IMU.GetAngularOrientationForAxis(0), IMU.GetAngularOrientationForAxis(1), IMU.GetAngularOrientationForAxis(2));
+	sprintf(sensor_message, "Orientation:\n\rx=%.2f\n\ry=%.2f\n\rz=%.2f\n\r", IMU.GetAngularOrientationForAxis(0), IMU.GetAngularOrientationForAxis(1), IMU.GetAngularOrientationForAxis(2));
 	logger.Log(sensor_message, LOGLEVEL_TRACE);
 
 	was_previously_detected = detected;
@@ -526,7 +437,7 @@ State_t LookForOpponent2(Robot *obj)
 			MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
 		while(xTaskGetTickCount() - start_tick < ROTATION_TIMEOUT)
 		{
-			angularOrientation = WrapAngleDeg180((float)(IMU.GetAngularOrientationForAxis(2) - starting_orientation));
+			angularOrientation = HeadingPID::WrapAngleDeg180((float)(IMU.GetAngularOrientationForAxis(2) - starting_orientation));
 			angularOrientation = (angularOrientation > 0)? angularOrientation : -angularOrientation;
 			if(angularOrientation >= 60)
 			{
@@ -569,19 +480,14 @@ void Calibrate(void)
 
 void Robot::loop(void)
 {
-	static float angle = 0;
+	// static float angle = 0;
 	static State_t eFSM_state = CALIBRATE;
 	static bool direction_ack = false;
 	eFSM_state = CheckStartCondition(this, eFSM_state);
 	static TickType_t last_detection_tick = 0;
 	// Collision handling: the IMU driver latches sudden accel/yaw-rate jumps (impacts)
 	// that our own motor-driven moves don't produce.
-	if(eFSM_state == CALIBRATE || eFSM_state == WAIT_FOR_START)
-	{
-		// Discard jolts from handling/placing the robot before the match
-		IMU.ClearCollisionDetected();
-	}
-	else if(IMU.IsCollisionDetected())
+	if((eFSM_state == LOOK_FOR_OPPONENT_1 || eFSM_state == LOOK_FOR_OPPONENT_2) && IMU.IsCollisionDetected())
 	{
 		IMU.ClearCollisionDetected();
 		char collision_message[100];
@@ -589,11 +495,8 @@ void Robot::loop(void)
 		logger.Log(collision_message, LOGLEVEL_INFO);
 		// Hit while searching means the opponent has contact but our sensors don't see them:
 		// spin in place (search 1) to reacquire instead of driving on blindly.
-		if(eFSM_state == LOOK_FOR_OPPONENT_1 || eFSM_state == LOOK_FOR_OPPONENT_2)
-		{
-			last_detection_tick = xTaskGetTickCount();
-			eFSM_state = LOOK_FOR_OPPONENT_1;
-		}
+		last_detection_tick = xTaskGetTickCount();
+		eFSM_state = LOOK_FOR_OPPONENT_1;
 	}
 	switch(eFSM_state)
 	{
@@ -621,6 +524,7 @@ void Robot::loop(void)
 					direction_ack = true;
 				}
 			}
+			IMU.ClearCollisionDetected();
 		}
 		break;
 		case FIGHT:
@@ -723,8 +627,6 @@ void Robot::end(void)
 {
 //		Error_Handler();
 // Facilitate reset
-
-
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -785,6 +687,7 @@ void Robot::PeriodicCheckCall(void)
 			else{
 				if(reset_counter >= 1)
 				{
+					logger.Sync();
 					NVIC_SystemReset();
 				}
 				reset_counter++;
@@ -835,7 +738,7 @@ void Robot::PeriodicCheckCall(void)
 	flash_counter = (flash_counter == 0)? flash_period_ms/2: flash_counter-1;
 
 // PID calculations
-	this->power_correction = PID_HeadingCorrection(this->set_angle);
+	this->power_correction = HeadingController.Update((float)IMU.GetAngularOrientationForAxis(2));
 // Heap check
 	
 }

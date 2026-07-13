@@ -465,6 +465,9 @@ HAL_StatusTypeDef L9960T::CheckControllerState(void)
 
 			}
 			break;
+			default:
+				Message = 0;
+				break;
 		}
 
 		Message |= (~__builtin_parity(Message) & 1);

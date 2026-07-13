@@ -6,6 +6,7 @@
  */
 
 #include "DirtyLogger.hpp"
+#include "ff.h"
 #include <string>
 #include <string.h>
 
@@ -26,6 +27,11 @@ void DirtyLogger::Init(void){
 	static TCHAR filename_pattern[] = "Log_*.txt";
 	char filename[25] = {0};
 	uint8_t iter = 0;
+	if(_available)
+	{
+		this->Log("---- Re-Init Attempted ----", LOGLEVEL_DEBUG);
+		return;
+	}
 	_available = false;
 	// opt=1 forces the mount now so a missing/unreadable card is caught here instead of on first use.
 	if(f_mount(_SDFatFS, (TCHAR const*)_SDPath, 1) != FR_OK)
