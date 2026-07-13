@@ -55,6 +55,14 @@ public:
 	virtual ~ToF_Sensor();
 	static void RunSensorCheck(void);
 
+	// Interrupt-path diagnostics (watch via debugger Live Watch): edges seen on the
+	// INT pin, edges skipped because the previous readout was still in flight, and
+	// completed result readouts. Edge rate == device frame rate; a large edge/read
+	// gap means the software path is dropping frames, not the sensor.
+	volatile uint32_t dbg_exti_edges = 0;
+	volatile uint32_t dbg_exti_skipped = 0;
+	volatile uint32_t dbg_reads_done = 0;
+
 
 protected:
 

@@ -7,8 +7,10 @@
 
 #include "vl53l1x.hpp"
 #include "RobotSpecificDefines.hpp"
+#include "stm32h7xx_hal.h"
 #include "vl53l1_platform.hpp"
 #include "VL53L1X_api.hpp"
+#include "vl53l1_fast_init.h"
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
 static uint8_t start_ranging_const = 0x40;
@@ -116,9 +118,13 @@ uint8_t VL51L1X_DEFAULT_CONFIGURATION[] = {
 };
 
 static uint8_t clr_interrupt = 0x01;
+// LITE_RANGING (AN5263 fast ranging) measurement mode: back-to-back. In this preset the
+// device ranges once per start command - the host must re-issue it after every frame
+// ("clear interrupt and start"), unlike the autonomous preset which free-runs.
+static uint8_t lite_next_range = 0x20;
 
 VL53L1X::VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *hi2c1) :
-		ToF_Sensor(vl53l1, position, comm), __hi2c1{hi2c1}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0} {
+		ToF_Sensor(vl53l1, position, comm), __hi2c1{hi2c1}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0}, time_since_last_m{0} {
 
 	this->__sensor_index = __no_of_sensors - 1;
 	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
@@ -132,19 +138,23 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 	uint8_t status = 0;
 	uint8_t tmp;
 	UNUSED(tmp);
-	this->__timing_budget = 15;
-	status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
-	status |= this->SetDistanceMode(1);
-	status |= this->SetTimingBudgetInMs(this->__timing_budget);
-	status |= this->SetInterMeasurementInMs(20);
-	status |= this->StartRanging();
+	// AN5263 fast ranging (~100 Hz): LITE_RANGING preset, short distance mode, 10 ms
+	// timing budget, back-to-back streaming. Configured once through the vendored ST
+	// full API (../st_api/); the interrupt-driven readout below stays unchanged.
+	this->__timing_budget = 10;
+	status |= (uint8_t)VL53L1_FastRangingInit(this->__address);
+	if (status)
+	{
+		// Config failed - don't poll for data that will never come (infinite loop)
+		return HAL_ERROR;
+	}
 	tmp  = 0;
 	vTaskDelay(10);
 	while(tmp==0){
 			status |= CheckForDataReady( &tmp);
 	}
-//	status |= this->ClearInterrupt();
-	// clear interrupt
+	// First frame after a start must be discarded (AN5263 note 2): clear interrupt
+	// without reading the ranging data; the device free-runs from here (GPH disengaged).
 	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
 	return (status)? HAL_ERROR:HAL_OK;
 }
@@ -159,6 +169,23 @@ uint8_t VL53L1X::ClearInterrupt()
 	MsgInfoToSend.I2C_MemAddr = SYSTEM__INTERRUPT_CLEAR;
 	MsgInfoToSend.len = 1;
 	MsgInfoToSend.pTxData = &clr_interrupt;
+	MsgInfoToSend.IntHandle = this->__hi2c1;
+	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	return (uint8_t)ret;
+}
+
+// Re-issues the start command after a frame has been read out and the interrupt
+// cleared; in LITE_RANGING the device does not begin the next ranging without it.
+uint8_t VL53L1X::EnableNextRange()
+{
+	HAL_StatusTypeDef ret = HAL_OK;
+	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfoToSend = { 0 };
+	MsgInfoToSend.context = 10;
+	MsgInfoToSend.eCommType = COMM_INT_MEM_TX;
+	MsgInfoToSend.I2C_Addr = this->__address;
+	MsgInfoToSend.I2C_MemAddr = SYSTEM__MODE_START;
+	MsgInfoToSend.len = 1;
+	MsgInfoToSend.pTxData = &lite_next_range;
 	MsgInfoToSend.IntHandle = this->__hi2c1;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	return (uint8_t)ret;
@@ -247,6 +274,9 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 	MsgInfoToSend.pCB = &this->_CallbackFunc;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->__Status = TOF_STATE_DATA_RDY;
+	// GPH is disengaged at init, so the device free-runs back-to-back: clearing the
+	// interrupt is the only handshake needed (re-writing MODE_START mid-range could
+	// abort the measurement in flight).
 	this->ClearInterrupt();
 	return ret;
 }
@@ -263,7 +293,9 @@ void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
 	Result.SigPerSPAD = (this->__comm_buffer[15] << 8 | this->__comm_buffer[16]) * 8;
 	Result.Distance = this->__comm_buffer[13] << 8 | this->__comm_buffer[14];
 	this->__Status = TOF_STATE_OK;
+	this->time_since_last_m = HAL_GetTick() - this->last_update_tick;
 	this->last_update_tick = HAL_GetTick();
+	this->dbg_reads_done = this->dbg_reads_done + 1;
 	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
 }
 

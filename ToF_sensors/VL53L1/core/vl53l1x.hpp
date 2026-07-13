@@ -113,6 +113,7 @@ public:
 	HAL_StatusTypeDef DisableSensorComm(void);
 	void DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo);
 	uint8_t ClearInterrupt();
+	uint8_t EnableNextRange();
 	uint8_t CheckForDataReady(uint8_t *isDataReady);
 	uint8_t  GetInterruptPolarity(uint16_t dev, uint8_t *pInterruptPolarity);
 	~VL53L1X(void){};
@@ -137,6 +138,7 @@ private:
 	uint16_t __address = TOF_DEFAULT_ADDRESS;
 	std::function<void(MessageInfoTypeDef<I2C> *MsgInfo)> _CallbackFunc;
 	uint32_t __timing_budget;
+	TickType_t time_since_last_m;
 };
 
 

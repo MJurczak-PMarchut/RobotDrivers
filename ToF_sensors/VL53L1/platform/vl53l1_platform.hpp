@@ -37,7 +37,7 @@ uint8_t VL53L1X_WrMulti(
 /** @brief VL53L1_ReadMulti() definition.\n
  * To be implemented by the developer
  */
-uint8_t VL53L1X_ReadMulti(
+uint8_t VL53L1X_RdMulti(
 		uint16_t 			dev,
 		uint16_t      index,
 		uint8_t      *pdata,

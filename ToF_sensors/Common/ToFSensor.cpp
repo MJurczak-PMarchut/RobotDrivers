@@ -93,9 +93,14 @@ void ToF_Sensor::EXTI_Callback_func(uint16_t pin)
 		SensorObj = __ToFSensorPointers[i];
 		if(SensorObj->GetSensorITPin() == pin)
 		{
+			SensorObj->dbg_exti_edges = SensorObj->dbg_exti_edges + 1;
 			if(SensorObj->CheckSensorStatus() == TOF_STATE_OK){
-				SensorObj->last_update_tick = HAL_GetTick();
 				SensorObj->GetRangingData();
+				// SensorObj->last_update_tick = HAL_GetTick();
+			}
+			else
+			{
+				SensorObj->dbg_exti_skipped = SensorObj->dbg_exti_skipped + 1;
 			}
 		}
 	}
