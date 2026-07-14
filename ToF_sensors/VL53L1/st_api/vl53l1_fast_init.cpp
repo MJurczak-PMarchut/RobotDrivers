@@ -47,24 +47,10 @@ static VL53L1_Dev_t FastInitDev;
 #define FAST_RANGING_RANGE_TIMEOUT_US    2000
 #define FAST_RANGING_IDLE_MS             2
 
-/* Sequence steps (bit0 VHV, bit1 PHASECAL, bit3 DSS1, bit4 DSS2, bit5 MM1,
- * bit6 MM2, bit7 RANGE):
- *   0xDB - preset default: adds MM2 (~2 ms, frame time varies with target presence)
- *   0x9B - the classic ULD configuration: VHV | PHASECAL | DSS1 | DSS2 | RANGE
- *   0x8B - ST's low-power-auto recipe: keeps DSS1, drops DSS2/MM, DSS in manual
- *          requested-effective-SPADs mode. Bench result: WRONG DISTANCES, then a
- *          freeze - in ST's code this mode is paired with host-side runtime duties
- *          (per-frame DSS updates from results, manual calibration setup after the
- *          first range) that our lightweight readout does not perform. Do not use
- *          without porting that host machinery.
- *   0x83 - DSS stages removed entirely. Bench result: status 2 (signal fail),
- *          garbage distance - the device has no valid SPAD selection.
- * => 0x9B is the fastest configuration verified stable and accurate on this robot:
- *    ~20 ms period (50 Hz) with the 2000 us / 2 ms settings above. */
+/* Sequence steps: VHV | PHASECAL | DSS1 | DSS2 | RANGE - i.e. the proven ULD
+ * configuration (0x9B). The preset default (0xDB) additionally enables MM2, which
+ * adds ~2 ms and made the frame time vary with target presence. */
 #define FAST_RANGING_SEQUENCE_CONFIG     0x9B
-
-/* Manual DSS request (8.8 format), only meaningful for the 0x8B experiment. */
-#define FAST_RANGING_MANUAL_EFF_SPADS    (200 << 8)
 
 /* Post-init readback of the actual device registers (last-initialized sensor),
  * for Live Watch inspection - decodes whether the fast timeouts really landed. */
@@ -148,16 +134,8 @@ int8_t VL53L1_FastRangingInit(uint16_t i2c_addr_8bit)
 		pdev->dyn_cfg.system__grouped_parameter_hold_1 = 0x00;
 		pdev->dyn_cfg.system__grouped_parameter_hold   = 0x00;
 
-		/* Trim the ranging sequence (see FAST_RANGING_SEQUENCE_CONFIG comment). */
+		/* Drop MM2 from the sequence (see FAST_RANGING_SEQUENCE_CONFIG comment). */
 		pdev->dyn_cfg.system__sequence_config = FAST_RANGING_SEQUENCE_CONFIG;
-
-#if FAST_RANGING_SEQUENCE_CONFIG == 0x8B
-		/* The 0x8B experiment additionally needs DSS in manual mode - and, per the
-		 * bench results above, host-side runtime management this driver lacks. */
-		pdev->gen_cfg.dss_config__manual_effective_spads_select = FAST_RANGING_MANUAL_EFF_SPADS;
-		pdev->gen_cfg.dss_config__roi_mode_control =
-				VL53L1_DEVICEDSSMODE__REQUESTED_EFFFECTIVE_SPADS;
-#endif
 	}
 	if (status == VL53L1_ERROR_NONE)
 	{
