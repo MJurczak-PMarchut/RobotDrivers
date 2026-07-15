@@ -4,6 +4,8 @@
 #include "HeadingPID.hpp"
 #include <math.h>
 
+#define MIN_DEGREE_CHANGE  5.0f
+
 HeadingPID::HeadingPID(float kp, float ki, float kd, float outputLimit, float antipodeHystDeg)
 {
 	this->kp = kp;
@@ -34,8 +36,12 @@ void HeadingPID::SetTarget(float targetAngleDeg)
 	// Only publish the target and the flag here; the integral/derivative reset happens in
 	// Update() when it consumes the flag, so a SetTarget() preempting a running Update()
 	// can't have its state reset overwritten by Update()'s final stores.
+	float previousTarget = this->target_angle_deg;
 	this->target_angle_deg = targetAngleDeg;
-	this->target_changed = true;
+	if (fabs(WrapAngleDeg180(previousTarget - targetAngleDeg)) > MIN_DEGREE_CHANGE)
+	{
+		this->target_changed = true;
+	}
 }
 
 float HeadingPID::GetTarget(void)

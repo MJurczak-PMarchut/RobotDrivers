@@ -7,6 +7,7 @@
 #include "cmsis_os2.h"
 #include "osapi.h"
 #include "portmacro.h"
+#include <cmath>
 #include <stdio.h>
 #ifdef ROBOT_MT_V3
 #include "Algo.hpp"
@@ -33,7 +34,7 @@
 #define HEADING_PID_KI 0.04f
 #define HEADING_PID_KD 0.00065f
 
-#define HEADING_PID_OUTPUT_LIMIT 0.25f
+#define HEADING_PID_OUTPUT_LIMIT 0.75f
 
 
 // Errors smaller than this are treated as zero, so sensor noise / motor response lag
@@ -378,7 +379,7 @@ void FightAlgorithm(Robot *obj)
 	if (forward_det){
 		// Positive error (target > current yaw) needs a CCW turn: left slower, right faster
 		// (same convention the relay autotuner and LookForOpponent2 use).
-		float heading_correction = obj->GetHeadingCorrection();
+		float heading_correction = obj->GetHeadingCorrection(1-FULL_SPEED);
 		MCInterface::SetMotorsPower(FULL_SPEED - heading_correction, FULL_SPEED + heading_correction);
 		fight_move = "ATTACK FWD";
 	}
@@ -427,7 +428,7 @@ State_t LookForOpponent2(Robot *obj)
 		// On both Or Only One?
 		//move back slightly
 		MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
-		vTaskDelay(250);
+		vTaskDelay(350);
 		// move into last det
 		starting_orientation = IMU.GetAngularOrientationForAxis(2);
 		start_tick = xTaskGetTickCount();
@@ -497,6 +498,11 @@ void Robot::loop(void)
 		// spin in place (search 1) to reacquire instead of driving on blindly.
 		last_detection_tick = xTaskGetTickCount();
 		eFSM_state = LOOK_FOR_OPPONENT_1;
+	}
+	else if(eFSM_state == FIGHT && IMU.IsCollisionDetected())
+	{
+		logger.Log("----  Contact with opponent detected while fighting ----", LOGLEVEL_INFO);
+		IMU.ClearCollisionDetected();  // We expected a collision
 	}
 	switch(eFSM_state)
 	{
@@ -581,8 +587,16 @@ void Robot::loop(void)
 			}
 			else
 			{
+				// static float TargetLookingAngle = 0;
+				// float MovementDir = (!lastDetOnLeft) ? 1 : -1;  // -1 for left, 1 for right
 				this->SetFlashPeriodMS(1000);
+				// Move in 4deg increments
+				// if(fabsf(HeadingPID::WrapAngleDeg180((float)IMU.GetAngularOrientationForAxis(2) - TargetLookingAngle)) < 2){
+				// 	TargetLookingAngle = HeadingPID::WrapAngleDeg180(TargetLookingAngle + (10 * MovementDir));
+				// 	this->SetTargetHeading(TargetLookingAngle);
+				// }
 				double SteeringTrim = (!lastDetOnLeft) ? MANOUVER_SPEED : -MANOUVER_SPEED;
+				// float SteeringTrim = this->GetHeadingCorrection();
 				MCInterface::SetMotorsPower(SteeringTrim, -SteeringTrim);
 
 				// Wait 4s before changing strategy

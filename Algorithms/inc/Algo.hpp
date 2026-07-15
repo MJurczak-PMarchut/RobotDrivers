@@ -8,6 +8,7 @@
 #ifndef ALGORITHMS_INC_ALGO_THR_HPP_
 #define ALGORITHMS_INC_ALGO_THR_HPP_
 #include "osapi.h"
+#include <cmath>
 
 class Robot : public MortalThread
 {
@@ -20,6 +21,7 @@ public:
 	// correction; the PID itself runs only in PeriodicCheckCall(), which owns its state.
 	void SetTargetHeading(float targetAngleDeg);
 	float GetHeadingCorrection(void) { return power_correction; }
+	float GetHeadingCorrection(float limit) { return (fabsf(power_correction) > limit) ? (power_correction < 0) ? -limit : limit : power_correction; }
 protected:
     void begin(void);
     void loop(void);
