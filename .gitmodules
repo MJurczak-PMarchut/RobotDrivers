@@ -1,3 +1,0 @@
-[submodule "Oled"]
-	path = Oled
-	url = git@github.com:MJurczak-PMarchut/OLED_SSD1306.git
