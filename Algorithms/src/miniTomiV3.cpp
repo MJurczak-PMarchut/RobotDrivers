@@ -67,7 +67,7 @@ static LSM6DSO IMU = LSM6DSO(&MainCommManager, &hspi2);
 
 static VL53L1X Sensors[] = {
 		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
-		VL53L1X(BACK, &MainCommManager, &hi2c1),
+		// VL53L1X(BACK, &MainCommManager, &hi2c1),
 		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
 }; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
 
@@ -92,7 +92,7 @@ Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
 {
 }
 
-volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
+volatile uint16_t maxVal_perSPAD[2] = {4000, 4000};
 
 // Heading-hold PID; PID_CalibrateHeading() may overwrite the gains at runtime.
 static HeadingPID HeadingController = HeadingPID(HEADING_PID_KP, HEADING_PID_KI, HEADING_PID_KD,
@@ -286,38 +286,43 @@ typedef struct{
 // on distances the calibration deems trustworthy.
 static SensorDistances_t GetValidatedDistances(void)
 {
+	char sensor_message[100] = {0};
 	SensorDistances_t distances;
 	distances.raw_left = Sensors[0].GetDistance();
-	distances.raw_right = Sensors[2].GetDistance();
+	distances.raw_right = Sensors[1].GetDistance();
 	VL53L1X_Result_t result_left = Sensors[0].GetResult();
-	VL53L1X_Result_t result_right = Sensors[2].GetResult();
+	VL53L1X_Result_t result_right = Sensors[1].GetResult();
 	distances.left = (result_left.SigPerSPAD > maxVal_perSPAD[0])?
 			distances.raw_left: DETECTION_DISTANCE + 100;
 	distances.right = (result_right.SigPerSPAD > maxVal_perSPAD[1])?
 			distances.raw_right: DETECTION_DISTANCE + 100;
+	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\r", distances.raw_left, distances.raw_right);
+	logger.Log(sensor_message,LOGLEVEL_TRACE);
+	sprintf(sensor_message, "ToF Stats:\n\rSPS:%u %u\n\rst:%u %u\n\rNS:%u %u\n\r", result_left.SigPerSPAD, result_right.SigPerSPAD, result_left.Status, result_right.Status, result_left.NumSPADs, result_right.NumSPADs);
+	logger.Log(sensor_message,LOGLEVEL_TRACE);
 	return distances;
 }
-
+bool detected = false;
 bool isOpponentDetected(void)
 {
-	char sensor_message[100] = {0};
+	// char sensor_message[100] = {0};
 	static bool was_previously_detected= false;
+	
 
 	WaitForNewData();
 	SensorDistances_t distances = GetValidatedDistances();
-	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\r", distances.raw_left, distances.raw_right);
-	logger.Log(sensor_message,LOGLEVEL_TRACE);
+
 
 	sensor_detected_item[0] = distances.left < DETECTION_DISTANCE;
 	sensor_detected_item[1] = distances.right < DETECTION_DISTANCE;
-	bool detected = sensor_detected_item[0] || sensor_detected_item[1];
+	detected = sensor_detected_item[0] || sensor_detected_item[1];
 
 	if(was_previously_detected != detected){
 		logger.Log((detected)? "Opponent Detected" : "No Oponnent", LOGLEVEL_INFO);
 	}
 
-	sprintf(sensor_message, "Orientation:\n\rx=%.2f\n\ry=%.2f\n\rz=%.2f\n\r", IMU.GetAngularOrientationForAxis(0), IMU.GetAngularOrientationForAxis(1), IMU.GetAngularOrientationForAxis(2));
-	logger.Log(sensor_message, LOGLEVEL_TRACE);
+	// sprintf(sensor_message, "Orientation:\n\rx=%.2f\n\ry=%.2f\n\rz=%.2f\n\r", IMU.GetAngularOrientationForAxis(0), IMU.GetAngularOrientationForAxis(1), IMU.GetAngularOrientationForAxis(2));
+	// logger.Log(sensor_message, LOGLEVEL_TRACE);
 
 	was_previously_detected = detected;
 	return detected;
@@ -462,7 +467,7 @@ void Calibrate(void)
 	while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
 		xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
 		VL53L1X_Result_t result_left = Sensors[0].GetResult();
-		VL53L1X_Result_t result_right = Sensors[2].GetResult();
+		VL53L1X_Result_t result_right = Sensors[1].GetResult();
 		maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
 		maxVal_perSPAD[1] = (maxVal_perSPAD[1] < result_right.SigPerSPAD)? result_right.SigPerSPAD: maxVal_perSPAD[1];
 	}

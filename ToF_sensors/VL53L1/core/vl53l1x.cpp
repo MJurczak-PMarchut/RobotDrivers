@@ -11,6 +11,7 @@
 #include "vl53l1_platform.hpp"
 #include "VL53L1X_api.hpp"
 #include "vl53l1_fast_init.h"
+#include <stdint.h>
 
 const static uint8_t __ToFAddr[] = { 0x54, 0x56, 0x58, 0x60, 0x62, 0x64 };
 static uint8_t start_ranging_const = 0x40;
@@ -117,6 +118,132 @@ uint8_t VL51L1X_DEFAULT_CONFIGURATION[] = {
 0x00  /* 0x87 : start ranging, use StartRanging() or StopRanging(), If you want an automatic start after VL53L1X_init() call, put 0x40 in location 0x87 */
 };
 
+uint8_t FAST_CLEAR_AND_START[] = {
+	0x7f,
+	0x7f,
+	0x7f,
+	0x7f,
+	0xeb,
+	0x7,
+	0x0,
+	0xb,
+	0x1,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x18,
+	0x0,
+	0x0,
+	0xa,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x11,
+	0x2,
+	0x0,
+	0x2,
+	0x8,
+	0x0,
+	0x8,
+	0x10,
+	0x1,
+	0x1,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0xff,
+	0x0,
+	0x2,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x20,
+	0xb,
+	0x0,
+	0x0,
+	0x2,
+	0xff,
+	0x21,
+	0x0,
+	0x0,
+	0x1,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x8c,
+	0x0,
+	0x0,
+	0x38,
+	0xff,
+	0x1,
+	0x0,
+	0x27,
+	0x0,
+	0x34,
+	0x0,
+	0x65,
+	0x7,
+	0x0,
+	0x87,
+	0x5,
+	0x1,
+	0x68,
+	0x0,
+	0xc0,
+	0x8,
+	0x38,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0xa0,
+	0xd8,
+	0x0,
+	0x1,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x0,
+	0x2,
+	0x7,
+	0x5,
+	0x6,
+	0x6,
+	0x1,
+	0x0,
+	0x2,
+	0xc7,
+	0xff,
+	0xdb,
+	0x0,
+	0x0,
+	0x0,
+	0x1,
+	0x1,
+	0x21
+};
+
 static uint8_t clr_interrupt = 0x01;
 // LITE_RANGING (AN5263 fast ranging) measurement mode: back-to-back. In this preset the
 // device ranges once per start command - the host must re-issue it after every frame
@@ -127,8 +254,8 @@ VL53L1X::VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *
 		ToF_Sensor(vl53l1, position, comm), __hi2c1{hi2c1}, __wait_until_tick{0}, __Status {TOF_INIT_NOT_DONE}, __data_count{0}, time_since_last_m{0} {
 
 	this->__sensor_index = __no_of_sensors - 1;
-	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
-			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__pos],
+			__ToFX_SHUT_Pin[this->__pos], GPIO_PIN_RESET);
 	last_update_tick = HAL_GetTick();
 	this->_CallbackFunc = std::bind(&VL53L1X::DataReceived, this, std::placeholders::_1);
 }
@@ -149,13 +276,13 @@ HAL_StatusTypeDef VL53L1X::SensorInit(void){
 		return HAL_ERROR;
 	}
 	tmp  = 0;
-	vTaskDelay(10);
-	while(tmp==0){
-			status |= CheckForDataReady( &tmp);
-	}
+	// vTaskDelay(10);
+	// while(tmp==0){
+	// 		status |= CheckForDataReady( &tmp);
+	// }
 	// First frame after a start must be discarded (AN5263 note 2): clear interrupt
 	// without reading the ranging data; the device free-runs from here (GPH disengaged).
-	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
+	// status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
 	return (status)? HAL_ERROR:HAL_OK;
 }
 
@@ -166,9 +293,9 @@ uint8_t VL53L1X::ClearInterrupt()
 	MsgInfoToSend.context = 10;
 	MsgInfoToSend.eCommType = COMM_INT_MEM_TX;
 	MsgInfoToSend.I2C_Addr = this->__address;
-	MsgInfoToSend.I2C_MemAddr = SYSTEM__INTERRUPT_CLEAR;
-	MsgInfoToSend.len = 1;
-	MsgInfoToSend.pTxData = &clr_interrupt;
+	MsgInfoToSend.I2C_MemAddr = 0xd;
+	MsgInfoToSend.len = 123;
+	MsgInfoToSend.pTxData = FAST_CLEAR_AND_START;
 	MsgInfoToSend.IntHandle = this->__hi2c1;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	return (uint8_t)ret;
@@ -192,8 +319,8 @@ uint8_t VL53L1X::EnableNextRange()
 }
 
 HAL_StatusTypeDef VL53L1X::SetI2CAddress() {
-	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
-			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_SET);
+	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__pos],
+			__ToFX_SHUT_Pin[this->__pos], GPIO_PIN_SET);
 	vTaskDelay(2);
 	uint8_t pval=0;
 
@@ -318,13 +445,13 @@ VL53L1X_Result_t VL53L1X::GetResult(void)
 
 uint16_t VL53L1X::GetSensorITPin(void)
 {
-	return __ToFX_GPIO_Pin[this->__sensor_index];
+	return __ToFX_GPIO_Pin[this->__pos];
 }
 
 HAL_StatusTypeDef VL53L1X::DisableSensorComm(void)
 {
-	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__sensor_index],
-			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(__ToFX_SHUT_Port[this->__pos],
+			__ToFX_SHUT_Pin[this->__pos], GPIO_PIN_RESET);
 	return HAL_OK;
 }
 

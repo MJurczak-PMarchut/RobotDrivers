@@ -26,7 +26,7 @@ void DirtyLogger::Init(void){
 	static FILINFO fno;
 	static TCHAR filename_pattern[] = "Log_*.txt";
 	char filename[25] = {0};
-	uint8_t iter = 0;
+	uint16_t iter = 0;
 	if(_available)
 	{
 		this->Log("---- Re-Init Attempted ----", LOGLEVEL_DEBUG);

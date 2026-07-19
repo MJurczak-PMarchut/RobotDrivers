@@ -12,6 +12,7 @@
 
 #include <string.h>
 #include "vl53l1_api.h"
+#include "vl53l1_error_codes.h"
 #include "vl53l1_fast_init.h"
 
 /* One reusable device-state struct (~few KB): sensors are configured strictly
@@ -91,7 +92,7 @@ int8_t VL53L1_FastRangingInit(uint16_t i2c_addr_8bit)
 	/* Order matters: preset mode, then distance mode, then timeouts */
 	if (status == VL53L1_ERROR_NONE)
 	{
-		status = VL53L1_SetPresetMode(Dev, VL53L1_PRESETMODE_AUTONOMOUS);
+		status = VL53L1_SetPresetMode(Dev, VL53L1_PRESETMODE_LITE_RANGING);
 	}
 	if (status == VL53L1_ERROR_NONE)
 	{
@@ -99,76 +100,85 @@ int8_t VL53L1_FastRangingInit(uint16_t i2c_addr_8bit)
 	}
 	if (status == VL53L1_ERROR_NONE)
 	{
-		/* Program the fast range timeout through ST's low-level encoder, keeping the
-		 * preset's phasecal/MM timeouts (see rationale at the top of this file). */
-		uint32_t phasecal_us = 0, mm_us = 0, range_us = 0;
-		status = VL53L1_get_timeouts_us(Dev, &phasecal_us, &mm_us, &range_us);
-		VL53L1_FastRangingDbg.preset_phasecal_us = phasecal_us;
-		VL53L1_FastRangingDbg.preset_mm_us = mm_us;
-		VL53L1_FastRangingDbg.preset_range_us = range_us;
-		if (status == VL53L1_ERROR_NONE)
-		{
-			status = VL53L1_set_timeouts_us(Dev, phasecal_us, mm_us,
-					FAST_RANGING_RANGE_TIMEOUT_US);
-		}
+		status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 10000);
 	}
-	if (status == VL53L1_ERROR_NONE)
-	{
-		status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, FAST_RANGING_IDLE_MS);
-	}
-	if (status == VL53L1_ERROR_NONE)
-	{
-		/* The full API defaults the interrupt pin to active LOW; the board's EXTI
-		 * wiring and the ULD-style readout expect the ULD default (active HIGH,
-		 * mux = range/error interrupts, i.e. GPIO_HV_MUX__CTRL = 0x01). Patch the
-		 * API's internal static config so StartMeasurement writes the right value. */
-		VL53L1_LLDriverData_t *pdev = VL53L1DevStructGetLLDriverHandle(Dev);
-		pdev->stat_cfg.gpio_hv_mux__ctrl =
-				VL53L1_DEVICEINTERRUPTPOLARITY_ACTIVE_HIGH |
-				VL53L1_DEVICEGPIOMODE_OUTPUT_RANGE_AND_ERROR_INTERRUPTS;
+	// if (status == VL53L1_ERROR_NONE)
+	// {
+	// 	/* Program the fast range timeout through ST's low-level encoder, keeping the
+	// 	 * preset's phasecal/MM timeouts (see rationale at the top of this file). */
+	// 	uint32_t phasecal_us = 0, mm_us = 0, range_us = 0;
+	// 	status = VL53L1_get_timeouts_us(Dev, &phasecal_us, &mm_us, &range_us);
+	// 	VL53L1_FastRangingDbg.preset_phasecal_us = phasecal_us;
+	// 	VL53L1_FastRangingDbg.preset_mm_us = mm_us;
+	// 	VL53L1_FastRangingDbg.preset_range_us = range_us;
+	// 	if (status == VL53L1_ERROR_NONE)
+	// 	{
+	// 		status = VL53L1_set_timeouts_us(Dev, phasecal_us, mm_us,
+	// 				FAST_RANGING_RANGE_TIMEOUT_US);
+	// 	}
+	// }
+	// if (status == VL53L1_ERROR_NONE)
+	// {
+	// 	status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, FAST_RANGING_IDLE_MS);
+	// }
+	// if (status == VL53L1_ERROR_NONE)
+	// {
+	// 	/* The full API defaults the interrupt pin to active LOW; the board's EXTI
+	// 	 * wiring and the ULD-style readout expect the ULD default (active HIGH,
+	// 	 * mux = range/error interrupts, i.e. GPIO_HV_MUX__CTRL = 0x01). Patch the
+	// 	 * API's internal static config so StartMeasurement writes the right value. */
+	// 	VL53L1_LLDriverData_t *pdev = VL53L1DevStructGetLLDriverHandle(Dev);
+	// 	pdev->stat_cfg.gpio_hv_mux__ctrl =
+	// 			VL53L1_DEVICEINTERRUPTPOLARITY_ACTIVE_HIGH |
+	// 			VL53L1_DEVICEGPIOMODE_OUTPUT_RANGE_AND_ERROR_INTERRUPTS;
 
-		/* Defensive: the timed preset already disables grouped-parameter-hold, matching
-		 * the working ULD register dump; keep it pinned off so a preset change can't
-		 * silently reintroduce the per-frame host handshake requirement. */
-		pdev->dyn_cfg.system__grouped_parameter_hold_0 = 0x00;
-		pdev->dyn_cfg.system__grouped_parameter_hold_1 = 0x00;
-		pdev->dyn_cfg.system__grouped_parameter_hold   = 0x00;
+	// 	/* Defensive: the timed preset already disables grouped-parameter-hold, matching
+	// 	 * the working ULD register dump; keep it pinned off so a preset change can't
+	// 	 * silently reintroduce the per-frame host handshake requirement. */
+	// 	pdev->dyn_cfg.system__grouped_parameter_hold_0 = 0x00;
+	// 	pdev->dyn_cfg.system__grouped_parameter_hold_1 = 0x00;
+	// 	pdev->dyn_cfg.system__grouped_parameter_hold   = 0x00;
 
-		/* Drop MM2 from the sequence (see FAST_RANGING_SEQUENCE_CONFIG comment). */
-		pdev->dyn_cfg.system__sequence_config = FAST_RANGING_SEQUENCE_CONFIG;
-	}
+	// 	/* Drop MM2 from the sequence (see FAST_RANGING_SEQUENCE_CONFIG comment). */
+	// 	pdev->dyn_cfg.system__sequence_config = FAST_RANGING_SEQUENCE_CONFIG;
+	// }
 	if (status == VL53L1_ERROR_NONE)
 	{
-		/* Start via the low-level entry the API itself uses: VL53L1_StartMeasurement
-		 * only adds the conservative (budget + 4 ms) guard we deliberately bypass. */
-		status = VL53L1_init_and_start_range(Dev,
-				VL53L1_DEVICEMEASUREMENTMODE_TIMED,
-				VL53L1_DEVICECONFIGLEVEL_FULL);
+		// /* Start via the low-level entry the API itself uses: VL53L1_StartMeasurement
+		//  * only adds the conservative (budget + 4 ms) guard we deliberately bypass. */
+		// status = VL53L1_init_and_start_range(Dev,
+		// 		VL53L1_DEVICEMEASUREMENTMODE_TIMED,
+		// 		VL53L1_DEVICECONFIGLEVEL_FULL);
+		VL53L1_StartMeasurement(Dev);
 	}
-	if (status == VL53L1_ERROR_NONE)
-	{
-		/* Read back what actually landed in the device for Live Watch inspection */
-		uint8_t byte_val = 0;
-		uint16_t word_val = 0;
-		uint32_t dword_val = 0;
-		VL53L1_RdWord(Dev, 0x0006, &word_val);
-		VL53L1_FastRangingDbg.nvm_fast_osc = word_val;
-		VL53L1_RdWord(Dev, 0x00DE, &word_val);
-		VL53L1_FastRangingDbg.reg_osc_calibrate = word_val;
-		VL53L1_RdByte(Dev, 0x004B, &byte_val);
-		VL53L1_FastRangingDbg.reg_phasecal_timeout = byte_val;
-		VL53L1_RdWord(Dev, 0x005A, &word_val);
-		VL53L1_FastRangingDbg.reg_mm_timeout_a = word_val;
-		VL53L1_RdWord(Dev, 0x005C, &word_val);
-		VL53L1_FastRangingDbg.reg_mm_timeout_b = word_val;
-		VL53L1_RdWord(Dev, 0x005E, &word_val);
-		VL53L1_FastRangingDbg.reg_range_timeout_a = word_val;
-		VL53L1_RdWord(Dev, 0x0061, &word_val);
-		VL53L1_FastRangingDbg.reg_range_timeout_b = word_val;
-		VL53L1_RdDWord(Dev, 0x006C, &dword_val);
-		VL53L1_FastRangingDbg.reg_intermeasurement = dword_val;
-		VL53L1_RdByte(Dev, 0x0081, &byte_val);
-		VL53L1_FastRangingDbg.reg_sequence_config = byte_val;
+	if (status == VL53L1_ERROR_NONE){
+		status = VL53L1_WaitMeasurementDataReady(Dev);
+		status = VL53L1_ClearInterruptAndStartMeasurement(Dev);
 	}
+	// if (status == VL53L1_ERROR_NONE)
+	// {
+	// 	/* Read back what actually landed in the device for Live Watch inspection */
+	// 	uint8_t byte_val = 0;
+	// 	uint16_t word_val = 0;
+	// 	uint32_t dword_val = 0;
+	// 	VL53L1_RdWord(Dev, 0x0006, &word_val);
+	// 	VL53L1_FastRangingDbg.nvm_fast_osc = word_val;
+	// 	VL53L1_RdWord(Dev, 0x00DE, &word_val);
+	// 	VL53L1_FastRangingDbg.reg_osc_calibrate = word_val;
+	// 	VL53L1_RdByte(Dev, 0x004B, &byte_val);
+	// 	VL53L1_FastRangingDbg.reg_phasecal_timeout = byte_val;
+	// 	VL53L1_RdWord(Dev, 0x005A, &word_val);
+	// 	VL53L1_FastRangingDbg.reg_mm_timeout_a = word_val;
+	// 	VL53L1_RdWord(Dev, 0x005C, &word_val);
+	// 	VL53L1_FastRangingDbg.reg_mm_timeout_b = word_val;
+	// 	VL53L1_RdWord(Dev, 0x005E, &word_val);
+	// 	VL53L1_FastRangingDbg.reg_range_timeout_a = word_val;
+	// 	VL53L1_RdWord(Dev, 0x0061, &word_val);
+	// 	VL53L1_FastRangingDbg.reg_range_timeout_b = word_val;
+	// 	VL53L1_RdDWord(Dev, 0x006C, &dword_val);
+	// 	VL53L1_FastRangingDbg.reg_intermeasurement = dword_val;
+	// 	VL53L1_RdByte(Dev, 0x0081, &byte_val);
+	// 	VL53L1_FastRangingDbg.reg_sequence_config = byte_val;
+	// }
 	return (int8_t)status;
 }
