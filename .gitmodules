@@ -1,0 +1,6 @@
+[submodule "OledDrivers/Adafruit-GFX-Library"]
+	path = OledDrivers/Adafruit-GFX-Library
+	url = git@github.com:MJurczak-PMarchut/Adafruit-GFX-Library.git
+[submodule "OledDrivers/Adafruit_SSD1327"]
+	path = OledDrivers/Adafruit_SSD1327
+	url = git@github.com:MJurczak-PMarchut/Adafruit_SSD1327.git
