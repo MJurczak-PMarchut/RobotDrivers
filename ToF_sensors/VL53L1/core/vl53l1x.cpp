@@ -125,6 +125,7 @@ VL53L1X::VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *
 			__ToFX_SHUT_Pin[this->__sensor_index], GPIO_PIN_RESET);
 	last_update_tick = HAL_GetTick();
 	this->_CallbackFunc = std::bind(&VL53L1X::DataReceived, this, std::placeholders::_1);
+	PlatformSetCommManager(comm);
 }
 
 HAL_StatusTypeDef VL53L1X::SensorInit(void){

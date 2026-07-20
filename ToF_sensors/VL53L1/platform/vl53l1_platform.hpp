@@ -79,6 +79,7 @@ uint8_t VL53L1_WaitMs(
 
 
 void PlatformSetMutex(osapi::Mutex *pMutex);
+void PlatformSetCommManager(CommManager *comm);
 
 #ifdef __cplusplus
 }
