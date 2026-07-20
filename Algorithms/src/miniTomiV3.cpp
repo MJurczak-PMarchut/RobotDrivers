@@ -7,7 +7,6 @@
 #include "cmsis_os2.h"
 #include "osapi.h"
 #include "portmacro.h"
-#include "stm32h7xx_hal.h"
 #include <cmath>
 #include <stdio.h>
 #ifdef ROBOT_MT_V3
@@ -18,16 +17,6 @@
 #include "DirtyLogger.hpp"
 #include <string>
 #include "lsm6dso.hpp"
-#include "Adafruit_SSD1327.h"
-#include "osapi_mortal_thread.h"
-#include "semphr.h"
-
-// Qwiic/STEMMA QT SSD1327 module - I2C only (no reset line broken out on the
-// Qwiic connector), address confirmed on this board's silkscreen/datasheet.
-#define OLED_WIDTH 128
-#define OLED_HEIGHT 128
-#define OLED_I2C_ADDRESS 0x3D
-
 
 #define INIT_TIMEOUT_MS  6000
 
@@ -77,60 +66,6 @@ static  L9960T MOTOR_CONTROLLERS[] = {
 
 static LSM6DSO IMU = LSM6DSO(&MainCommManager, &hspi2);
 
-// No reset pin wired (Qwiic connector is power+I2C only) - matches Adafruit_SSD1327's
-// own default of no reset pin for I2C-only wiring.
-static Adafruit_SSD1327 display = Adafruit_SSD1327(OLED_WIDTH, OLED_HEIGHT, &Wire);
-
-// Adafruit_SSD1327::display() flushes the framebuffer one 64-byte row at a time (128
-// rows for a full 128x128 frame), and each row's I2C write blocks the calling task
-// until that chunk completes (see Adafruit_I2CDevice::write() in ArduinoCompat) - a
-// full-frame update can take on the order of 100ms+. Running it on its own idle-priority
-// task keeps that off the Robot task (and everything else), matching how
-// ToF_Sensor::StartSensorTask() already isolates sensor polling onto its own task
-// (RobotDrivers/ToF_sensors/Common/ToFSensor.cpp). RequestUpdate() is the non-blocking
-// entry point other code should call instead of `display.display()` directly.
-class DisplayMortalThread : public MortalThread
-{
-public:
-	DisplayMortalThread() : MortalThread(tskIDLE_PRIORITY, 1024, "DisplayThread")
-	{
-		updateSemaphore = xSemaphoreCreateBinary();
-		updateCompleteSemaphore = xSemaphoreCreateBinary();
-	}
-
-	void RequestUpdate(void)
-	{
-		xSemaphoreGive(updateSemaphore);
-	}
-
-	// Blocks until the display() triggered by the next RequestUpdate() has actually
-	// returned (all rows genuinely transferred or honestly failed - see
-	// Adafruit_I2CDevice::write()), not just until DisplayThread has started running.
-	// Only meant for the one-shot startup draw in Robot::begin(): waiting here for
-	// real completion, instead of a fixed delay or an isInitCompleted() check, is
-	// what reliably avoids racing the boot-time draw against Robot::loop() starting.
-	void WaitForUpdateComplete(void)
-	{
-		xSemaphoreTake(updateCompleteSemaphore, portMAX_DELAY);
-	}
-
-protected:
-	void loop(void) override
-	{
-		if (xSemaphoreTake(updateSemaphore, portMAX_DELAY) == pdTRUE)
-		{
-			display.display();
-			xSemaphoreGive(updateCompleteSemaphore);
-		}
-	}
-
-private:
-	SemaphoreHandle_t updateSemaphore;
-	SemaphoreHandle_t updateCompleteSemaphore;
-};
-
-static DisplayMortalThread DisplayThread;
-
 static VL53L1X Sensors[] = {
 		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
 		VL53L1X(BACK, &MainCommManager, &hi2c1),
@@ -140,7 +75,6 @@ static VL53L1X Sensors[] = {
 volatile bool lastDetOnLeft = false;
 bool sensor_detected_item[2]= {false, false};
 static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
-
 /*
  * static functions definitions
  */
@@ -175,24 +109,11 @@ void Robot::begin(void)
 	//Enable power
 	//Enable power
 	logger.Log("--- INIT Started ---", LOGLEVEL_INFO);
-
-	logger.Log("--- Display Started ---", LOGLEVEL_INFO);
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(NCS1_GPIO_Port, NCS1_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
-	if (!display.begin(OLED_I2C_ADDRESS))
-	{
-		logger.Log("--- Display begin() FAILED ---", LOGLEVEL_INFO);
-	}
-	display.clearDisplay();
-	display.setTextSize(1);
-	display.setTextColor(SSD1327_WHITE, SSD1327_BLACK);
-	display.setCursor(0, 0);
-	display.println("MiniSumo Init Started");
-	display.drawRect(0, 9, 126, 10, SSD1327_WHITE);
-	display.fillRect(2, 11, 122, 6, SSD1327_WHITE);
 	IMU.Init();
 	HAL_Delay(100);
 	IMU.StartCalibrationOrientation();
@@ -205,12 +126,6 @@ void Robot::begin(void)
 	HAL_GPIO_WritePin(MD_NDIS_GPIO_Port, MD_NDIS_Pin, GPIO_PIN_SET);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-	// display.setTextSize(2);	
-	// display.setTextColor(SSD1327_WHITE);
-	// display.setCursor(8, 8);
-	// display.print("MiniSumo");
-	// DisplayThread.run();
-	// DisplayThread.RequestUpdate();
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Init(0);
 	logger.Log("--- Motors Started ---", LOGLEVEL_INFO);
 	while(MOTOR_CONTROLLERS[MOTOR_LEFT].CheckIfControllerInitializedOk() != HAL_OK)
@@ -226,21 +141,6 @@ void Robot::begin(void)
 	logger.Log("--- INIT Completed ---", LOGLEVEL_INFO);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-	// vTaskDelay(100);
-	display.println("INIT COMPLETED");
-	display.println("---------------------");
-	DisplayThread.run();
-	// DisplayThread and the Robot task are both tskIDLE_PRIORITY, so creating it
-	// doesn't force an immediate context switch - wait until it has actually
-	// started running before signaling it.
-	while (!DisplayThread.isInitCompleted())
-	{
-		taskYIELD();
-	}
-	DisplayThread.RequestUpdate();
-	// Wait for the first frame to actually finish transferring before Robot::begin()
-	// returns and Robot::loop()/everything else starts competing for the CPU/I2C1 bus.
-	DisplayThread.WaitForUpdateComplete();
 }
 
 void prepare_sensor_data(char *pData, VL53L1X Sensors[])
@@ -408,12 +308,7 @@ bool isOpponentDetected(void)
 	SensorDistances_t distances = GetValidatedDistances();
 	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\r", distances.raw_left, distances.raw_right);
 	logger.Log(sensor_message,LOGLEVEL_TRACE);
-	display.setCursor(0, 3*8);
-	display.println("Sensor ToF");
-	sprintf(sensor_message, "L=%u  ", distances.left);
-	display.println(sensor_message);
-	sprintf(sensor_message, "R=%u  ", distances.right);
-	display.println(sensor_message);
+
 	sensor_detected_item[0] = distances.left < DETECTION_DISTANCE;
 	sensor_detected_item[1] = distances.right < DETECTION_DISTANCE;
 	bool detected = sensor_detected_item[0] || sensor_detected_item[1];
@@ -843,9 +738,7 @@ void Robot::PeriodicCheckCall(void)
 				if(diver == 5){
 					logger.Sync();
 //					HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
-					
 				}
-				DisplayThread.RequestUpdate();
 				diver = (diver >= 5)? 0: diver+1;
 			}
 			break;
