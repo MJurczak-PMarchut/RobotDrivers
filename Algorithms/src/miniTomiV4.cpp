@@ -10,7 +10,7 @@
 #include "stm32h7xx_hal.h"
 #include <cmath>
 #include <stdio.h>
-#ifdef ROBOT_MT_V3
+#ifdef ROBOT_MT_V4
 #include "Algo.hpp"
 #include "HeadingPID.hpp"
 #include "vl53l1x.hpp"
