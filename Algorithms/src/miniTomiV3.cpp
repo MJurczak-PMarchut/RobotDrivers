@@ -182,6 +182,17 @@ void Robot::begin(void)
 	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
+	if (!display.begin(OLED_I2C_ADDRESS))
+	{
+		logger.Log("--- Display begin() FAILED ---", LOGLEVEL_INFO);
+	}
+	display.clearDisplay();
+	display.setTextSize(1);
+	display.setTextColor(SSD1327_WHITE, SSD1327_BLACK);
+	display.setCursor(0, 0);
+	display.println("MiniSumo Init Started");
+	display.drawRect(0, 9, 126, 10, SSD1327_WHITE);
+	display.fillRect(2, 11, 122, 6, SSD1327_WHITE);
 	IMU.Init();
 	HAL_Delay(100);
 	IMU.StartCalibrationOrientation();
@@ -216,15 +227,6 @@ void Robot::begin(void)
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 	// vTaskDelay(100);
-	if (!display.begin(OLED_I2C_ADDRESS))
-	{
-		logger.Log("--- Display begin() FAILED ---", LOGLEVEL_INFO);
-	}
-	display.clearDisplay();
-	display.setTextSize(1);
-	display.setTextColor(SSD1327_WHITE, SSD1327_BLACK);
-	display.setCursor(0, 0);
-	display.println("MiniSumo");
 	display.println("INIT COMPLETED");
 	display.println("---------------------");
 	DisplayThread.run();
