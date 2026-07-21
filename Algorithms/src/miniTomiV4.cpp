@@ -10,6 +10,7 @@
 #include "stm32h7xx_hal.h"
 #include <cmath>
 #include <stdio.h>
+#include <string.h>
 #ifdef ROBOT_MT_V4
 #include "Algo.hpp"
 #include "HeadingPID.hpp"
@@ -27,6 +28,10 @@
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 128
 #define OLED_I2C_ADDRESS 0x3D
+// The OLED dirty-tracking grid (GRAYOLED_WINDOW_COLS x GRAYOLED_WINDOW_ROWS) is configured via
+// build flags in CMakePresets.json (the MiniTomiV4 preset's CUBE_CMAKE_CXX_FLAGS), NOT here:
+// the SSD1327/GrayOLED driver is a separate translation unit and never sees #defines from this
+// file. Default (no flags) is 1x1 = one whole-screen window; this build uses 2x2 = 4 windows.
 
 
 #define INIT_TIMEOUT_MS  6000
@@ -151,7 +156,90 @@ static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
  * static functions implementation
  */
 
+ void _init_pg_draw_boundry(void)
+ {
+	display.drawRect(0, 9, 128, 10, SSD1327_WHITE);
+ }
 
+ void _init_pg_draw_percentage(int16_t percentage)
+ {
+	static int16_t drawn_bar = 0;
+	int16_t width = (percentage * 1.24) - drawn_bar;
+	display.fillRect(drawn_bar + 2, 11, width, 6, SSD1327_WHITE);
+ }
+
+ void _init_log_print_message(const char* str)
+ {
+	static int16_t CurY = 20;
+	display.setCursor(0, CurY);
+	display.println(str);
+	CurY = display.getCursorY();
+ }
+
+ void _init_display(void)
+ {
+	if (!display.begin(OLED_I2C_ADDRESS))
+	{
+		logger.Log("--- Display begin() FAILED ---", LOGLEVEL_INFO);
+	}
+
+	DisplayThread.run();
+	display.clearDisplay();
+	display.setTextSize(1);
+	display.setTextColor(SSD1327_WHITE, SSD1327_BLACK);
+	display.setCursor(0, 0);
+ }
+
+ void _stat_draw_bounding_boxes()
+ {
+	display.drawRect(0, 9, 128, 128-9, SSD1327_WHITE);
+	display.drawFastVLine(63, 9, (128-9),SSD1327_WHITE);
+	display.drawFastHLine(0, 63, 128,SSD1327_WHITE);
+ }
+
+
+ class boundingBox{
+	public:
+		boundingBox(uint8_t quadrant, const char* title) : _title{title} {
+			_y = (quadrant == 0 || quadrant == 1)? 10 : 64;
+			_x = (quadrant == 1 || quadrant == 2)? 64 : 1;
+			stat_pointer = 0;
+		}
+		void attach_stat(const char* stat)
+		{
+			if(stat_pointer < 6){
+				_stat[stat_pointer] = stat;
+				stat_pointer++;
+			}
+		}
+		void printstat(const char* str, const char* stat)
+		{
+			uint8_t stat_iter = 0;
+			for(stat_iter = 0; stat_iter < 6; stat_iter++)
+			{
+				if(strcmp(stat, _stat[stat_iter]) == 0){
+					display.setCursor(_x + 1, stat_iter * 9 + _y + 11);
+					display.print(str);
+					break;
+				}
+			}
+			
+		}
+		void draw_all(void){
+			_display_title();
+		}
+	private:
+		void _display_title(void){
+			display.drawFastHLine(_x, _y + 9, 63, SSD1327_WHITE);
+			display.setCursor(_x+1, _y+1);
+			display.print(_title);
+		}
+		const char* _title;
+		int16_t _y;
+		int16_t _x;
+		const char* _stat[4];
+		uint8_t stat_pointer;
+ };
 
 /*
  * Algorithm
@@ -166,10 +254,12 @@ volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
 static HeadingPID HeadingController = HeadingPID(HEADING_PID_KP, HEADING_PID_KI, HEADING_PID_KD,
 		HEADING_PID_OUTPUT_LIMIT, HEADING_ANTIPODE_HYST_DEG);
 
+static boundingBox StatsBox[4] = {boundingBox(0, "TOF"), boundingBox(1, "Gyro"),
+	boundingBox(2, "Strat"), boundingBox(3, "misc")};
+
 void Robot::begin(void)
 {
 	was_running = true;
-	int16_t CurY  =0;
 	flash_period_ms = 100;
 	// HAL_StatusTypeDef imuret;
 	logger.Init();
@@ -188,45 +278,33 @@ void Robot::begin(void)
 	HAL_Delay(250);
 
 	logger.Log("--- Display Started ---", LOGLEVEL_INFO);
-	if (!display.begin(OLED_I2C_ADDRESS))
-	{
-		logger.Log("--- Display begin() FAILED ---", LOGLEVEL_INFO);
-	}
-
-	DisplayThread.run();
-	display.clearDisplay();
-	display.setTextSize(1);
-	display.setTextColor(SSD1327_WHITE, SSD1327_BLACK);
-	display.setCursor(0, 0);
+	_init_display();
 	display.println("MiniSumo Init Started");
-	display.drawRect(0, 9, 128, 10, SSD1327_WHITE);
-	display.fillRect(2, 11, 10, 6, SSD1327_WHITE);
+	_init_pg_draw_boundry();
+	_init_pg_draw_percentage(10);
 	display.setCursor(0, 20);
-	display.println("---------------------");
-	display.println("SD Initialized");
+	_init_log_print_message("---------------------");
+	_init_log_print_message("SD Initialized");
 	DisplayThread.RequestUpdate();
 
 	IMU.Init();
 	HAL_Delay(100);
 	IMU.StartCalibrationOrientation();
 
-	display.println("IMU Initialized");
-	CurY = display.getCursorY();
+	_init_pg_draw_percentage(20);
+	_init_log_print_message("IMU Initialized");
 	DisplayThread.RequestUpdate();
 
 	HAL_Delay(250);
 
-	display.fillRect(10, 11, 30, 6, SSD1327_WHITE);
-
+	_init_pg_draw_percentage(45);
 	IMU.CalibrateOrientation();
-	display.setCursor(0, CurY);
-	display.println("IMU Calibration");
+	_init_log_print_message("IMU Calibration");
 	DisplayThread.RequestUpdate();
 
 	HAL_Delay(200);
-	display.println("Start ToF task");
-	CurY = display.getCursorY();
-	display.fillRect(40, 11, 86, 6, SSD1327_WHITE);
+	_init_log_print_message("Start ToF task");
+	_init_pg_draw_percentage(75);
 	DisplayThread.RequestUpdate();
 
 	ToF_Sensor::StartSensorTask();
@@ -250,10 +328,8 @@ void Robot::begin(void)
 	while(ToF_Sensor::CheckInitializationCplt() != true)
 	{taskYIELD();}
 
-	display.setCursor(0, CurY);
-	display.println("ToF OK");
-	CurY = display.getCursorY();
-	display.fillRect(86, 11, 126-86, 6, SSD1327_WHITE);
+	_init_log_print_message("ToF OK");
+	_init_pg_draw_percentage(100);
 
 
 	logger.Log("--- INIT Completed ---", LOGLEVEL_INFO);
@@ -261,11 +337,14 @@ void Robot::begin(void)
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 
-	display.setCursor(0, CurY);
-	display.println("INIT COMPLETED");
-	display.println("---------------------");
+	_init_log_print_message("INIT COMPLETED");
+	_init_log_print_message("---------------------");
 	DisplayThread.RequestUpdate();
 	vTaskDelay(10);
+
+	StatsBox[0].attach_stat("L");
+	StatsBox[0].attach_stat("P");
+	StatsBox[0].attach_stat("T");
 }
 
 void prepare_sensor_data(char *pData, VL53L1X Sensors[])
@@ -435,14 +514,17 @@ bool isOpponentDetected(void)
 	SensorDistances_t distances = GetValidatedDistances();
 	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\r", distances.raw_left, distances.raw_right);
 	logger.Log(sensor_message,LOGLEVEL_TRACE);
-	display.setCursor(0, 64);
-	display.println("Sensor ToF");
+
 	sprintf(sensor_message, "L=%u  ", distances.left);
-	display.println(sensor_message);
-	sprintf(sensor_message, "R=%u  ", distances.right);
-	display.println(sensor_message);
+	StatsBox[0].printstat(sensor_message, "L");
+	
+
+	sprintf(sensor_message, "P=%u  ", distances.right);
+	StatsBox[0].printstat(sensor_message, "P");
+
 	sprintf(sensor_message, "T=%u  ", distances.raw_rear);
-	display.println(sensor_message);
+	StatsBox[0].printstat(sensor_message, "T");
+
 	sensor_detected_item[0] = distances.left < DETECTION_DISTANCE;
 	sensor_detected_item[1] = distances.right < DETECTION_DISTANCE;
 	bool detected = sensor_detected_item[0] || sensor_detected_item[1];
@@ -621,6 +703,11 @@ void Calibrate(void)
 	logger.Log(calib_message, LOGLEVEL_INFO);
 	logger.Log("--- CALIBRATION Completed ---", LOGLEVEL_INFO);
 	display.clearDisplay();
+	_stat_draw_bounding_boxes();
+	StatsBox[0].draw_all();
+	StatsBox[1].draw_all();
+	StatsBox[2].draw_all();
+	StatsBox[3].draw_all();
 }
 
 
