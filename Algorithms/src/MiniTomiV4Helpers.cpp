@@ -99,6 +99,8 @@ SensorDistances_t GetValidatedDistances(void)
 	distances.raw_right = Sensors[2].GetDistance();
 	VL53L1X_Result_t result_left = Sensors[0].GetResult();
 	VL53L1X_Result_t result_right = Sensors[2].GetResult();
+	distances.sig_left = result_left.SigPerSPAD;
+	distances.sig_right = result_right.SigPerSPAD;
 	distances.left = (result_left.SigPerSPAD > maxVal_perSPAD[0])?
 			distances.raw_left: DETECTION_DISTANCE + 100;
 	distances.right = (result_right.SigPerSPAD > maxVal_perSPAD[1])?
@@ -108,12 +110,19 @@ SensorDistances_t GetValidatedDistances(void)
 
 bool isOpponentDetected(void)
 {
-	char sensor_message[100] = {0};
+	char sensor_message[128] = {0};
 	static bool was_previously_detected= false;
 
 	WaitForNewData();
 	SensorDistances_t distances = GetValidatedDistances();
-	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\r", distances.raw_left, distances.raw_right);
+	// [n] raw range, f[n] the range after the SigPerSPAD gate, s[n] the SigPerSPAD
+	// that drove that gate. Raw stays first and keeps its original "[n]=" spelling so
+	// logs from before the f/s fields existed still parse the same way. Worst case
+	// (all six values 65535) is 76 chars + NUL, so the 128-byte buffer cannot overrun.
+	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\rf[0]=%u\n\rf[1]=%u\n\rs[0]=%u\n\rs[1]=%u\n\r",
+			distances.raw_left, distances.raw_right,
+			distances.left, distances.right,
+			distances.sig_left, distances.sig_right);
 	logger.Log(sensor_message,LOGLEVEL_TRACE);
 #ifdef DEBUG_SCREEN
 	sprintf(sensor_message, "L=%u  ", distances.left);

@@ -701,7 +701,9 @@ void Robot::PeriodicCheckCall(void)
 			else{
 				if(reset_counter >= 1)
 				{
-					logger.Sync();
+					// Flush(), not Sync(): the staged sub-sector tail has to reach the
+					// card before the reset, even though it costs the write alignment.
+					logger.Flush();
 					NVIC_SystemReset();
 				}
 				reset_counter++;

@@ -84,6 +84,11 @@ typedef struct{
 	uint16_t left;
 	uint16_t right;
 	uint16_t raw_rear;
+	// SigPerSPAD behind each front reading - the quantity GetValidatedDistances()
+	// actually gates on (vs. maxVal_perSPAD[]), carried out so callers can log the
+	// reason a range was accepted or replaced instead of only the outcome.
+	uint16_t sig_left;
+	uint16_t sig_right;
 }SensorDistances_t;
 
 /*

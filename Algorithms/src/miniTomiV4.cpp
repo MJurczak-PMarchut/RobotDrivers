@@ -295,11 +295,13 @@ void Robot::loop(void)
 		break;
 		case FIGHT:
 		{
+
 			direction_ack = true;
+			//First fight
+			FightAlgorithm(this);
 			if(isOpponentDetected())
 			{
-			//First fight
-				FightAlgorithm(this);
+				// Nothing to do here;
 			}
 			else
 			{
@@ -341,22 +343,19 @@ void Robot::loop(void)
 		break;
 		case LOOK_FOR_OPPONENT_1:
 		{
+			double SteeringTrim = (!lastDetOnLeft) ? MANOUVER_SPEED : -MANOUVER_SPEED;
 			if(isOpponentDetected())
 			{
+				// Faster heading recovery
 				eFSM_state = FIGHT;
+				MCInterface::SetMotorsPower(-SteeringTrim, SteeringTrim);
+				vTaskDelay(1);
 			}
 			else
 			{
-				// static float TargetLookingAngle = 0;
-				// float MovementDir = (!lastDetOnLeft) ? 1 : -1;  // -1 for left, 1 for right
 				this->SetFlashPeriodMS(1000);
-				// Move in 4deg increments
-				// if(fabsf(HeadingPID::WrapAngleDeg180((float)IMU.GetAngularOrientationForAxis(2) - TargetLookingAngle)) < 2){
-				// 	TargetLookingAngle = HeadingPID::WrapAngleDeg180(TargetLookingAngle + (10 * MovementDir));
-				// 	this->SetTargetHeading(TargetLookingAngle);
-				// }
-				double SteeringTrim = (!lastDetOnLeft) ? MANOUVER_SPEED : -MANOUVER_SPEED;
-				// float SteeringTrim = this->GetHeadingCorrection();
+
+				
 				MCInterface::SetMotorsPower(SteeringTrim, -SteeringTrim);
 
 				// Wait 4s before changing strategy
@@ -461,7 +460,9 @@ void Robot::PeriodicCheckCall(void)
 			else{
 				if(reset_counter >= 1)
 				{
-					logger.Sync();
+					// Flush(), not Sync(): the staged sub-sector tail has to reach the
+					// card before the reset, even though it costs the write alignment.
+					logger.Flush();
 					NVIC_SystemReset();
 				}
 				reset_counter++;
