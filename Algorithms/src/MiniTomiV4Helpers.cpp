@@ -79,13 +79,37 @@ bool isOutOfBounds(void)
 	return (left || right);
 }
 
-// Blocks up to 30 ticks for a fresh sweep from all ToF sensors before the caller reads
-// their distances. Only isOpponentDetected() needs it, so it stays file-local.
-static void WaitForNewData(void)
+void ManoeuvreEnterPhase(Manoeuvre_t *m, uint8_t phase, uint32_t duration_ms)
 {
-	static EventBits_t u32_updated_Sensors = 0;
-	u32_updated_Sensors = xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
-	UNUSED(u32_updated_Sensors);
+	m->active = true;
+	m->phase = phase;
+	m->deadline = xTaskGetTickCount() + pdMS_TO_TICKS(duration_ms);
+}
+
+void ManoeuvreEnd(Manoeuvre_t *m)
+{
+	m->active = false;
+	m->phase = MANOEUVRE_IDLE;
+}
+
+bool ManoeuvrePhaseDone(const Manoeuvre_t *m)
+{
+	// Signed difference: correct across tick-counter wrap.
+	return m->active && ((int32_t)(xTaskGetTickCount() - m->deadline) >= 0);
+}
+
+TickType_t ManoeuvreWaitTicks(const Manoeuvre_t *m, TickType_t max_ticks)
+{
+	if(!m->active)
+	{
+		return max_ticks;
+	}
+	int32_t left = (int32_t)(m->deadline - xTaskGetTickCount());
+	if(left <= 0)
+	{
+		return 0;
+	}
+	return ((TickType_t)left < max_ticks)? (TickType_t)left : max_ticks;
 }
 
 // Reads both front sensors and replaces readings whose signal is weaker than the
@@ -113,7 +137,6 @@ bool isOpponentDetected(void)
 	char sensor_message[128] = {0};
 	static bool was_previously_detected= false;
 
-	WaitForNewData();
 	SensorDistances_t distances = GetValidatedDistances();
 	// [n] raw range, f[n] the range after the SigPerSPAD gate, s[n] the SigPerSPAD
 	// that drove that gate. Raw stays first and keeps its original "[n]=" spelling so
@@ -352,44 +375,68 @@ void FightAlgorithm(Robot *obj)
 	}
 }
 
-State_t LookForOpponent2(Robot *obj)
+// Search 2: drive forward; on the edge back off, then turn towards the last detection
+// until SEARCH2_TURN_DEG or ROTATION_TIMEOUT. Opponent is ignored while backing off.
+#define SEARCH2_BACK_MS   350
+#define SEARCH2_TURN_DEG  60.0f
+enum {SEARCH2_BACK = MANOEUVRE_IDLE + 1, SEARCH2_TURN};
+
+State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 {
-	TickType_t start_tick;
-	double_t starting_orientation = NAN;
-	double_t angularOrientation = NAN;
 	obj->SetFlashPeriodMS(500);
-	if(isOutOfBounds())
+	switch(m->phase)
 	{
-		char search_message[100];
-		sprintf(search_message, "Search2: edge hit, backing off, rotate %s", (lastDetOnLeft)? "LEFT" : "RIGHT");
-		logger.Log(search_message, LOGLEVEL_INFO);
-		// On both Or Only One?
-		//move back slightly
-		MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
-		vTaskDelay(350);
-		// move into last det
-		starting_orientation = IMU.GetAngularOrientationForAxis(2);
-		start_tick = xTaskGetTickCount();
-		if(lastDetOnLeft)
-			MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
-		else
-			MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
-		while(xTaskGetTickCount() - start_tick < ROTATION_TIMEOUT)
-		{
-			angularOrientation = HeadingPID::WrapAngleDeg180((float)(IMU.GetAngularOrientationForAxis(2) - starting_orientation));
-			angularOrientation = (angularOrientation > 0)? angularOrientation : -angularOrientation;
-			if(angularOrientation >= 60)
+		case MANOEUVRE_IDLE:
+			if(opponent_detected)
+			{
+				return FIGHT;
+			}
+			if(isOutOfBounds())
+			{
+				char search_message[100];
+				sprintf(search_message, "Search2: edge hit, backing off, rotate %s", (lastDetOnLeft)? "LEFT" : "RIGHT");
+				logger.Log(search_message, LOGLEVEL_INFO);
+				MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
+				ManoeuvreEnterPhase(m, SEARCH2_BACK, SEARCH2_BACK_MS);
+			}
+			else
 			{
 				MCInterface::SetMotorsPower(MANOUVER_SPEED, MANOUVER_SPEED);
-				break;
 			}
-			if(isOpponentDetected())
+			break;
+		case SEARCH2_BACK:
+			if(ManoeuvrePhaseDone(m))
+			{
+				m->start_heading = (float)IMU.GetAngularOrientationForAxis(2);
+				if(lastDetOnLeft)
+					MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
+				else
+					MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
+				ManoeuvreEnterPhase(m, SEARCH2_TURN, ROTATION_TIMEOUT);
+			}
+			break;
+		case SEARCH2_TURN:
+		{
+			if(opponent_detected)
+			{
+				ManoeuvreEnd(m);
 				return FIGHT;
+			}
+			float turned = fabsf(HeadingPID::WrapAngleDeg180((float)IMU.GetAngularOrientationForAxis(2) - m->start_heading));
+			if(turned >= SEARCH2_TURN_DEG)
+			{
+				MCInterface::SetMotorsPower(MANOUVER_SPEED, MANOUVER_SPEED);
+				ManoeuvreEnd(m);
+			}
+			else if(ManoeuvrePhaseDone(m))
+			{
+				ManoeuvreEnd(m);   // next step drives forward
+			}
 		}
-	}
-	else
-	{
-		MCInterface::SetMotorsPower(MANOUVER_SPEED, MANOUVER_SPEED);
+		break;
+		default:
+			ManoeuvreEnd(m);
+			break;
 	}
 	return LOOK_FOR_OPPONENT_2;
 }

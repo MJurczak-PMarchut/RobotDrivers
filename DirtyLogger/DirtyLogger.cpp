@@ -369,8 +369,8 @@ void DirtyLogger::WriterTaskEntry(void *arg)
 }
 
 // The only task that touches FatFs. Everything expensive - the multi-block transfer,
-// the card-busy wait and any f_sync - happens here, below defaultTask and above the
-// algorithm task. The busy wait sleeps (see BSP_SD_GetCardState() below).
+// the card-busy wait and any f_sync - happens here, below defaultTask. The busy wait
+// sleeps (see BSP_SD_GetCardState() below).
 void DirtyLogger::WriterLoop(void)
 {
 	for(;;)

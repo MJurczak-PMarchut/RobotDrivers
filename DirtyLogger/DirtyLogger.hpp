@@ -40,8 +40,8 @@ typedef enum {LOGLEVEL_INFO=0, LOGLEVEL_DEBUG, LOGLEVEL_TRACE, TOF_LOG} loglevel
 #define DIRTYLOGGER_MAX_RECORD       256u
 /*
  * Writer priority sits below defaultTask (osPriorityNormal) so a card stall can never
- * delay the 1 ms tick, and above the algorithm task (tskIDLE_PRIORITY) so the ring keeps
- * draining while the FSM is busy. Raising it trades FSM latency for drain headroom.
+ * delay the 1 ms tick. An algorithm task may run above it if it blocks regularly
+ * (MiniTomiV4: tskIDLE_PRIORITY + 2, waits on sensor events).
  */
 #define DIRTYLOGGER_WRITER_PRIO      (tskIDLE_PRIORITY + 1)
 #define DIRTYLOGGER_WRITER_STACK     256u    /* words, as xTaskCreate() counts them */

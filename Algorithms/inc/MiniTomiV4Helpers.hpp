@@ -70,6 +70,11 @@ const unsigned char epd_bitmap_Untitled [] = {
 #define ROTATION_TIMEOUT 150
 #define MAX_SIG_PER_SPAD	8000
 
+// Robot::loop() wake-up bits in the ToF event group (bit n = Sensors[n] sample ready).
+// LINE_EVENT_BIT is set by PeriodicCheckCall() on a new line detection.
+#define LINE_EVENT_BIT   ((EventBits_t)(1u << 20))
+#define TOF_FRONT_MASK   ((EventBits_t)((1u << 0) | (1u << 2)))   // Sensors[0] and Sensors[2]
+
 // Errors smaller than this are treated as zero, so sensor noise / motor response lag
 // doesn't make the robot hunt back and forth for a negligible heading difference.
 #define HEADING_PID_DEADBAND_DEG 15.0f
@@ -77,6 +82,16 @@ const unsigned char epd_bitmap_Untitled [] = {
 // Match FSM states: the strategy file (miniTomiV4.cpp) drives the machine, while
 // LookForOpponent2() returns the next state to enter.
 typedef enum{CALIBRATE, WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS, LOOK_FOR_OPPONENT_1, LOOK_FOR_OPPONENT_2, NOP} State_t;
+
+// Non-blocking timed manoeuvre: a state steps it on every Robot::loop() wake-up, and the
+// loop shortens its wait to the phase deadline. Reset on every state entry.
+#define MANOEUVRE_IDLE 0
+typedef struct{
+	bool active;
+	uint8_t phase;
+	TickType_t deadline;
+	float start_heading;
+}Manoeuvre_t;
 
 typedef struct{
 	uint16_t raw_left;
@@ -286,7 +301,7 @@ void _stat_draw_bounding_boxes(void);
  */
 SensorDistances_t GetValidatedDistances(void);
 bool isOutOfBounds(void);
-bool isOpponentDetected(void);
+bool isOpponentDetected(void);   // non-blocking, evaluates the latest samples
 const char* StateName(State_t state);
 State_t CheckStartCondition(Robot *obj, State_t eFSM_state);
 
@@ -295,7 +310,12 @@ State_t CheckStartCondition(Robot *obj, State_t eFSM_state);
  */
 void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower);
 void FightAlgorithm(Robot *obj);
-State_t LookForOpponent2(Robot *obj);
+State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected);
+
+void ManoeuvreEnterPhase(Manoeuvre_t *m, uint8_t phase, uint32_t duration_ms);
+void ManoeuvreEnd(Manoeuvre_t *m);
+bool ManoeuvrePhaseDone(const Manoeuvre_t *m);
+TickType_t ManoeuvreWaitTicks(const Manoeuvre_t *m, TickType_t max_ticks);
 void Calibrate(void);
 
 #endif /* ALGORITHMS_INC_MINITOMIV4HELPERS_HPP_ */

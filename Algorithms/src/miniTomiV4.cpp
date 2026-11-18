@@ -44,6 +44,19 @@
 
 #define SEARCH_STRATEGY_CHANGE_TIME  3000
 
+// Robot::loop() runs at least this often even without sensor/line events.
+#define LOOP_WAKE_TIMEOUT_MS  10
+// Above ToF/display/logger tasks, so an event wakes the FSM at once. Set after begin():
+// init busy-waits (HAL_Delay, taskYIELD loops) and must not starve those tasks.
+#define ROBOT_RUN_PRIORITY  (tskIDLE_PRIORITY + 2)
+
+// Out-of-bounds escape: stop, back off, turn towards the last detection. Blind to the
+// opponent until the end.
+#define OOB_STOP_MS  10
+#define OOB_BACK_MS  200
+#define OOB_TURN_MS  100
+enum {OOB_STOP = MANOEUVRE_IDLE + 1, OOB_BACK, OOB_TURN};
+
 // DETECTION_DISTANCE, FULL_SPEED, MANOUVER_SPEED, ROTATION_TIMEOUT, MAX_SIG_PER_SPAD and
 // HEADING_PID_DEADBAND_DEG live in MiniTomiV4Helpers.hpp (shared with the helpers TU).
 
@@ -209,6 +222,7 @@ void Robot::begin(void)
 	StatsBox[0].attach_stat("P");
 	StatsBox[0].attach_stat("T");
 #endif
+	this->setPriority(ROBOT_RUN_PRIORITY);
 }
 
 void prepare_sensor_data(char *pData, VL53L1X Sensors[])
@@ -237,14 +251,49 @@ UBaseType_t heap_min_size;
 
 void Robot::loop(void)
 {
-	// static float angle = 0;
 	static State_t eFSM_state = CALIBRATE;
 	static bool direction_ack = false;
-	eFSM_state = CheckStartCondition(this, eFSM_state);
 	static TickType_t last_detection_tick = 0;
+	static EventBits_t tof_pending = 0;
+	static bool opponent_detected = false;
+	static Manoeuvre_t manoeuvre = {};
+	static State_t stepped_state = NOP;   // state handled by the previous switch pass
+	static bool run_again = false;
+
+	// Single wait point: any ToF sample, a new line detection, the manoeuvre phase
+	// deadline or the timeout. A state change in the previous pass skips the wait.
+	TickType_t wait_ticks = run_again ? 0 :
+			ManoeuvreWaitTicks(&manoeuvre, pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
+	EventBits_t events = 0;
+	EventGroupHandle_t tof_events = ToF_Sensor::GetEventHandle();
+	if(tof_events != NULL)
+	{
+		events = xEventGroupWaitBits(tof_events, TOF_EVENT_MASK | LINE_EVENT_BIT,
+				pdTRUE, pdFALSE, wait_ticks);
+	}
+	else
+	{
+		vTaskDelay(pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
+	}
+	// Re-evaluate the opponent once both front sensors have reported.
+	tof_pending |= events & TOF_EVENT_MASK;
+	bool new_tof_data = (tof_pending & TOF_FRONT_MASK) == TOF_FRONT_MASK;
+	if(new_tof_data)
+	{
+		tof_pending = 0;
+		opponent_detected = isOpponentDetected();
+	}
+
+	eFSM_state = CheckStartCondition(this, eFSM_state);
+	// Edge before any state sets the motors. LOOK_FOR_OPPONENT_2 handles it itself.
+	if((eFSM_state == FIGHT || eFSM_state == LOOK_FOR_OPPONENT_1) && isOutOfBounds())
+	{
+		eFSM_state = OUT_OF_BOUNDS;
+	}
 	// Collision handling: the IMU driver latches sudden accel/yaw-rate jumps (impacts)
-	// that our own motor-driven moves don't produce.
-	if((eFSM_state == LOOK_FOR_OPPONENT_1 || eFSM_state == LOOK_FOR_OPPONENT_2) && IMU.IsCollisionDetected())
+	// that our own motor-driven moves don't produce. Deferred until a manoeuvre ends.
+	if((eFSM_state == LOOK_FOR_OPPONENT_1 || eFSM_state == LOOK_FOR_OPPONENT_2) &&
+			!manoeuvre.active && IMU.IsCollisionDetected())
 	{
 		IMU.ClearCollisionDetected();
 		char collision_message[100];
@@ -259,6 +308,15 @@ void Robot::loop(void)
 	{
 		logger.Log("----  Contact with opponent detected while fighting ----", LOGLEVEL_INFO);
 		IMU.ClearCollisionDetected();  // We expected a collision
+	}
+
+	// Any state change (incl. start/stop) aborts a running manoeuvre.
+	bool state_entry = (eFSM_state != stepped_state);
+	stepped_state = eFSM_state;
+	if(state_entry)
+	{
+		ManoeuvreEnd(&manoeuvre);
+		LED2_OFF;
 	}
 	switch(eFSM_state)
 	{
@@ -275,7 +333,6 @@ void Robot::loop(void)
 		break;
 		case WAIT_FOR_START:
 		{
-			isOpponentDetected();
 			last_detection_tick = xTaskGetTickCount();
 			MCInterface::SetMotorsPower(0, 0);
 			if(!direction_ack)
@@ -300,16 +357,15 @@ void Robot::loop(void)
 		{
 
 			direction_ack = true;
-			//First fight
-			FightAlgorithm(this);
-			if(isOpponentDetected())
-			{
-				// Nothing to do here;
-			}
-			else
+			// Lost only on a fresh sweep: entering from LookForOpponent2 leaves the flag stale.
+			if(new_tof_data && !opponent_detected)
 			{
 				eFSM_state = LOOK_FOR_OPPONENT_1;
 				last_detection_tick = xTaskGetTickCount();
+			}
+			else
+			{
+				FightAlgorithm(this);
 			}
 			//Then check OOB condition
 			if(isOutOfBounds())
@@ -320,47 +376,56 @@ void Robot::loop(void)
 		break;
 		case OUT_OF_BOUNDS:
 		{
-			//Check where we crossed the line
-			LED2_ON;
-			TickType_t startTicks = xTaskGetTickCount();
-			MCInterface::SetMotorsPower(0, 0);
-			char oob_message[100];
-			sprintf(oob_message, " Out Of Bounds: line %s%s, escape turn %s",
-					(lineDetOnLeft)? "L" : "", (lineDetOnRight)? "R" : "",
-					(lastDetOnLeft)? "LEFT" : "RIGHT");
-			logger.Log(oob_message, LOGLEVEL_INFO);
-			startTicks = xTaskGetTickCount() - startTicks;
-			startTicks = (startTicks < 10)? startTicks : 10;
-			vTaskDelay(10 - startTicks);
-			//back for a sec
-			MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
-			vTaskDelay(200);
-			if(lastDetOnLeft)
-				MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
-			else
-				MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
-			vTaskDelay(100);
-			if(isOpponentDetected())
+			if(state_entry)
 			{
-				eFSM_state = FIGHT;
-				// Nothing to do here;
+				LED2_ON;
+				MCInterface::SetMotorsPower(0, 0);
+				ManoeuvreEnterPhase(&manoeuvre, OOB_STOP, OOB_STOP_MS);
+				char oob_message[100];
+				sprintf(oob_message, " Out Of Bounds: line %s%s, escape turn %s",
+						(lineDetOnLeft)? "L" : "", (lineDetOnRight)? "R" : "",
+						(lastDetOnLeft)? "LEFT" : "RIGHT");
+				logger.Log(oob_message, LOGLEVEL_INFO);
 			}
-			else {
-				eFSM_state = LOOK_FOR_OPPONENT_1;
-				last_detection_tick = xTaskGetTickCount();
+			else if(ManoeuvrePhaseDone(&manoeuvre))
+			{
+				switch(manoeuvre.phase)
+				{
+					case OOB_STOP:
+						MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
+						ManoeuvreEnterPhase(&manoeuvre, OOB_BACK, OOB_BACK_MS);
+						break;
+					case OOB_BACK:
+						if(lastDetOnLeft)
+							MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
+						else
+							MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
+						ManoeuvreEnterPhase(&manoeuvre, OOB_TURN, OOB_TURN_MS);
+						break;
+					default:   // OOB_TURN done
+						ManoeuvreEnd(&manoeuvre);
+						if(opponent_detected)
+						{
+							eFSM_state = FIGHT;
+						}
+						else
+						{
+							eFSM_state = LOOK_FOR_OPPONENT_1;
+							last_detection_tick = xTaskGetTickCount();
+						}
+						break;
+				}
 			}
-			LED2_OFF;
 		}
 		break;
 		case LOOK_FOR_OPPONENT_1:
 		{
 			double SteeringTrim = (!lastDetOnLeft) ? MANOUVER_SPEED : -MANOUVER_SPEED;
-			if(isOpponentDetected())
+			if(opponent_detected)
 			{
-				// Faster heading recovery
+				// Counter-turn; FightAlgorithm overrides it on the next (immediate) pass.
 				eFSM_state = FIGHT;
 				MCInterface::SetMotorsPower(-SteeringTrim, SteeringTrim);
-				vTaskDelay(1);
 			}
 			else
 			{
@@ -369,7 +434,7 @@ void Robot::loop(void)
 				
 				MCInterface::SetMotorsPower(SteeringTrim, -SteeringTrim);
 
-				// Wait 4s before changing strategy
+				// Wait SEARCH_STRATEGY_CHANGE_TIME before changing strategy
 				if((xTaskGetTickCount() - last_detection_tick) < SEARCH_STRATEGY_CHANGE_TIME)
 				{
 					eFSM_state = LOOK_FOR_OPPONENT_1;
@@ -384,16 +449,17 @@ void Robot::loop(void)
 		break;
 		case LOOK_FOR_OPPONENT_2:
 		{
-			eFSM_state = (isOpponentDetected()) ? FIGHT : LookForOpponent2(this);
+			eFSM_state = LookForOpponent2(this, &manoeuvre, opponent_detected);
 		}
 		break;
 		case NOP:
-			vTaskDelay(1);
 			break;
 		default:
 			eFSM_state = WAIT_FOR_START;
 			break;
 	}
+	run_again = (eFSM_state != stepped_state);
+
 	// Log every FSM transition so match logs show the full decision timeline
 	static State_t last_logged_state = CALIBRATE;
 	if(last_logged_state != eFSM_state)
@@ -403,8 +469,6 @@ void Robot::loop(void)
 		logger.Log(state_message, LOGLEVEL_INFO);
 		last_logged_state = eFSM_state;
 	}
-	//check if we can move
-	taskYIELD();
 }
 
 void Robot::end(void)
@@ -526,6 +590,17 @@ void Robot::PeriodicCheckCall(void)
 		HAL_GPIO_TogglePin(LED0_GPIO_Port, LED0_Pin);
 	}
 	flash_counter = (flash_counter == 0)? flash_period_ms/2: flash_counter-1;
+
+	// New line detection wakes Robot::loop() without waiting for the next ToF sample.
+	static bool line_prev = false;
+	bool line_now = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin) ||
+			!HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
+	EventGroupHandle_t tof_events = ToF_Sensor::GetEventHandle();
+	if(line_now && !line_prev && (tof_events != NULL))
+	{
+		xEventGroupSetBits(tof_events, LINE_EVENT_BIT);
+	}
+	line_prev = line_now;
 
 // PID calculations
 	this->power_correction = HeadingController.Update((float)IMU.GetAngularOrientationForAxis(2));
