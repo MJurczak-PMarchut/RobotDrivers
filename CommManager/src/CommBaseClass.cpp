@@ -105,16 +105,58 @@ HAL_StatusTypeDef CommBaseClass<T>::PushMessageIntoQueue(MessageInfoTypeDef<T> *
 template<typename T>
 HAL_StatusTypeDef CommBaseClass<T>::MsgReceivedCB(T *hint)
 {
+	return __CompleteHeadMessage(HAL_OK);
+}
+
+template<typename T>
+HAL_StatusTypeDef CommBaseClass<T>::MsgFailedCB(T *hint)
+{
+	return __CompleteHeadMessage(HAL_ERROR);
+}
+
+// Callbacks run on failure too, so waiters wake up. Clients that consume data must
+// check TransactionStatus.
+template<typename T>
+HAL_StatusTypeDef CommBaseClass<T>::__CompleteHeadMessage(HAL_StatusTypeDef status)
+{
 	MessageInfoTypeDef<T> Msg ={0};
 	//remove item from queue
 	xQueueReceiveFromISR(_MsgQueue, &Msg, NULL);
+	return __FinishMessage(Msg, status);
+}
+
+// Task context only. Removes the head message only if it carries `context`, so a timed-out
+// client never completes someone else's request (B7).
+template<typename T>
+bool CommBaseClass<T>::RemoveHeadIfContext(uint16_t context)
+{
+	MessageInfoTypeDef<T> Msg ={0};
+	bool removed = false;
+	{
+		// Peek + remove atomically against the completion ISR.
+		CommCriticalSection cs;
+		if((xQueuePeekFromISR(_MsgQueue, &Msg) == pdPASS) && (Msg.context == context))
+		{
+			removed = (xQueueReceiveFromISR(_MsgQueue, &Msg, NULL) == pdPASS);
+		}
+	}
+	if(removed)
+	{
+		__FinishMessage(Msg, HAL_ERROR);   // outside the critical section: it may block briefly
+	}
+	return removed;
+}
+
+template<typename T>
+HAL_StatusTypeDef CommBaseClass<T>::__FinishMessage(MessageInfoTypeDef<T> &Msg, HAL_StatusTypeDef status)
+{
 	//Clear CS Pin if any
 	if(Msg.GPIOx != 0){
 		HAL_GPIO_WritePin(Msg.GPIOx, Msg.GPIO_PIN, CSn_INACTIVE_PIN_STATE);
 	}
 	//Set transaction status
 	if(Msg.TransactionStatus != 0){
-		*Msg.TransactionStatus = HAL_OK;
+		*Msg.TransactionStatus = status;
 	}
 	switch(Msg.eCommType)
 	{

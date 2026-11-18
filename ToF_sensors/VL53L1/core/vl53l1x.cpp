@@ -246,6 +246,7 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer;
 	MsgInfoToSend.IntHandle = this->__hi2c1;
 	MsgInfoToSend.pCB = &this->_CallbackFunc;
+	MsgInfoToSend.TransactionStatus = &this->__ranging_status;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->__Status = TOF_STATE_DATA_RDY;
 	this->ClearInterrupt();
@@ -253,6 +254,12 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 }
 
 void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
+	// Failed read: keep the old Result, no event bit. State stays DATA_RDY, so EXTI is
+	// skipped, the sample goes stale and CheckSensorStatus() re-polls after 100 ms.
+	if(this->__ranging_status != HAL_OK)
+	{
+		return;
+	}
 	Result.Distance = 0;
 	Result.Status = this->__comm_buffer[0] & 0x1F;
 	if (Result.Status < 24)

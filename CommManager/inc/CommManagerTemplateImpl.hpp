@@ -77,4 +77,24 @@ HAL_StatusTypeDef CommManager::MsgReceivedCB(T *hint)
 	return ret_value;
 }
 
+template<typename T>
+HAL_StatusTypeDef CommManager::MsgFailedCB(T *hint)
+{
+	HAL_StatusTypeDef ret_value = HAL_ERROR;
+	CommBaseClass<T>* handle_inst;
+	handle_inst = this->_MatchInstance(_GetVector(hint), hint);
+	if(handle_inst != NULL)
+	{
+		ret_value = handle_inst->MsgFailedCB(hint);
+	}
+	return ret_value;
+}
+
+template<typename T>
+bool CommManager::RemoveHeadIfContext(T *hint, uint16_t context)
+{
+	CommBaseClass<T>* handle_inst = this->_MatchInstance(_GetVector(hint), hint);
+	return (handle_inst != NULL) && handle_inst->RemoveHeadIfContext(context);
+}
+
 #endif /* COMMMANAGER_COMMMANAGERTEMPLATEIMPL_HPP_ */

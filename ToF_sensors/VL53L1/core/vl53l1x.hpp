@@ -136,6 +136,7 @@ private:
 	uint32_t __data_count;
 	uint16_t __address = TOF_DEFAULT_ADDRESS;
 	std::function<void(MessageInfoTypeDef<I2C> *MsgInfo)> _CallbackFunc;
+	HAL_StatusTypeDef __ranging_status = HAL_OK;   // result of the last ranging read
 	uint32_t __timing_budget;
 };
 

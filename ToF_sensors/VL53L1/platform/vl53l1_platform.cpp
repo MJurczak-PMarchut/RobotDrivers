@@ -79,8 +79,35 @@ uint8_t _data_receiveR[MESSAGE_LENGTH];
 static CommManager *_pCommManager = NULL;
 static SemaphoreHandle_t _CommDoneSemaphore = NULL;
 
+/*
+ * Request tagging (B2): every request gets a fresh context. The completion callback only
+ * wakes the caller whose context matches, so a late completion of an earlier (timed-out)
+ * request, possibly from another init worker, can no longer release the current wait.
+ * Platform contexts have bit 15 set, so they never match ranging (10) or VL53L5 (__pos).
+ */
+#define PLATFORM_CTX_FLAG  0x8000u
+static uint16_t _seq = 0;
+static volatile uint16_t _waiting_ctx = 0;
+static volatile HAL_StatusTypeDef _result = HAL_ERROR;
+// TransactionStatus target; static because the ISR may write it after the caller timed out.
+static HAL_StatusTypeDef _xfer_status = HAL_OK;
+
+/*
+ * Static transfer buffers (B3): a timed-out message can still run later, so it must never
+ * point at a stack frame. Calls are serialized by the platform mutex. Separate RX/TX
+ * buffers: a stale RX runs before newer messages (FIFO), so it cannot corrupt their data.
+ */
+#define PLATFORM_BUF_SIZE  128u   // largest transfer today: 91-byte default config
+static uint8_t _rx_buf[PLATFORM_BUF_SIZE];
+static uint8_t _tx_buf[PLATFORM_BUF_SIZE];
+
 static void _I2CTransferCompletedCB(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo)
 {
+	if(MsgInfo->context != _waiting_ctx)
+	{
+		return;   // completion of an abandoned request
+	}
+	_result = (MsgInfo->TransactionStatus != NULL)? *MsgInfo->TransactionStatus : HAL_ERROR;
 	BaseType_t pxHigherPriorityTaskWoken = pdFALSE;
 	xSemaphoreGiveFromISR(_CommDoneSemaphore, &pxHigherPriorityTaskWoken);
 }
@@ -96,25 +123,76 @@ void PlatformSetCommManager(CommManager *comm)
 	}
 }
 
+// Up to two attempts on timeout. A completed transfer (OK or NACK) returns its real result.
 static HAL_StatusTypeDef _PushCommRequestAndWait(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgInfo, TickType_t timeoutTicks)
 {
 	if(_pCommManager == NULL)
 	{
 		return HAL_ERROR;
 	}
-	_pCommManager->PushCommRequestIntoQueue(MsgInfo);
-	if(xSemaphoreTake(_CommDoneSemaphore, timeoutTicks) == pdFALSE)
+	for(uint8_t attempt = 0; attempt < 2; attempt++)
 	{
-		_pCommManager->MsgReceivedCB(MsgInfo->IntHandle);
-		xSemaphoreTake(_CommDoneSemaphore, 1);
+		uint16_t ctx = (uint16_t)(PLATFORM_CTX_FLAG | (++_seq & 0x7FFFu));
+		MsgInfo->context = ctx;
+		MsgInfo->TransactionStatus = &_xfer_status;
+		MsgInfo->pCB = &_CompletionCallback;
+		xSemaphoreTake(_CommDoneSemaphore, 0);   // drop a token left by an abandoned request
+		_waiting_ctx = ctx;
 		_pCommManager->PushCommRequestIntoQueue(MsgInfo);
-		if(xSemaphoreTake(_CommDoneSemaphore, timeoutTicks) == pdFALSE)
+		bool done = (xSemaphoreTake(_CommDoneSemaphore, timeoutTicks) == pdTRUE);
+		_waiting_ctx = 0;
+		if(done)
 		{
-			_pCommManager->MsgReceivedCB(MsgInfo->IntHandle);
-			return HAL_ERROR;
+			return (_result == HAL_OK)? HAL_OK : HAL_ERROR;
 		}
+		// Timed out: drop our message only if it is at the head. If it is still queued
+		// further back it runs later, harmlessly (static buffers, ignored completion).
+		_pCommManager->RemoveHeadIfContext(MsgInfo->IntHandle, ctx);
 	}
-	return HAL_OK;
+	return HAL_ERROR;
+}
+
+static HAL_StatusTypeDef _Read(uint16_t dev, uint16_t reg, uint8_t *p_out, uint32_t size, TickType_t timeoutTicks)
+{
+	if(size > PLATFORM_BUF_SIZE)
+	{
+		return HAL_ERROR;
+	}
+	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
+	lock_interface();
+	MsgInfo.IntHandle = &hi2c1;
+	MsgInfo.eCommType = COMM_INT_MEM_RX;
+	MsgInfo.I2C_Addr = dev;
+	MsgInfo.I2C_MemAddr = reg;
+	MsgInfo.len = (uint16_t)size;
+	MsgInfo.pRxData = _rx_buf;
+	HAL_StatusTypeDef status = _PushCommRequestAndWait(&MsgInfo, timeoutTicks);
+	if(status == HAL_OK)
+	{
+		memcpy(p_out, _rx_buf, size);   // copy out only a confirmed result
+	}
+	unlock_interface();
+	return status;
+}
+
+static HAL_StatusTypeDef _Write(uint16_t dev, uint16_t reg, const uint8_t *p_in, uint32_t size, TickType_t timeoutTicks)
+{
+	if(size > PLATFORM_BUF_SIZE)
+	{
+		return HAL_ERROR;
+	}
+	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
+	lock_interface();
+	memcpy(_tx_buf, p_in, size);
+	MsgInfo.IntHandle = &hi2c1;
+	MsgInfo.eCommType = COMM_INT_MEM_TX;
+	MsgInfo.I2C_Addr = dev;
+	MsgInfo.I2C_MemAddr = reg;
+	MsgInfo.len = (uint16_t)size;
+	MsgInfo.pTxData = _tx_buf;
+	HAL_StatusTypeDef status = _PushCommRequestAndWait(&MsgInfo, timeoutTicks);
+	unlock_interface();
+	return status;
 }
 
 uint8_t VL53L1X_RdByte(
@@ -122,20 +200,7 @@ uint8_t VL53L1X_RdByte(
 		uint16_t RegisterAdress,
 		uint8_t *p_value)
 {
-	HAL_StatusTypeDef status;
-	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
-	lock_interface();
-	MsgInfo.IntHandle = &hi2c1;
-	MsgInfo.eCommType = COMM_INT_MEM_RX;
-	MsgInfo.I2C_Addr = dev;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.len = 1;
-	MsgInfo.pRxData = p_value;
-	MsgInfo.pCB = &_CompletionCallback;
-	status = _PushCommRequestAndWait(&MsgInfo, pdMS_TO_TICKS(150));
-	unlock_interface();
-	return status;
-
+	return _Read(dev, RegisterAdress, p_value, 1, pdMS_TO_TICKS(150));
 }
 
 void PlatformSetMutex(osapi::Mutex *pMutex)
@@ -149,21 +214,7 @@ HAL_StatusTypeDef VL53L1X_WrByte(
 		uint16_t RegisterAdress,
 		uint8_t value)
 {
-	HAL_StatusTypeDef status;
-	uint8_t value_stat = value;
-	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
-	lock_interface();
-	MsgInfo.IntHandle = &hi2c1;
-	MsgInfo.eCommType = COMM_INT_MEM_TX;
-	MsgInfo.I2C_Addr = dev;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.len = 1;
-	MsgInfo.pTxData = &value_stat;
-	MsgInfo.pCB = &_CompletionCallback;
-	status = _PushCommRequestAndWait(&MsgInfo, pdMS_TO_TICKS(150));
-	unlock_interface();
-	return status;
-
+	return _Write(dev, RegisterAdress, &value, 1, pdMS_TO_TICKS(150));
 }
 
 HAL_StatusTypeDef VL53L1X_WrWord(
@@ -171,23 +222,8 @@ HAL_StatusTypeDef VL53L1X_WrWord(
 		uint16_t RegisterAdress,
 		uint16_t value)
 {
-	HAL_StatusTypeDef status;
-	uint8_t temp8[2] = {0, 0};
-	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
-	temp8[0] = uint8_t(value >> 8);
-	temp8[1] = uint8_t(value & 0x00FF);
-	lock_interface();
-	MsgInfo.IntHandle = &hi2c1;
-	MsgInfo.eCommType = COMM_INT_MEM_TX;
-	MsgInfo.I2C_Addr = dev;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.len = 2;
-	MsgInfo.pTxData = temp8;
-	MsgInfo.pCB = &_CompletionCallback;
-	status = _PushCommRequestAndWait(&MsgInfo, pdMS_TO_TICKS(150));
-	unlock_interface();
-	return status;
-
+	uint8_t temp8[2] = {uint8_t(value >> 8), uint8_t(value & 0x00FF)};
+	return _Write(dev, RegisterAdress, temp8, 2, pdMS_TO_TICKS(150));
 }
 
 uint8_t VL53L1X_WrMulti(
@@ -196,20 +232,7 @@ uint8_t VL53L1X_WrMulti(
 		uint8_t *p_values,
 		uint32_t size)
 {
-	HAL_StatusTypeDef status;
-	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
-	lock_interface();
-	MsgInfo.IntHandle = &hi2c1;
-	MsgInfo.eCommType = COMM_INT_MEM_TX;
-	MsgInfo.I2C_Addr = dev;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.len = (uint16_t)size;
-	MsgInfo.pTxData = p_values;
-	MsgInfo.pCB = &_CompletionCallback;
-	status = _PushCommRequestAndWait(&MsgInfo, pdMS_TO_TICKS(20000));
-	unlock_interface();
-	return status;
-
+	return _Write(dev, RegisterAdress, p_values, size, pdMS_TO_TICKS(20000));
 }
 
 uint8_t VL53L1X_RdMulti(
@@ -218,20 +241,7 @@ uint8_t VL53L1X_RdMulti(
 		uint8_t *p_values,
 		uint32_t size)
 {
-	HAL_StatusTypeDef status;
-	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
-	lock_interface();
-	MsgInfo.IntHandle = &hi2c1;
-	MsgInfo.eCommType = COMM_INT_MEM_RX;
-	MsgInfo.I2C_Addr = dev;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.len = (uint16_t)size;
-	MsgInfo.pRxData = p_values;
-	MsgInfo.pCB = &_CompletionCallback;
-	status = _PushCommRequestAndWait(&MsgInfo, pdMS_TO_TICKS(250));
-	unlock_interface();
-	return status;
-
+	return _Read(dev, RegisterAdress, p_values, size, pdMS_TO_TICKS(250));
 }
 
 HAL_StatusTypeDef VL53L1X_RdWord(
@@ -239,22 +249,13 @@ HAL_StatusTypeDef VL53L1X_RdWord(
 		uint16_t RegisterAdress,
 		uint16_t *p_value)
 {
-	HAL_StatusTypeDef status;
 	uint8_t temp[2] = {0, 0};
-	MessageInfoTypeDef<I2C_HandleTypeDef> MsgInfo = { 0 };
-	lock_interface();
-	MsgInfo.IntHandle = &hi2c1;
-	MsgInfo.eCommType = COMM_INT_MEM_RX;
-	MsgInfo.I2C_Addr = dev;
-	MsgInfo.I2C_MemAddr = RegisterAdress;
-	MsgInfo.len = 2;
-	MsgInfo.pRxData = temp;
-	MsgInfo.pCB = &_CompletionCallback;
-	status = _PushCommRequestAndWait(&MsgInfo, pdMS_TO_TICKS(150));
-	*p_value = (temp[0] << 8) + temp[1];
-	unlock_interface();
+	HAL_StatusTypeDef status = _Read(dev, RegisterAdress, temp, 2, pdMS_TO_TICKS(150));
+	if(status == HAL_OK)
+	{
+		*p_value = (temp[0] << 8) + temp[1];
+	}
 	return status;
-
 }
 
 

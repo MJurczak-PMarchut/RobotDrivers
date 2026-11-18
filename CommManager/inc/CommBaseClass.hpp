@@ -74,6 +74,11 @@ class CommBaseClass
 		virtual HAL_StatusTypeDef PushMessageIntoQueue(MessageInfoTypeDef<T> *MsgInfo);
 		HAL_StatusTypeDef CheckIfSameInstance(const T *pIntStruct);
 		virtual HAL_StatusTypeDef MsgReceivedCB(T *hint);
+		// Transfer at the head of the queue failed (e.g. NACK): remove it, report HAL_ERROR
+		// through TransactionStatus, run its callbacks and start the next message.
+		HAL_StatusTypeDef MsgFailedCB(T *hint);
+		// Timeout cleanup: complete the head message with HAL_ERROR only if it is the caller's.
+		bool RemoveHeadIfContext(uint16_t context);
 		virtual HAL_StatusTypeDef MsgReceivedCB(T *hint, uint16_t len){return HAL_ERROR;};
 		virtual HAL_StatusTypeDef MsgReceivedRxCB(T *hint){return HAL_ERROR;};
 
@@ -82,6 +87,8 @@ class CommBaseClass
 		virtual HAL_StatusTypeDef __CheckIfFreeAndSendRecv(MessageInfoTypeDef<T> *MsgInfo) = 0;
 		virtual HAL_StatusTypeDef __CheckForNextCommRequestAndStart(MessageInfoTypeDef<T> *MsgInfo);
 		HAL_StatusTypeDef __CheckAndSetCSPinsGeneric(MessageInfoTypeDef<T> *MsgInfo);
+		HAL_StatusTypeDef __CompleteHeadMessage(HAL_StatusTypeDef status);
+		HAL_StatusTypeDef __FinishMessage(MessageInfoTypeDef<T> &Msg, HAL_StatusTypeDef status);
 
 		static CriticalSectionState __EnterCriticalSection();
 		static void __LeaveCriticalSection(CriticalSectionState &state);

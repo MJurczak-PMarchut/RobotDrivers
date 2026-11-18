@@ -610,6 +610,11 @@ HAL_StatusTypeDef VL53L5CX::StartRanging(void) {
 
 void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 {
+	// Failed read: keep the old result, no event bit. Only the second read is checked.
+	if(this->__ranging_status != HAL_OK)
+	{
+		return;
+	}
 	VL53L5CX_SwapBuffer((uint8_t*)this->__comm_buffer, (uint16_t)32);
 	for(uint8_t i = 0; i< 16; i++)
 	{
@@ -639,6 +644,7 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 	MsgInfoToSend.pRxData = (uint8_t*)this->__comm_buffer + 32;
 	MsgInfoToSend.IntHandle = this->__hi2c1;
 	MsgInfoToSend.pCB = &this->_CallbackFunc;
+	MsgInfoToSend.TransactionStatus = &this->__ranging_status;
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->__Status = TOF_STATE_DATA_RDY;
 

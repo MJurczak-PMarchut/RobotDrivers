@@ -38,6 +38,12 @@ class CommManager
 		HAL_StatusTypeDef MsgReceivedCB(T *hint);
 
 		template<typename T>
+		HAL_StatusTypeDef MsgFailedCB(T *hint);
+
+		template<typename T>
+		bool RemoveHeadIfContext(T *hint, uint16_t context);
+
+		template<typename T>
 		HAL_StatusTypeDef AttachCommInt(T *hint, CommModeTypeDef CommMode, DMA_HandleTypeDef *hdmaRx = NULL, DMA_HandleTypeDef *hdmaTx = NULL);
 
 	private:

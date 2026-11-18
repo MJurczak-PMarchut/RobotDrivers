@@ -83,6 +83,7 @@ private:
 	uint8_t __offset_buffer[VL53L5CX_OFFSET_BUFFER_SIZE];
 	SensorSpatialOrientation eOrientation;
 	std::function<void(MessageInfoTypeDef<I2C> *MsgInfo)> _CallbackFunc;
+	HAL_StatusTypeDef __ranging_status = HAL_OK;   // result of the ranging read carrying the callback
 };
 
 #endif /* TOF_SENSORS_VL53L5_VL53L5CX_ULD_API_INC_VL53L5CX_HPP_ */

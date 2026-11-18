@@ -16,6 +16,9 @@ namespace
 // serializing all instances behind one mutex is sufficient; it would need to become
 // per-instance if multiple concurrent I2C devices ever route through this class.
 SemaphoreHandle_t I2CDeviceMutex = nullptr;
+// Result of the last write (CommManager sets HAL_ERROR on NACK). Static: may be written
+// after a timed-out write() has returned.
+HAL_StatusTypeDef I2CDeviceStatus = HAL_OK;
 
 void TxCallback(MessageInfoTypeDef<I2C_HandleTypeDef> * /*msg*/)
 {
@@ -85,6 +88,7 @@ bool Adafruit_I2CDevice::write(const uint8_t *buffer, size_t len, bool /*stop*/,
 	// Adafruit_SSD1327::begin() passes in - shift it here.
 	msg.I2C_Addr = (uint16_t)(_addr << 1);
 	msg.pTxCompletedCB = &TxCallback;
+	msg.TransactionStatus = &I2CDeviceStatus;
 
 	// PushCommRequestIntoQueue() returning non-HAL_OK does not mean the message
 	// failed to enqueue: CommBaseClass::__CheckForNextCommRequestAndStart() always
@@ -99,7 +103,8 @@ bool Adafruit_I2CDevice::write(const uint8_t *buffer, size_t len, bool /*stop*/,
 	// out and reports failure correctly. Do not retry the push on a non-OK status -
 	// that re-enqueues a duplicate of the same message.
 	_commManager->PushCommRequestIntoQueue(&msg);
-	return xSemaphoreTake(I2CDeviceMutex, pdMS_TO_TICKS(100)) == pdTRUE;
+	return (xSemaphoreTake(I2CDeviceMutex, pdMS_TO_TICKS(100)) == pdTRUE) &&
+			(I2CDeviceStatus == HAL_OK);
 }
 
 bool Adafruit_I2CDevice::setSpeed(uint32_t /*desiredclk*/)
