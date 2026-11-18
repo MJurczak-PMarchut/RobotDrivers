@@ -74,6 +74,10 @@ const unsigned char epd_bitmap_Untitled [] = {
 // LINE_EVENT_BIT is set by PeriodicCheckCall() on a new line detection.
 #define LINE_EVENT_BIT   ((EventBits_t)(1u << 20))
 #define TOF_FRONT_MASK   ((EventBits_t)((1u << 0) | (1u << 2)))   // Sensors[0] and Sensors[2]
+// Opponent is re-evaluated at least this often, even if a front sensor stops reporting.
+#define TOF_EVAL_TIMEOUT_MS  30
+// A sensor without a sample for this long (~2 periods) counts as "no detection".
+#define TOF_STALE_MS         60
 
 // Errors smaller than this are treated as zero, so sensor noise / motor response lag
 // doesn't make the robot hunt back and forth for a negligible heading difference.
@@ -104,6 +108,9 @@ typedef struct{
 	// reason a range was accepted or replaced instead of only the outcome.
 	uint16_t sig_left;
 	uint16_t sig_right;
+	// No sample for TOF_STALE_MS: the filtered range is forced out of detection range.
+	bool stale_left;
+	bool stale_right;
 }SensorDistances_t;
 
 /*

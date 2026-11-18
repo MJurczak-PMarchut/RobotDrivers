@@ -64,8 +64,9 @@ HAL_StatusTypeDef CommBaseClass<T>::__CheckForNextCommRequestAndStart(MessageInf
 		{
 			return HAL_ERROR;
 		}
-		pMsg = MsgInfo;
 	}
+	// Peek into the local copy: the head may be another client's message, and peeking
+	// into MsgInfo would overwrite the caller's request with it (B7).
 	if(xPortIsInsideInterrupt() == pdTRUE){
 		pdRetval = xQueuePeekFromISR(_MsgQueue, pMsg);
 	}

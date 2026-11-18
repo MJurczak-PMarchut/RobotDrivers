@@ -42,6 +42,7 @@ public:
 	virtual HAL_StatusTypeDef GetRangingData(void) = 0;
 	virtual ToF_Status_t CheckSensorStatus(void) = 0;
 	e_ToF_Position getPosition(void) {return __pos;};
+	uint32_t GetLastUpdateTick(void) {return last_update_tick;};   // HAL_GetTick() of the last sample
 	virtual HAL_StatusTypeDef SetI2CAddress(void) = 0;
 	virtual HAL_StatusTypeDef __GetData(void) = 0;
 	virtual HAL_StatusTypeDef DisableSensorComm(void)=0;

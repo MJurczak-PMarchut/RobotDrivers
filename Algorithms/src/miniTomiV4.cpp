@@ -275,12 +275,17 @@ void Robot::loop(void)
 	{
 		vTaskDelay(pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
 	}
-	// Re-evaluate the opponent once both front sensors have reported.
+	// Re-evaluate the opponent once both front sensors have reported, or after
+	// TOF_EVAL_TIMEOUT_MS so a dead sensor cannot freeze the result.
+	static TickType_t last_eval_tick = 0;
+	TickType_t now = xTaskGetTickCount();
 	tof_pending |= events & TOF_EVENT_MASK;
-	bool new_tof_data = (tof_pending & TOF_FRONT_MASK) == TOF_FRONT_MASK;
+	bool new_tof_data = ((tof_pending & TOF_FRONT_MASK) == TOF_FRONT_MASK) ||
+			((now - last_eval_tick) >= pdMS_TO_TICKS(TOF_EVAL_TIMEOUT_MS));
 	if(new_tof_data)
 	{
 		tof_pending = 0;
+		last_eval_tick = now;
 		opponent_detected = isOpponentDetected();
 	}
 
@@ -376,7 +381,8 @@ void Robot::loop(void)
 		break;
 		case OUT_OF_BOUNDS:
 		{
-			if(state_entry)
+			// !active: safety net, never sit in OOB without a running escape.
+			if(state_entry || !manoeuvre.active)
 			{
 				LED2_ON;
 				MCInterface::SetMotorsPower(0, 0);
@@ -459,6 +465,12 @@ void Robot::loop(void)
 			break;
 	}
 	run_again = (eFSM_state != stepped_state);
+	// A state set by the switch is always an entry next pass, even if the pre-switch
+	// checks set it straight back to the state handled here (OOB -> LOOK_1 -> OOB).
+	if(run_again)
+	{
+		stepped_state = NOP;
+	}
 
 	// Log every FSM transition so match logs show the full decision timeline
 	static State_t last_logged_state = CALIBRATE;

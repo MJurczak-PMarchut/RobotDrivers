@@ -114,10 +114,13 @@ TickType_t ManoeuvreWaitTicks(const Manoeuvre_t *m, TickType_t max_ticks)
 
 // Reads both front sensors and replaces readings whose signal is weaker than the
 // calibrated threshold with an out-of-detection-range value, so callers only act
-// on distances the calibration deems trustworthy.
+// on distances the calibration deems trustworthy. Stale sensors are treated the same.
 SensorDistances_t GetValidatedDistances(void)
 {
 	SensorDistances_t distances;
+	uint32_t now = HAL_GetTick();
+	distances.stale_left = (now - Sensors[0].GetLastUpdateTick()) > TOF_STALE_MS;
+	distances.stale_right = (now - Sensors[2].GetLastUpdateTick()) > TOF_STALE_MS;
 	distances.raw_left = Sensors[0].GetDistance();
 	distances.raw_rear = Sensors[1].GetDistance();
 	distances.raw_right = Sensors[2].GetDistance();
@@ -125,9 +128,9 @@ SensorDistances_t GetValidatedDistances(void)
 	VL53L1X_Result_t result_right = Sensors[2].GetResult();
 	distances.sig_left = result_left.SigPerSPAD;
 	distances.sig_right = result_right.SigPerSPAD;
-	distances.left = (result_left.SigPerSPAD > maxVal_perSPAD[0])?
+	distances.left = (!distances.stale_left && result_left.SigPerSPAD > maxVal_perSPAD[0])?
 			distances.raw_left: DETECTION_DISTANCE + 100;
-	distances.right = (result_right.SigPerSPAD > maxVal_perSPAD[1])?
+	distances.right = (!distances.stale_right && result_right.SigPerSPAD > maxVal_perSPAD[1])?
 			distances.raw_right: DETECTION_DISTANCE + 100;
 	return distances;
 }
@@ -136,8 +139,16 @@ bool isOpponentDetected(void)
 {
 	char sensor_message[128] = {0};
 	static bool was_previously_detected= false;
+	static bool was_stale[2] = {false, false};
 
 	SensorDistances_t distances = GetValidatedDistances();
+	if(distances.stale_left != was_stale[0] || distances.stale_right != was_stale[1])
+	{
+		sprintf(sensor_message, "ToF front stale: L=%u R=%u", distances.stale_left, distances.stale_right);
+		logger.Log(sensor_message, LOGLEVEL_INFO);
+		was_stale[0] = distances.stale_left;
+		was_stale[1] = distances.stale_right;
+	}
 	// [n] raw range, f[n] the range after the SigPerSPAD gate, s[n] the SigPerSPAD
 	// that drove that gate. Raw stays first and keeps its original "[n]=" spelling so
 	// logs from before the f/s fields existed still parse the same way. Worst case

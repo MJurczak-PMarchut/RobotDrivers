@@ -139,12 +139,13 @@ HAL_StatusTypeDef CommUART::__CheckForNextRxCommRequestAndStart(MessageInfoTypeD
 	{
 		if(MsgInfo != NULL)
 		{
-			if(xQueueSendToBackFromISR(_RxMsgQueue, pMsg, NULL) != pdPASS)
+			// Queue the caller's request (not the empty local Msg).
+			if(xQueueSendToBackFromISR(_RxMsgQueue, MsgInfo, NULL) != pdPASS)
 			{
 				return HAL_ERROR;
 			}
-			pMsg = MsgInfo;
 		}
+		// Peek into the local copy so the caller's MsgInfo is not overwritten (as B7).
 		if(xQueuePeekFromISR(_RxMsgQueue, pMsg) == pdPASS){
 			ret = this->__CheckIfFreeAndSendRecv(pMsg);
 		}
