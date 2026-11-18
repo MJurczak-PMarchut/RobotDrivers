@@ -7,6 +7,7 @@
 
 #include "DirtyLogger.hpp"
 #include "ff.h"
+#include "bsp_driver_sd.h"
 #include <stdio.h>
 #include <string>
 #include <string.h>
@@ -368,8 +369,8 @@ void DirtyLogger::WriterTaskEntry(void *arg)
 }
 
 // The only task that touches FatFs. Everything expensive - the multi-block transfer,
-// sd_diskio's non-yielding spin on BSP_SD_GetCardState(), and any f_sync - happens
-// here, below defaultTask and above the algorithm task.
+// the card-busy wait and any f_sync - happens here, below defaultTask and above the
+// algorithm task. The busy wait sleeps (see BSP_SD_GetCardState() below).
 void DirtyLogger::WriterLoop(void)
 {
 	for(;;)
@@ -498,4 +499,23 @@ void DirtyLogger::Flush(void)
 void DirtyLogger::StartTimestamp(void)
 {
 	_start_time = HAL_GetTick();
+}
+
+// Overrides the __weak version in FATFS/Target/bsp_driver_sd.c. sd_diskio.c polls this
+// in a tight loop while the card programs (up to ~250 ms); sleeping 1 ms per busy poll
+// lets lower-priority tasks (the algorithm) run meanwhile. Timeouts there are tick-based.
+extern "C" SD_HandleTypeDef hsd2;
+
+extern "C" uint8_t BSP_SD_GetCardState(void)
+{
+	if(HAL_SD_GetCardState(&hsd2) == HAL_SD_CARD_TRANSFER)
+	{
+		return SD_TRANSFER_OK;
+	}
+	// Only sleep from task context with the scheduler running.
+	if((__get_IPSR() == 0u) && (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING))
+	{
+		vTaskDelay(1);
+	}
+	return SD_TRANSFER_BUSY;
 }

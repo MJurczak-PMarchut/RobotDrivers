@@ -159,45 +159,48 @@ const char* StateName(State_t state)
 State_t CheckStartCondition(Robot *obj, State_t eFSM_state)
 {
 	static bool start_condition_prev = false;
+	State_t retval = eFSM_state;
 #ifdef DEBUG_SCREEN
 	static bool was_enabled = false;
 #endif
+	if(eFSM_state ==  CALIBRATE){
+		return eFSM_state;
+	}
 	bool start_condition = HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin);
 	if(start_condition != start_condition_prev)
 	{
 		logger.Log((start_condition)? " Start Condition Set" : " Start Condition Reset ", LOGLEVEL_INFO);
+		if(!start_condition)//dummy
+		{
+#ifdef DEBUG_SCREEN
+			if(was_enabled){
+				display.setCursor(42,0);
+				display.println("State: Disabled");
+			}
+#endif
+			obj->SetFlashPeriodMS(1000);
+			MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
+			MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
+			retval= WAIT_FOR_START;
+		}
+		else{
+			if(eFSM_state == WAIT_FOR_START){
+#ifdef DEBUG_SCREEN
+				display.setCursor(42,0);
+				display.println("State: FIGHT!!!");
+#endif
+			}
+			MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
+			MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
+#ifdef DEBUG_SCREEN
+			was_enabled = true;
+#endif
+			retval=  (eFSM_state == WAIT_FOR_START)? FIGHT : eFSM_state;
+		}
 	}
+	
 	start_condition_prev = start_condition;
-	if(eFSM_state ==  CALIBRATE){
-		return eFSM_state;
-	}
-	if(!start_condition)//dummy
-	{
-#ifdef DEBUG_SCREEN
-		if(was_enabled){
-			display.setCursor(42,0);
-			display.println("State: Disabled");
-		}
-#endif
-		obj->SetFlashPeriodMS(1000);
-		MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-		return WAIT_FOR_START;
-	}
-	else{
-		if(eFSM_state == WAIT_FOR_START){
-#ifdef DEBUG_SCREEN
-			display.setCursor(42,0);
-			display.println("State: FIGHT!!!");
-#endif
-		}
-		MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
-#ifdef DEBUG_SCREEN
-		was_enabled = true;
-#endif
-		return  (eFSM_state == WAIT_FOR_START)? FIGHT : eFSM_state;
-	}
+	return retval;
 }
 
 

@@ -270,12 +270,12 @@ void Robot::loop(void)
 			display.setCursor(0,0);
 			display.println("State: WAIT FOR START");
 			#endif
+			IMU.ResetAngularOrientation();
 		}
 		break;
 		case WAIT_FOR_START:
 		{
 			isOpponentDetected();
-			IMU.ResetAngularOrientation();
 			last_detection_tick = xTaskGetTickCount();
 			MCInterface::SetMotorsPower(0, 0);
 			if(!direction_ack)
@@ -289,6 +289,9 @@ void Robot::loop(void)
 					lastDetOnLeft = true;
 					direction_ack = true;
 				}
+			}
+			else{
+				IMU.ResetAngularOrientation();
 			}
 			IMU.ClearCollisionDetected();
 		}
@@ -337,7 +340,15 @@ void Robot::loop(void)
 			else
 				MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
 			vTaskDelay(100);
-			eFSM_state = FIGHT;
+			if(isOpponentDetected())
+			{
+				eFSM_state = FIGHT;
+				// Nothing to do here;
+			}
+			else {
+				eFSM_state = LOOK_FOR_OPPONENT_1;
+				last_detection_tick = xTaskGetTickCount();
+			}
 			LED2_OFF;
 		}
 		break;

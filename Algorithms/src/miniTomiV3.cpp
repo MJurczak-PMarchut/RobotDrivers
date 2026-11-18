@@ -335,27 +335,31 @@ static const char* StateName(State_t state)
 State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 {
 	static bool start_condition_prev = false;
+	State_t retval = eFSM_state;
 	bool start_condition = HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin);
 	if(start_condition != start_condition_prev)
 	{
 		logger.Log((start_condition)? " Start Condition Set" : " Start Condition Reset ", LOGLEVEL_INFO);
+		if(!start_condition)//dummy
+		{
+			obj->SetFlashPeriodMS(1000);
+			MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
+			MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
+			retval= WAIT_FOR_START;
+		}
+		else{
+			MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
+			MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
+			retval=  (eFSM_state == WAIT_FOR_START)? FIGHT : eFSM_state;
+		}
 	}
-	start_condition_prev = start_condition;
 	if(eFSM_state ==  CALIBRATE){
-		return eFSM_state;
+		retval= eFSM_state;
 	}
-	if(!start_condition)//dummy
-	{
-		obj->SetFlashPeriodMS(1000);
-		MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
-		return WAIT_FOR_START;
-	}
-	else{
-		MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
-		MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
-		return  (eFSM_state == WAIT_FOR_START)? FIGHT : eFSM_state;
-	}
+	
+	start_condition_prev = start_condition;
+	return retval;
+
 }
 
 void FightAlgorithm(Robot *obj)
