@@ -345,6 +345,16 @@ double LSM6DSO::GetAngularOrientationForAxis(uint8_t axis)
 		return NAN;
 }
 
+double LSM6DSO::GetAngularRateForAxis(uint8_t axis)
+{
+	return (axis < 3)? (this->angular_rate_mdps[axis] - this->gyro_offset[axis]) / 1000.0 : NAN;
+}
+
+double LSM6DSO::GetAccelerationForAxis(uint8_t axis)
+{
+	return (axis < 3)? this->acceleration_mg[axis] / 1000.0 : NAN;
+}
+
 #if LSM6DSO_QUAT_ESTIMATION_ENABLED
 double LSM6DSO::GetCorrectedAngularOrientationForAxis(uint8_t axis)
 {

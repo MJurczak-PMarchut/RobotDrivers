@@ -28,6 +28,10 @@ public:
 	void GyDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	void XlDataReceivedCB(MessageInfoTypeDef<SPI>* MsgInfo);
 	double GetAngularOrientationForAxis(uint8_t axis);
+	// Last sample: angular rate [deg/s] with the calibrated gyro offset removed, and
+	// acceleration [g] (sensor axes). NAN for an axis above 2.
+	double GetAngularRateForAxis(uint8_t axis);
+	double GetAccelerationForAxis(uint8_t axis);
 #if LSM6DSO_QUAT_ESTIMATION_ENABLED
 	// Tilt-corrected orientation from the Mahony quaternion filter (see lsm6dso_quat.hpp);
 	// same axis convention and units (degrees) as GetAngularOrientationForAxis.
