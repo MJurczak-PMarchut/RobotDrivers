@@ -24,6 +24,7 @@ void TxCallback(MessageInfoTypeDef<I2C_HandleTypeDef> * /*msg*/)
 {
 	BaseType_t higherPrioTaskWoken = pdFALSE;
 	xSemaphoreGiveFromISR(I2CDeviceMutex, &higherPrioTaskWoken);
+	portYIELD_FROM_ISR(higherPrioTaskWoken);   // B11
 }
 } // namespace
 

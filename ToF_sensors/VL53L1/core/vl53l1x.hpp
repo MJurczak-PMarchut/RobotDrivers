@@ -15,6 +15,10 @@
 
 #define TOF_DEFAULT_ADDRESS 0x52
 #define TIMING_BUDGET_MS         100U
+// SensorInit(): max wait for the first sample before the sensor is marked TOF_STATE_ERROR.
+#define TOF_INIT_DATA_READY_TIMEOUT_MS  400U
+// SensorInit(): full init attempts when no first sample arrives.
+#define TOF_INIT_ATTEMPTS  2U
 #define MAX_TOF_NUMBER           6U
 
 #define TOF0_Addr                0x54

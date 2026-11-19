@@ -254,7 +254,6 @@ void Robot::loop(void)
 	static State_t eFSM_state = CALIBRATE;
 	static bool direction_ack = false;
 	static TickType_t last_detection_tick = 0;
-	static EventBits_t tof_pending = 0;
 	static bool opponent_detected = false;
 	static Manoeuvre_t manoeuvre = {};
 	static State_t stepped_state = NOP;   // state handled by the previous switch pass
@@ -275,16 +274,15 @@ void Robot::loop(void)
 	{
 		vTaskDelay(pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
 	}
-	// Re-evaluate the opponent once both front sensors have reported, or after
-	// TOF_EVAL_TIMEOUT_MS so a dead sensor cannot freeze the result.
+	// Re-evaluate the opponent on every front-sensor sample: detection needs only one side,
+	// and the other side's reading is at most one period (~20 ms) old. Waiting for both
+	// added up to ~20 ms to LOOK -> FIGHT. TOF_EVAL_TIMEOUT_MS covers dead sensors.
 	static TickType_t last_eval_tick = 0;
 	TickType_t now = xTaskGetTickCount();
-	tof_pending |= events & TOF_EVENT_MASK;
-	bool new_tof_data = ((tof_pending & TOF_FRONT_MASK) == TOF_FRONT_MASK) ||
+	bool new_tof_data = ((events & TOF_FRONT_MASK) != 0) ||
 			((now - last_eval_tick) >= pdMS_TO_TICKS(TOF_EVAL_TIMEOUT_MS));
 	if(new_tof_data)
 	{
-		tof_pending = 0;
 		last_eval_tick = now;
 		opponent_detected = isOpponentDetected();
 	}
@@ -432,6 +430,7 @@ void Robot::loop(void)
 				// Counter-turn; FightAlgorithm overrides it on the next (immediate) pass.
 				eFSM_state = FIGHT;
 				MCInterface::SetMotorsPower(-SteeringTrim, SteeringTrim);
+				vTaskDelay(10);
 			}
 			else
 			{

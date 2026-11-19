@@ -110,6 +110,7 @@ static void _I2CTransferCompletedCB(MessageInfoTypeDef<I2C_HandleTypeDef> *MsgIn
 	_result = (MsgInfo->TransactionStatus != NULL)? *MsgInfo->TransactionStatus : HAL_ERROR;
 	BaseType_t pxHigherPriorityTaskWoken = pdFALSE;
 	xSemaphoreGiveFromISR(_CommDoneSemaphore, &pxHigherPriorityTaskWoken);
+	portYIELD_FROM_ISR(pxHigherPriorityTaskWoken);   // wake the waiter now, not at the next tick (B11)
 }
 
 static std::function<void(MessageInfoTypeDef<I2C_HandleTypeDef>*)> _CompletionCallback = _I2CTransferCompletedCB;

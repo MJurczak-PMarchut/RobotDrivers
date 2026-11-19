@@ -15,7 +15,6 @@ static SemaphoreHandle_t SPIMutex;
 
 
 #define RX_CONTEXT 10
-#define TX_CONTEXT 15
 
 // Sample-to-sample jumps above these counts as a collision; own motor-driven acceleration/turning
 // ramps up over several samples (motor + drivetrain inertia), so it stays below these even at a
@@ -33,23 +32,60 @@ static uint8_t pRxBuf[257] = {0};
 // static float angle[3] = {0};
 // static float angle_rate_offset[3] ={910, 560, -350};
 
-void RxCallbackFunc(MessageInfoTypeDef<SPI>* MsgInfo)
+/*
+ * Blocking-call request tagging (B2/B7, SPI part), same scheme as vl53l1_platform.cpp:
+ * every attempt gets a fresh context, the completion callback only wakes the matching
+ * request, a stale token is drained before each push, and a timeout removes the head
+ * message only if it is ours (it may be an L9960T message on the shared hspi2).
+ * Bit 15 keeps these contexts apart from the async IMU reads (RX_CONTEXT) and L9960T.
+ * Only LSM6DSO::Init() uses these, from a single task, so no mutex is needed.
+ */
+#define BLOCKING_CTX_FLAG  0x8000u
+static uint16_t _seq = 0;
+static volatile uint16_t _waiting_ctx = 0;
+static volatile HAL_StatusTypeDef _result = HAL_ERROR;
+// TransactionStatus target; static because the ISR may write it after a timed-out call.
+static HAL_StatusTypeDef _xfer_status = HAL_OK;
+
+static void BlockingDoneCB(MessageInfoTypeDef<SPI>* MsgInfo)
 {
-	BaseType_t pxH;
+	if(MsgInfo->context != _waiting_ctx)
+	{
+		return;   // completion of an abandoned request
+	}
+	_result = (MsgInfo->TransactionStatus != NULL)? *MsgInfo->TransactionStatus : HAL_ERROR;
+	BaseType_t pxH = pdFALSE;
 	xSemaphoreGiveFromISR(SPIMutex, &pxH);
+	portYIELD_FROM_ISR(pxH);   // B11
 }
 
-void TxCallbackFunc(MessageInfoTypeDef<SPI>* MsgInfo)
+// Up to two attempts on timeout. Returns 0 on success, -1 otherwise (stmdev_ctx convention).
+static int32_t _PushAndWait(MessageInfoTypeDef<SPI> *MsgInfo)
 {
-	BaseType_t pxH;
-	xSemaphoreGiveFromISR(SPIMutex, &pxH);
+	for(uint8_t attempt = 0; attempt < 2; attempt++)
+	{
+		uint16_t ctx = (uint16_t)(BLOCKING_CTX_FLAG | (++_seq & 0x7FFFu));
+		MsgInfo->context = ctx;
+		MsgInfo->TransactionStatus = &_xfer_status;
+		xSemaphoreTake(SPIMutex, 0);   // drop a token left by an abandoned request
+		_waiting_ctx = ctx;
+		// HAL_BUSY means queued behind a motor-driver transfer: wait for it anyway.
+		_CommunicationManagerStatic->PushCommRequestIntoQueue(MsgInfo);
+		bool done = (xSemaphoreTake(SPIMutex, 20) == pdTRUE);
+		_waiting_ctx = 0;
+		if(done)
+		{
+			return (_result == HAL_OK)? 0 : -1;
+		}
+		_CommunicationManagerStatic->RemoveHeadIfContext((SPI_HandleTypeDef*)MsgInfo->IntHandle, ctx);
+	}
+	return -1;
 }
 
 
 // These are blocking functions
 static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, uint16_t len)
 {
-	HAL_StatusTypeDef status;
 	if(_CommunicationManagerStatic == NULL)
 	{
 		return -1;
@@ -64,32 +100,16 @@ static int32_t platform_write(void *handle, uint8_t reg, const uint8_t *bufp, ui
 	MsgInfo.IntHandle = (SPI_HandleTypeDef*)handle;
 	MsgInfo.len = len + 1;
 	MsgInfo.spi_cpol_high = 1;
-	MsgInfo.context = TX_CONTEXT;
 	MsgInfo.pTxData = pTXBuf;
 	MsgInfo.eCommType = COMM_INT_TX;
-	MsgInfo.pTxCompletedCB = TxCallbackFunc;
+	MsgInfo.pTxCompletedCB = BlockingDoneCB;
 	MsgInfo.GPIO_PIN = LSM6DSO_nCS_PIN;
 	MsgInfo.GPIOx = LSM6DSO_nCS_PORT;
-	status = _CommunicationManagerStatic->PushCommRequestIntoQueue(&MsgInfo);
-	if(status != HAL_OK)
-	{
-		return -1;
-	}
-	if(xSemaphoreTake(SPIMutex, 20) == pdFALSE){
-		_CommunicationManagerStatic->MsgReceivedCB((SPI_HandleTypeDef*)handle);
-		xSemaphoreTake(SPIMutex, 1);
-		_CommunicationManagerStatic->PushCommRequestIntoQueue(&MsgInfo); // try again
-		if(xSemaphoreTake(SPIMutex, 20) == pdFALSE){
-			_CommunicationManagerStatic->MsgReceivedCB((SPI_HandleTypeDef*)handle);
-			return -1;
-		}
-	}
-	return 0;
+	return _PushAndWait(&MsgInfo);
 }
 
 static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp, uint16_t len)
 {
-	HAL_StatusTypeDef status;
 	if(_CommunicationManagerStatic == NULL)
 	{
 		return -1;
@@ -104,29 +124,18 @@ static int32_t platform_read(void *handle, uint8_t reg, uint8_t *bufp, uint16_t 
 	MsgInfo.IntHandle = (SPI_HandleTypeDef*)handle;
 	MsgInfo.len = len + 1;
 	MsgInfo.spi_cpol_high = 1;
-	MsgInfo.context = RX_CONTEXT;
 	MsgInfo.pTxData = pTXBuf;
 	MsgInfo.pRxData = pRxBuf;
 	MsgInfo.eCommType = COMM_INT_TXRX;
-	MsgInfo.pRxCompletedCB = RxCallbackFunc;
+	MsgInfo.pRxCompletedCB = BlockingDoneCB;
 	MsgInfo.GPIO_PIN = LSM6DSO_nCS_PIN;
 	MsgInfo.GPIOx = LSM6DSO_nCS_PORT;
-	status = _CommunicationManagerStatic->PushCommRequestIntoQueue(&MsgInfo);
-	if(status != HAL_OK)
+	int32_t ret = _PushAndWait(&MsgInfo);
+	if(ret == 0)
 	{
-		return -1;
+		memcpy(bufp, pRxBuf+1, len);   // copy out only a confirmed result
 	}
-	if(xSemaphoreTake(SPIMutex, 20) == pdFALSE){
-		_CommunicationManagerStatic->MsgReceivedCB((SPI_HandleTypeDef*)handle);
-		xSemaphoreTake(SPIMutex, 1);
-		_CommunicationManagerStatic->PushCommRequestIntoQueue(&MsgInfo); // try again
-		if(xSemaphoreTake(SPIMutex, 20) == pdFALSE){
-			_CommunicationManagerStatic->MsgReceivedCB((SPI_HandleTypeDef*)handle);
-			return -1;
-		}
-	}
-	memcpy(bufp, pRxBuf+1, len);
-	return 0;
+	return ret;
 }
 
 static void platform_delay(uint32_t ms)

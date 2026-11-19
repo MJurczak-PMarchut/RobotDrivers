@@ -131,23 +131,46 @@ VL53L1X::VL53L1X(e_ToF_Position position, CommManager *comm, I2C_HandleTypeDef *
 HAL_StatusTypeDef VL53L1X::SensorInit(void){
 
 	uint8_t status = 0;
-	uint8_t tmp;
-	UNUSED(tmp);
+	uint8_t data_ready = 0;
 	this->__timing_budget = 15;
-	status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
-	status |= this->SetDistanceMode(1);
-	status |= this->SetTimingBudgetInMs(this->__timing_budget);
-	status |= this->SetInterMeasurementInMs(20);
-	status |= this->StartRanging();
-	tmp  = 0;
-	vTaskDelay(10);
-	while(tmp==0){
-			status |= CheckForDataReady( &tmp);
+	// Retry the whole init when no first sample arrives (e.g. StartRanging NACKed).
+	// Safe: the default configuration also writes 0x87 = 0, which stops ranging first.
+	for(uint8_t attempt = 0; (attempt < TOF_INIT_ATTEMPTS) && (data_ready == 0); attempt++)
+	{
+		status = 0;
+		status |= VL53L1X_WrMulti(this->__address, 0x2D, VL51L1X_DEFAULT_CONFIGURATION, 91);
+		status |= this->SetDistanceMode(1);
+		status |= this->SetTimingBudgetInMs(this->__timing_budget);
+		status |= this->SetInterMeasurementInMs(20);
+		status |= this->StartRanging();
+		vTaskDelay(10);
+		// Wait for the first sample, bounded: a dead/absent sensor must not block ToF init
+		// (that ends in the 6 s init watchdog and a reset loop). A failed poll is retried.
+		TickType_t wait_start = xTaskGetTickCount();
+		while(data_ready == 0)
+		{
+			CheckForDataReady(&data_ready);
+			if(data_ready != 0)
+			{
+				break;
+			}
+			if((xTaskGetTickCount() - wait_start) >= pdMS_TO_TICKS(TOF_INIT_DATA_READY_TIMEOUT_MS))
+			{
+				break;
+			}
+			vTaskDelay(1);
+		}
 	}
-//	status |= this->ClearInterrupt();
-	// clear interrupt
-	status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
-	return (status)? HAL_ERROR:HAL_OK;
+	if(data_ready != 0)
+	{
+		// A failed clear is covered by the 100 ms re-poll in CheckSensorStatus().
+		status |= VL53L1X_WrByte(this->__address, SYSTEM__INTERRUPT_CLEAR, clr_interrupt);
+	}
+	// Final state from whether the sensor ranges, not from SetI2CAddress() (a sensor that
+	// kept its address NACKs the write at 0x52 but works at its target address) and not
+	// from individual config steps (one transient NACK must not disable it for good, B18).
+	this->__Status = (data_ready != 0)? TOF_STATE_OK : TOF_STATE_ERROR;
+	return ((status == 0) && (data_ready != 0))? HAL_OK : HAL_ERROR;
 }
 
 uint8_t VL53L1X::ClearInterrupt()
@@ -175,7 +198,10 @@ HAL_StatusTypeDef VL53L1X::SetI2CAddress() {
 	VL53L1X_RdByte(__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, &pval);
 	ret = VL53L1X_WrByte(this->__address, VL53L1_I2C_SLAVE__DEVICE_ADDRESS, (__ToFAddr[this->__sensor_index]>>1));
 	this->__address = (ret)? TOF_DEFAULT_ADDRESS: __ToFAddr[this->__sensor_index];
+	// Always use the target address: if the write failed because the sensor already has
+	// it (kept from a previous run), SensorInit() still reaches it there.
 	this->__address = __ToFAddr[this->__sensor_index];
+	// Provisional only; SensorInit() sets the final state.
 	this->__Status = (ret)?TOF_STATE_ERROR:TOF_STATE_OK;
 	return ret;
 }
@@ -247,17 +273,21 @@ HAL_StatusTypeDef VL53L1X::GetRangingData(void){
 	MsgInfoToSend.IntHandle = this->__hi2c1;
 	MsgInfoToSend.pCB = &this->_CallbackFunc;
 	MsgInfoToSend.TransactionStatus = &this->__ranging_status;
-	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
+	// Before the push: the read may complete (and set OK) before the push returns when
+	// called from the ToF thread; setting DATA_RDY afterwards would overwrite that (B19).
 	this->__Status = TOF_STATE_DATA_RDY;
+	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
 	this->ClearInterrupt();
 	return ret;
 }
 
 void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
-	// Failed read: keep the old Result, no event bit. State stays DATA_RDY, so EXTI is
-	// skipped, the sample goes stale and CheckSensorStatus() re-polls after 100 ms.
+	// Failed read: keep the old Result, no event bit. Back to OK so the next data-ready
+	// EXTI retries (~20 ms); the 100 ms re-poll covers a failed interrupt clear (B12).
+	// last_sample_tick is not refreshed, so a sensor that keeps failing goes stale.
 	if(this->__ranging_status != HAL_OK)
 	{
+		this->__Status = TOF_STATE_OK;
 		return;
 	}
 	Result.Distance = 0;
@@ -272,7 +302,11 @@ void VL53L1X::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo){
 	Result.Distance = this->__comm_buffer[13] << 8 | this->__comm_buffer[14];
 	this->__Status = TOF_STATE_OK;
 	this->last_update_tick = HAL_GetTick();
-	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
+	this->last_sample_tick = this->last_update_tick;
+	// The bit is set by the timer daemon; yield so it runs right after this ISR (B11).
+	BaseType_t woken = pdFALSE;
+	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), &woken);
+	portYIELD_FROM_ISR(woken);
 }
 
 HAL_StatusTypeDef VL53L1X::__GetData(void)
@@ -504,19 +538,23 @@ HAL_StatusTypeDef VL53L1X::GetDistanceMode(uint16_t *DM)
 
 HAL_StatusTypeDef VL53L1X::SetInterMeasurementInMs(uint32_t InterMeasMs)
 {
-	uint16_t ClockPLL;
+	uint16_t ClockPLL = 0;
 	uint32_t value = 0;
 	uint8_t temp8[4] = {0, 0, 0, 0};
 	HAL_StatusTypeDef status = HAL_OK;
 
 	status = VL53L1X_RdWord(this->__address, VL53L1_RESULT__OSC_CALIBRATE_VAL, &ClockPLL);
+	if(status != HAL_OK)
+	{
+		return status;   // RdWord leaves ClockPLL untouched on failure: don't write a bogus period (B17)
+	}
 	ClockPLL = ClockPLL&0x3FF;
 	value = (uint32_t)(ClockPLL * InterMeasMs * 1.075);
 	temp8[0] = uint8_t(value >> 24);
 	temp8[1] = uint8_t((value & 0x00FF0000) >> 16);
 	temp8[2] = uint8_t((value & 0x0000FF00) >> 8);
 	temp8[3] = uint8_t(value & 0x00FF);
-	VL53L1X_WrMulti(this->__address, VL53L1_SYSTEM__INTERMEASUREMENT_PERIOD,
+	status = (HAL_StatusTypeDef)VL53L1X_WrMulti(this->__address, VL53L1_SYSTEM__INTERMEASUREMENT_PERIOD,
 			temp8, 4);
 	return status;
 

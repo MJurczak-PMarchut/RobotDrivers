@@ -78,6 +78,9 @@ const unsigned char epd_bitmap_Untitled [] = {
 #define TOF_EVAL_TIMEOUT_MS  30
 // A sensor without a sample for this long (~2 periods) counts as "no detection".
 #define TOF_STALE_MS         60
+// isOpponentDetected() TRACE records (ToF + orientation) at most this often: it now runs
+// on every front sample (~2 per period), and the 8 KB log ring must survive SD stalls.
+#define TOF_TRACE_LOG_PERIOD_MS  20
 
 // Errors smaller than this are treated as zero, so sensor noise / motor response lag
 // doesn't make the robot hunt back and forth for a negligible heading difference.

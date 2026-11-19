@@ -19,6 +19,7 @@ void TxCallback(MessageInfoTypeDef<SPI_HandleTypeDef> * /*msg*/)
 {
 	BaseType_t higherPrioTaskWoken = pdFALSE;
 	xSemaphoreGiveFromISR(SPIDeviceMutex, &higherPrioTaskWoken);
+	portYIELD_FROM_ISR(higherPrioTaskWoken);   // B11
 }
 } // namespace
 

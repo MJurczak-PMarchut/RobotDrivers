@@ -54,6 +54,7 @@ ToF_Sensor* ToF_Sensor::GetSensorPointerFromPool()
 
 ToF_Sensor::ToF_Sensor(e_ToF_Type type, e_ToF_Position position, CommManager *comm) :
 		ToF_Type { type }, __CommunicationManager { comm }, __pos { position } {
+	last_sample_tick = 0;
 	__ToFSensorPointers[__no_of_sensors] = this;
 	__no_of_sensors++;
 	if(__no_of_sensors == 1){

@@ -42,7 +42,9 @@ public:
 	virtual HAL_StatusTypeDef GetRangingData(void) = 0;
 	virtual ToF_Status_t CheckSensorStatus(void) = 0;
 	e_ToF_Position getPosition(void) {return __pos;};
-	uint32_t GetLastUpdateTick(void) {return last_update_tick;};   // HAL_GetTick() of the last sample
+	// HAL_GetTick() of the last successfully read sample (0 = none yet). Unlike
+	// last_update_tick, failed read attempts do not refresh it.
+	uint32_t GetLastSampleTick(void) {return last_sample_tick;};
 	virtual HAL_StatusTypeDef SetI2CAddress(void) = 0;
 	virtual HAL_StatusTypeDef __GetData(void) = 0;
 	virtual HAL_StatusTypeDef DisableSensorComm(void)=0;
@@ -64,7 +66,8 @@ protected:
 	e_ToF_Position __pos;
 	static uint8_t __no_of_sensors;
 	virtual void SetMutex(osapi::Mutex *pmutex) = 0;
-	uint32_t last_update_tick;
+	uint32_t last_update_tick;   // last read attempt (EXTI) or sample; drives the 100 ms re-poll
+	uint32_t last_sample_tick;   // last successful sample only; drives staleness (B12)
 	static EventGroupHandle_t EventGroupHandle;
 
 

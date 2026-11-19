@@ -118,9 +118,10 @@ TickType_t ManoeuvreWaitTicks(const Manoeuvre_t *m, TickType_t max_ticks)
 SensorDistances_t GetValidatedDistances(void)
 {
 	SensorDistances_t distances;
+	// Signed age: an ISR may store a tick newer than `now` between the two reads (B16).
 	uint32_t now = HAL_GetTick();
-	distances.stale_left = (now - Sensors[0].GetLastUpdateTick()) > TOF_STALE_MS;
-	distances.stale_right = (now - Sensors[2].GetLastUpdateTick()) > TOF_STALE_MS;
+	distances.stale_left = (int32_t)(now - Sensors[0].GetLastSampleTick()) > TOF_STALE_MS;
+	distances.stale_right = (int32_t)(now - Sensors[2].GetLastSampleTick()) > TOF_STALE_MS;
 	distances.raw_left = Sensors[0].GetDistance();
 	distances.raw_rear = Sensors[1].GetDistance();
 	distances.raw_right = Sensors[2].GetDistance();
@@ -149,15 +150,23 @@ bool isOpponentDetected(void)
 		was_stale[0] = distances.stale_left;
 		was_stale[1] = distances.stale_right;
 	}
-	// [n] raw range, f[n] the range after the SigPerSPAD gate, s[n] the SigPerSPAD
-	// that drove that gate. Raw stays first and keeps its original "[n]=" spelling so
-	// logs from before the f/s fields existed still parse the same way. Worst case
-	// (all six values 65535) is 76 chars + NUL, so the 128-byte buffer cannot overrun.
-	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\rf[0]=%u\n\rf[1]=%u\n\rs[0]=%u\n\rs[1]=%u\n\r",
-			distances.raw_left, distances.raw_right,
-			distances.left, distances.right,
-			distances.sig_left, distances.sig_right);
-	logger.Log(sensor_message,LOGLEVEL_TRACE);
+	// Rate-limited TRACE (TOF_TRACE_LOG_PERIOD_MS); INFO transitions below are not limited.
+	static uint32_t last_trace_tick = 0;
+	uint32_t now = HAL_GetTick();
+	bool log_trace = (now - last_trace_tick) >= TOF_TRACE_LOG_PERIOD_MS;
+	if(log_trace)
+	{
+		last_trace_tick = now;
+		// [n] raw range, f[n] the range after the SigPerSPAD gate, s[n] the SigPerSPAD
+		// that drove that gate. Raw stays first and keeps its original "[n]=" spelling so
+		// logs from before the f/s fields existed still parse the same way. Worst case
+		// (all six values 65535) is 76 chars + NUL, so the 128-byte buffer cannot overrun.
+		sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\rf[0]=%u\n\rf[1]=%u\n\rs[0]=%u\n\rs[1]=%u\n\r",
+				distances.raw_left, distances.raw_right,
+				distances.left, distances.right,
+				distances.sig_left, distances.sig_right);
+		logger.Log(sensor_message,LOGLEVEL_TRACE);
+	}
 #ifdef DEBUG_SCREEN
 	sprintf(sensor_message, "L=%u  ", distances.left);
 	StatsBox[0].printstat(sensor_message, "L");
@@ -177,8 +186,11 @@ bool isOpponentDetected(void)
 		logger.Log((detected)? "Opponent Detected" : "No Oponnent", LOGLEVEL_INFO);
 	}
 
-	sprintf(sensor_message, "Orientation:\n\rx=%.2f\n\ry=%.2f\n\rz=%.2f\n\r", IMU.GetAngularOrientationForAxis(0), IMU.GetAngularOrientationForAxis(1), IMU.GetAngularOrientationForAxis(2));
-	logger.Log(sensor_message, LOGLEVEL_TRACE);
+	if(log_trace)
+	{
+		sprintf(sensor_message, "Orientation:\n\rx=%.2f\n\ry=%.2f\n\rz=%.2f\n\r", IMU.GetAngularOrientationForAxis(0), IMU.GetAngularOrientationForAxis(1), IMU.GetAngularOrientationForAxis(2));
+		logger.Log(sensor_message, LOGLEVEL_TRACE);
+	}
 
 	was_previously_detected = detected;
 	return detected;
@@ -431,6 +443,11 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 			if(opponent_detected)
 			{
 				ManoeuvreEnd(m);
+				if(lastDetOnLeft)
+					MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
+				else
+					MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
+
 				return FIGHT;
 			}
 			float turned = fabsf(HeadingPID::WrapAngleDeg180((float)IMU.GetAngularOrientationForAxis(2) - m->start_heading));

@@ -610,9 +610,11 @@ HAL_StatusTypeDef VL53L5CX::StartRanging(void) {
 
 void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 {
-	// Failed read: keep the old result, no event bit. Only the second read is checked.
+	// Failed read: keep the old result, no event bit, re-arm EXTI reads (B12).
+	// Only the second read is checked.
 	if(this->__ranging_status != HAL_OK)
 	{
+		this->__Status = TOF_STATE_OK;
 		return;
 	}
 	VL53L5CX_SwapBuffer((uint8_t*)this->__comm_buffer, (uint16_t)32);
@@ -623,7 +625,11 @@ void VL53L5CX::DataReceived(MessageInfoTypeDef<I2C_HandleTypeDef>* MsgInfo)
 	VL53L5CX_SwapBuffer(this->__comm_buffer + 32, (uint16_t)16);
 	memcpy(this->result.target_status, this->__comm_buffer + 32, 16);
 	this->__Status = TOF_STATE_OK;
-	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), NULL);
+	this->last_sample_tick = HAL_GetTick();
+	// The bit is set by the timer daemon; yield so it runs right after this ISR (B11).
+	BaseType_t woken = pdFALSE;
+	xEventGroupSetBitsFromISR(EventGroupHandle, (1<<this->__sensor_index), &woken);
+	portYIELD_FROM_ISR(woken);
 }
 
 HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
@@ -645,8 +651,8 @@ HAL_StatusTypeDef VL53L5CX::GetRangingData(void) {
 	MsgInfoToSend.IntHandle = this->__hi2c1;
 	MsgInfoToSend.pCB = &this->_CallbackFunc;
 	MsgInfoToSend.TransactionStatus = &this->__ranging_status;
+	this->__Status = TOF_STATE_DATA_RDY;   // before the push, see VL53L1X (B19)
 	ret = this->__CommunicationManager->PushCommRequestIntoQueue(&MsgInfoToSend);
-	this->__Status = TOF_STATE_DATA_RDY;
 
 	return ret;
 }
