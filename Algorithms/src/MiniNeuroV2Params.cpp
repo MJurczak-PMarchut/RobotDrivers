@@ -12,34 +12,37 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Defaults = miniTomiV4 constants (to be replaced by the tuned miniNeuroV1 values), the V1
-// FSM in charge (policy_mode 0), full history, rear sensor on.
+// Defaults = SumoSimulation run 10 (2026-11-20): the FSM parameters of the tuned miniNeuroV1
+// teacher (runs/neuro1_v10, search2_back_ms 350 and detection_distance_mm 450 set by hand) and
+// the network in charge (policy_mode 1) with the weights in MiniNeuroV2Weights.hpp
+// (runs/neuro2_evo_v10). policy_mode 0 makes the V1 FSM fight with the same parameters.
 static const MiniNeuroV2Params_t kDefaults = {
-	/* detection_distance_mm     */ 350,
-	/* forward_band_mm           */ 60,
+	// from runs/neuro2_evo_v10/best_params.txt (tools/neuro_params_to_cpp.py)
+	/* detection_distance_mm     */ 450,
+	/* forward_band_mm           */ 76,
 	/* tof_eval_timeout_ms       */ 30,
 	/* tof_stale_ms              */ 60,
-	/* sig_threshold_gain        */ 2.0,
-	/* sig_threshold_cap         */ 8000,
-	/* attack_speed              */ 0.85,
-	/* turn_outer_speed          */ 0.85,
-	/* turn_inner_speed          */ 0.65,
-	/* search_spin_speed         */ 0.65,
-	/* search2_speed             */ 0.65,
-	/* oob_back_speed            */ 0.65,
-	/* oob_turn_speed            */ 0.65,
-	/* oob_stop_ms               */ 10,
-	/* oob_back_ms               */ 200,
-	/* oob_turn_ms               */ 100,
-	/* search_strategy_change_ms */ 3000,
+	/* sig_threshold_gain        */ 1.81216743,
+	/* sig_threshold_cap         */ 19853,
+	/* attack_speed              */ 0.843932595,
+	/* turn_outer_speed          */ 0.997027994,
+	/* turn_inner_speed          */ -0.280367351,
+	/* search_spin_speed         */ 0.526142318,
+	/* search2_speed             */ 0.786338367,
+	/* oob_back_speed            */ 0.404957866,
+	/* oob_turn_speed            */ 0.410835363,
+	/* oob_stop_ms               */ 21,
+	/* oob_back_ms               */ 178,
+	/* oob_turn_ms               */ 76,
+	/* search_strategy_change_ms */ 9522,
 	/* search2_back_ms           */ 350,
-	/* search2_turn_deg          */ 60,
-	/* rotation_timeout_ms       */ 150,
-	/* pid_kp                    */ 0.03f,
-	/* pid_ki                    */ 0.04f,
-	/* pid_kd                    */ 0.00065f,
-	/* oob_turn_mode             */ 0,
-	/* policy_mode               */ 0,
+	/* search2_turn_deg          */ 126.815868,
+	/* rotation_timeout_ms       */ 279,
+	/* pid_kp                    */ 0.03,
+	/* pid_ki                    */ 0.04,
+	/* pid_kd                    */ 0.00065,
+	/* oob_turn_mode             */ 1,
+	/* policy_mode               */ 1,
 	/* net_history               */ 3,
 	/* net_use_rear              */ 1,
 };
