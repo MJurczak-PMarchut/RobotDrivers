@@ -75,6 +75,7 @@ bool isOutOfBounds(void)
 	{
 		lineDetOnLeft = left;
 		lineDetOnRight = right;
+		Neuro2LineSeen(left, right);   // network input memory only; no effect on the FSM
 	}
 	return (left || right);
 }
@@ -545,6 +546,20 @@ static float s_det_heading = 0.0f;   // yaw then [deg]
 
 static bool s_started = false;
 static TickType_t s_start_tick = 0;
+static float s_start_dir = -1.0f;    // lastDetOnLeft at the start: +1 left, -1 right (default)
+
+// Line memory: the last time a line sensor saw the white edge (isOutOfBounds()).
+static bool s_line_valid = false;
+static TickType_t s_line_tick = 0;
+static float s_line_side = 0.0f;     // +1 left, -1 right, 0 both
+static float s_line_heading = 0.0f;  // yaw then [deg]
+
+// Forward attack, as V1's FightAlgorithm decides it (|left - right| < forward_band_mm on the
+// validated distances): the heading when that decision last flipped, which V1 latches as the
+// heading PID's target.
+static bool s_fwd_known = false;
+static bool s_fwd = false;
+static float s_fwd_heading = 0.0f;
 
 static float GatedRange(uint16_t raw, uint16_t sig, uint16_t threshold, bool stale)
 {
@@ -571,6 +586,13 @@ void Neuro2UpdateMemory(void)
 	s_stale[0] = d.stale_left;
 	s_stale[1] = d.stale_right;
 	s_stale[2] = d.stale_rear;
+	const bool fwd = abs((int)d.left - (int)d.right) < (int)Neuro2Params.forward_band_mm;
+	if (!s_fwd_known || fwd != s_fwd)
+	{
+		s_fwd_heading = (float)IMU.GetAngularOrientationForAxis(2);
+	}
+	s_fwd_known = true;
+	s_fwd = fwd;
 	bool new_front = false;
 	for (int slot = 0; slot < 3; slot++)
 	{
@@ -607,6 +629,18 @@ void Neuro2MatchStarted(void)
 	s_started = true;
 	s_start_tick = xTaskGetTickCount();
 	s_det_valid = false;
+	s_line_valid = false;
+	// WAIT_FOR_START sets lastDetOnLeft when the operator turns the robot (direction_ack);
+	// V1 searches towards it, so the network needs it too.
+	s_start_dir = lastDetOnLeft? 1.0f : -1.0f;
+}
+
+void Neuro2LineSeen(bool left, bool right)
+{
+	s_line_valid = true;
+	s_line_tick = xTaskGetTickCount();
+	s_line_side = (left && right)? 0.0f : (left? 1.0f : -1.0f);
+	s_line_heading = (float)IMU.GetAngularOrientationForAxis(2);
 }
 
 void Neuro2Features(float in[NEURO2_INPUTS])
@@ -625,19 +659,39 @@ void Neuro2Features(float in[NEURO2_INPUTS])
 	in[NN_IN_RR0] = rear? (s_stale[2]? 1.0f : s_hist[2][0]) : 0.0f;
 	in[NN_IN_RR1] = rear? (s_stale[2]? 1.0f : s_hist[2][1]) : 0.0f;
 
+	const float heading = (float)IMU.GetAngularOrientationForAxis(2);
 	if (s_det_valid)
 	{
 		const float since = (float)(now - s_det_tick) / 2000.0f;
+		const float since_long = (float)(now - s_det_tick) / 10000.0f;
 		in[NN_IN_SINCE_DET] = (since < 1.0f)? since : 1.0f;
+		in[NN_IN_SINCE_DET_LONG] = (since_long < 1.0f)? since_long : 1.0f;
 		in[NN_IN_DET_SIDE] = s_det_side;
-		in[NN_IN_TURNED] = HeadingPID::WrapAngleDeg180((float)IMU.GetAngularOrientationForAxis(2) - s_det_heading) / 180.0f;
+		in[NN_IN_TURNED] = HeadingPID::WrapAngleDeg180(heading - s_det_heading) / 180.0f;
 	}
 	else
 	{
 		in[NN_IN_SINCE_DET] = 1.0f;
+		in[NN_IN_SINCE_DET_LONG] = 1.0f;
 		in[NN_IN_DET_SIDE] = 0.0f;
 		in[NN_IN_TURNED] = 0.0f;
 	}
+	if (s_line_valid)
+	{
+		const float since = (float)(now - s_line_tick) / 2000.0f;
+		in[NN_IN_SINCE_LINE] = (since < 1.0f)? since : 1.0f;
+		in[NN_IN_LINE_SIDE] = s_line_side;
+		in[NN_IN_LINE_TURNED] = HeadingPID::WrapAngleDeg180(heading - s_line_heading) / 180.0f;
+	}
+	else
+	{
+		in[NN_IN_SINCE_LINE] = 1.0f;
+		in[NN_IN_LINE_SIDE] = 0.0f;
+		in[NN_IN_LINE_TURNED] = 0.0f;
+	}
+	// Same sign as V1's heading error: positive (target counter-clockwise of us) needs a CCW turn.
+	in[NN_IN_ATTACK_ERR] = s_fwd? HeadingPID::WrapAngleDeg180(s_fwd_heading - heading) / 180.0f : 0.0f;
+	in[NN_IN_START_DIR] = s_start_dir;
 	in[NN_IN_GYRO] = Clip1((float)IMU.GetAngularRateForAxis(2) / 720.0f);
 	// Horizontal magnitude: does not depend on how the IMU is mounted.
 	const float ax = (float)IMU.GetAccelerationForAxis(0);

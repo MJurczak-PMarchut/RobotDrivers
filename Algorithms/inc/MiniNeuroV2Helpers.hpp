@@ -344,8 +344,11 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected);
 void Neuro2SetMotors(float left, float right);
 // Updates the ToF history and the detection memory with new samples; call on every pass.
 void Neuro2UpdateMemory(void);
-// The match started (start signal): resets the memory and the "time since start" input.
+// The match started (start signal): resets the memory and the "time since start" input, and
+// takes the search direction chosen before the start (lastDetOnLeft, direction_ack).
 void Neuro2MatchStarted(void);
+// A line sensor sees the edge (called by isOutOfBounds()): the line memory inputs.
+void Neuro2LineSeen(bool left, bool right);
 // Builds the network inputs from the history, the memory, the IMU and the last command.
 void Neuro2Features(float in[NEURO2_INPUTS]);
 // One NEURAL pass: inputs -> network -> motors. Also keeps lastDetOnLeft (OOB escape side).

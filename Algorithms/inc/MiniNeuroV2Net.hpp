@@ -9,8 +9,9 @@
  *
  * The inputs are built by Neuro2Features() (MiniNeuroV2Helpers.cpp), all roughly in [-1, 1]:
  * ToF ranges after the SigPerSPAD gate (0 = touching, 1 = 1000 mm or more / no valid target),
- * with the last samples of each sensor, a short memory of the last detection, the IMU and
- * the previous command.
+ * with the last samples of each sensor, a memory of the last detection and of the last line
+ * contact, the heading error of a forward attack, the search direction the operator chose
+ * before the start (direction_ack), the IMU and the previous command.
  *
  * Weights (NEURO2_WEIGHTS floats), row-major:
  *   hidden unit h: w[h * (IN + 1) + i] for input i, bias w[h * (IN + 1) + IN]
@@ -23,7 +24,7 @@
 #ifndef ALGORITHMS_INC_MININEUROV2NET_HPP_
 #define ALGORITHMS_INC_MININEUROV2NET_HPP_
 
-#define NEURO2_INPUTS  16
+#define NEURO2_INPUTS  22
 #define NEURO2_HIDDEN  16
 #define NEURO2_OUTPUTS 2
 #define NEURO2_HIDDEN_OFFSET 0
@@ -48,11 +49,19 @@ enum {
 	NN_IN_PREV_LEFT,        // previous motor command
 	NN_IN_PREV_RIGHT,
 	NN_IN_SINCE_START,      // 0..1 = 0..3 s after the start signal
+	NN_IN_START_DIR,        // search direction set before the start (direction_ack): +1 left, -1 right
+	NN_IN_SINCE_LINE,       // time since the last line contact: 0..1 = 0..2 s (1 = none yet)
+	NN_IN_LINE_SIDE,        // line sensor of that contact: +1 left, -1 right, 0 both (or none)
+	NN_IN_LINE_TURNED,      // heading change since that contact, deg / 180 (CCW positive)
+	NN_IN_ATTACK_ERR,       // forward attack (|L - R| < forward_band_mm): heading at its start
+	                        //   minus heading now, deg / 180 (what V1's heading PID corrects); 0 otherwise
+	NN_IN_SINCE_DET_LONG,   // time since the last front detection: 0..1 = 0..10 s (1 = never)
 	NN_IN_COUNT
 };
 static_assert(NN_IN_COUNT == NEURO2_INPUTS, "input layout and NEURO2_INPUTS differ");
 
-#define NEURO2_INPUT_NAMES "fl0,fl1,fl2,fr0,fr1,fr2,rr0,rr1,since_det,det_side,turned,gyro,accel_x,prev_left,prev_right,since_start"
+#define NEURO2_INPUT_NAMES "fl0,fl1,fl2,fr0,fr1,fr2,rr0,rr1,since_det,det_side,turned,gyro,accel_x,prev_left," \
+	"prev_right,since_start,start_dir,since_line,line_side,line_turned,attack_err,since_det_long"
 
 // Current weights (run-time parameters).
 extern float Neuro2Weights[NEURO2_WEIGHTS];
