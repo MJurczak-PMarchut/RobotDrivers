@@ -22,22 +22,13 @@
 #include "Adafruit_SSD1327.h"
 #include "osapi_mortal_thread.h"
 #include "semphr.h"
-// Shared helpers/objects split out of this file (display drawing, boundingBox,
-// PID_CalibrateHeading, FightAlgorithm, LookForOpponent2, Calibrate, and the
+// Shared helpers/objects split out of this file (PID_CalibrateHeading,
+// FightAlgorithm, LookForOpponent2, Calibrate, and the
 // file-scope objects those share). Also defines the V4 tuning constants
-// OLED_I2C_ADDRESS/FULL_SPEED/MANOUVER_SPEED/ROTATION_TIMEOUT/MAX_SIG_PER_SPAD/
+// FULL_SPEED/MANOUVER_SPEED/ROTATION_TIMEOUT/MAX_SIG_PER_SPAD/
 // HEADING_PID_DEADBAND_DEG used below.
 #include "MiniTomiV4Helpers.hpp"
-
-// Qwiic/STEMMA QT SSD1327 module - I2C only (no reset line broken out on the
-// Qwiic connector), address confirmed on this board's silkscreen/datasheet.
-#define OLED_WIDTH 128
-#define OLED_HEIGHT 128
-// The OLED dirty-tracking grid (GRAYOLED_WINDOW_COLS x GRAYOLED_WINDOW_ROWS) is configured via
-// build flags in CMakePresets.json (the MiniTomiV4 preset's CUBE_CMAKE_CXX_FLAGS), NOT here:
-// the SSD1327/GrayOLED driver is a separate translation unit and never sees #defines from this
-// file. Default (no flags) is 1x1 = one whole-screen window; this build uses 2x2 = 4 windows.
-
+using namespace mt_v4;   // State_t, StateName, lastDetOnLeft, ... (MiniTomiV4Helpers.hpp)
 
 #define INIT_TIMEOUT_MS  6000
 
@@ -60,77 +51,27 @@ enum {OOB_STOP = MANOEUVRE_IDLE + 1, OOB_BACK, OOB_TURN};
 // DETECTION_DISTANCE, FULL_SPEED, MANOUVER_SPEED, ROTATION_TIMEOUT, MAX_SIG_PER_SPAD and
 // HEADING_PID_DEADBAND_DEG live in MiniTomiV4Helpers.hpp (shared with the helpers TU).
 
-#define HEADING_PID_KP 0.03f
-#define HEADING_PID_KI 0.04f
-#define HEADING_PID_KD 0.00065f
-
-#define HEADING_PID_OUTPUT_LIMIT 0.75f
-
-// Near a 180-deg error the shortest turn direction is ambiguous and yaw noise flips the
-// wrapped error between +-180 every sample. Within this band of the antipode the PID
-// sticks to its previous turn direction; outside it the plain shortest-way error rules,
-// so the worst case is turning (180 + this) deg instead of (180 - this).
-#define HEADING_ANTIPODE_HYST_DEG 10.0f
-
 #define LED2_ON HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET)
 #define LED2_OFF HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET)
 
-extern TIM_HandleTypeDef htim3;
-extern TIM_HandleTypeDef htim4;
-extern I2C_HandleTypeDef hi2c1;
-extern SPI_HandleTypeDef hspi2;
-extern CommManager MainCommManager;
-
-uint32_t means[4] = {0};
-uint16_t sens;
-//config
-L9960T MOTOR_CONTROLLERS[] = {
-		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true, false),
-		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true, false)};
+// Hardware objects (MOTOR_CONTROLLERS, IMU, Sensors, logger, display, DisplayThread):
+// RobotHardware.{hpp,cpp}.
 
 
-LSM6DSO IMU = LSM6DSO(&MainCommManager, &hspi2);
+volatile bool mt_v4::lastDetOnLeft = false;
 
-#ifdef DEBUG_SCREEN
-// No reset pin wired (Qwiic connector is power+I2C only) - matches Adafruit_SSD1327's
-// own default of no reset pin for I2C-only wiring.
-Adafruit_SSD1327 display = Adafruit_SSD1327(OLED_WIDTH, OLED_HEIGHT, &Wire);
-
-// display.display() is flushed off the Robot task by DisplayThread; see DisplayMortalThread
-// in MiniTomiV4Helpers.hpp for why the (100ms+) I2C flush is isolated onto its own task.
-// RequestUpdate() is the non-blocking entry point other code should call.
-DisplayMortalThread DisplayThread;
-#endif
-VL53L1X Sensors[] = {
-		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
-		VL53L1X(BACK, &MainCommManager, &hi2c1),
-		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
-}; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
-
-volatile bool lastDetOnLeft = false;
-DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
-
-// Display drawing helpers (_init_*/_stat_draw_bounding_boxes) and the boundingBox class
-// now live in MiniTomiV4Helpers.{hpp,cpp}.
+// Display drawing helpers (_init_*/_stat_draw_bounding_boxes), the boundingBox class and
+// StatsBox are shared by all strategies: RobotHardware.{hpp,cpp}, DEBUG_SCREEN only.
 
 /*
  * Algorithm
  */
-Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
+void MiniTomiV4::begin(void)
 {
-}
-
-volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
-
-// Heading-hold PID; PID_CalibrateHeading() may overwrite the gains at runtime.
-HeadingPID HeadingController = HeadingPID(HEADING_PID_KP, HEADING_PID_KI, HEADING_PID_KD,
-		HEADING_PID_OUTPUT_LIMIT, HEADING_ANTIPODE_HYST_DEG);
-
-boundingBox StatsBox[4] = {boundingBox(0, "TOF"), boundingBox(1, "Gyro"),
-	boundingBox(2, "Strat"), boundingBox(3, "misc")};
-
-void Robot::begin(void)
-{
+	// SigPerSPAD thresholds until Calibrate() sets them (RobotHardware.hpp).
+	for (auto& threshold : SigPerSPADThreshold){
+		threshold = 2000;
+	}
 	was_running = true;
 	flash_period_ms = 100;
 	// HAL_StatusTypeDef imuret;
@@ -225,44 +166,29 @@ void Robot::begin(void)
 	this->setPriority(ROBOT_RUN_PRIORITY);
 }
 
-void prepare_sensor_data(char *pData, VL53L1X Sensors[])
-{
-}
 
+// mt_v4::PID_CalibrateHeading() (heading-PID relay auto-tune) lives in MiniTomiV4Helpers.cpp;
+// call it as mt_v4::PID_CalibrateHeading(heading_pid, ...).
 
-void Robot::SetTargetHeading(float targetAngleDeg){
-	set_angle = targetAngleDeg;
-	HeadingController.SetTarget(targetAngleDeg);
-}
-
-// PID_CalibrateHeading() (heading-PID relay auto-tune) now lives in MiniTomiV4Helpers.cpp.
-
-// isOutOfBounds(), GetValidatedDistances(), isOpponentDetected(), StateName() and
-// CheckStartCondition() (plus the lineDetOnLeft/lineDetOnRight edge latches and the
+// isOpponentDetected(), StateName() and
+// CheckStartCondition() (plus the
 // FightAlgorithm/LookForOpponent2/Calibrate sub-routines) now live in
 // MiniTomiV4Helpers.cpp.
 
-void Robot::SetFlashPeriodMS(uint16_t flashPeriod)
-{
-	this->flash_period_ms = flashPeriod;
-}
-
-UBaseType_t heap_min_size;
-
-void Robot::loop(void)
+void MiniTomiV4::loop(void)
 {
 	static State_t eFSM_state = CALIBRATE;
 	static bool direction_ack = false;
 	static TickType_t last_detection_tick = 0;
 	static bool opponent_detected = false;
-	static Manoeuvre_t manoeuvre = {};
+	static Manoeuvre manoeuvre;
 	static State_t stepped_state = NOP;   // state handled by the previous switch pass
 	static bool run_again = false;
 
 	// Single wait point: any ToF sample, a new line detection, the manoeuvre phase
 	// deadline or the timeout. A state change in the previous pass skips the wait.
 	TickType_t wait_ticks = run_again ? 0 :
-			ManoeuvreWaitTicks(&manoeuvre, pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
+			manoeuvre.WaitTicks(pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
 	EventBits_t events = 0;
 	EventGroupHandle_t tof_events = ToF_Sensor::GetEventHandle();
 	if(tof_events != NULL)
@@ -287,7 +213,7 @@ void Robot::loop(void)
 		opponent_detected = isOpponentDetected();
 	}
 
-	eFSM_state = CheckStartCondition(this, eFSM_state);
+	eFSM_state = CheckStartCondition(eFSM_state);
 	// Edge before any state sets the motors. LOOK_FOR_OPPONENT_2 handles it itself.
 	if((eFSM_state == FIGHT || eFSM_state == LOOK_FOR_OPPONENT_1) && isOutOfBounds())
 	{
@@ -318,7 +244,7 @@ void Robot::loop(void)
 	stepped_state = eFSM_state;
 	if(state_entry)
 	{
-		ManoeuvreEnd(&manoeuvre);
+		manoeuvre.End();
 		LED2_OFF;
 	}
 	switch(eFSM_state)
@@ -326,6 +252,16 @@ void Robot::loop(void)
 		case CALIBRATE:
 		{
 			Calibrate();
+			#ifdef DEBUG_SCREEN
+			display.clearDisplay();
+			_stat_draw_bounding_boxes();
+			for (auto& box : StatsBox)
+			{
+				box.draw_all();
+			}
+			StatsBox[3].draw_glyph();
+			StatsBox[1].print_wrapped("AAAAA!!! Napierdalać!!!");
+			#endif
 			eFSM_state = WAIT_FOR_START;
 			#ifdef DEBUG_SCREEN
 			display.setCursor(0,0);
@@ -368,7 +304,7 @@ void Robot::loop(void)
 			}
 			else
 			{
-				FightAlgorithm(this);
+				FightAlgorithm();
 			}
 			//Then check OOB condition
 			if(isOutOfBounds())
@@ -384,30 +320,30 @@ void Robot::loop(void)
 			{
 				LED2_ON;
 				MCInterface::SetMotorsPower(0, 0);
-				ManoeuvreEnterPhase(&manoeuvre, OOB_STOP, OOB_STOP_MS);
+				manoeuvre.EnterPhase(OOB_STOP, OOB_STOP_MS);
 				char oob_message[100];
 				sprintf(oob_message, " Out Of Bounds: line %s%s, escape turn %s",
-						(lineDetOnLeft)? "L" : "", (lineDetOnRight)? "R" : "",
+						(LineDetOnLeft())? "L" : "", (LineDetOnRight())? "R" : "",
 						(lastDetOnLeft)? "LEFT" : "RIGHT");
 				logger.Log(oob_message, LOGLEVEL_INFO);
 			}
-			else if(ManoeuvrePhaseDone(&manoeuvre))
+			else if(manoeuvre.PhaseDone())
 			{
 				switch(manoeuvre.phase)
 				{
 					case OOB_STOP:
 						MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
-						ManoeuvreEnterPhase(&manoeuvre, OOB_BACK, OOB_BACK_MS);
+						manoeuvre.EnterPhase(OOB_BACK, OOB_BACK_MS);
 						break;
 					case OOB_BACK:
 						if(lastDetOnLeft)
 							MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
 						else
 							MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
-						ManoeuvreEnterPhase(&manoeuvre, OOB_TURN, OOB_TURN_MS);
+						manoeuvre.EnterPhase(OOB_TURN, OOB_TURN_MS);
 						break;
 					default:   // OOB_TURN done
-						ManoeuvreEnd(&manoeuvre);
+						manoeuvre.End();
 						if(opponent_detected)
 						{
 							eFSM_state = FIGHT;
@@ -454,7 +390,7 @@ void Robot::loop(void)
 		break;
 		case LOOK_FOR_OPPONENT_2:
 		{
-			eFSM_state = LookForOpponent2(this, &manoeuvre, opponent_detected);
+			eFSM_state = mt_v4::LookForOpponent2(this, &manoeuvre, opponent_detected);
 		}
 		break;
 		case NOP:
@@ -482,44 +418,14 @@ void Robot::loop(void)
 	}
 }
 
-void Robot::end(void)
+void MiniTomiV4::end(void)
 {
 //		Error_Handler();
 // Facilitate reset
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-//	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
-	if(ToF_Sensor::CheckInitializationCplt()){
-		if (GPIO_Pin == TOF_INT4_Pin)
-		{
-			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
-		}
-		if(GPIO_Pin == TOF_INT3_Pin){
-			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
-		}
-		if(GPIO_Pin == TOF_INT5_Pin){
-			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
-		}
-	}
-	if(GPIO_Pin == IMU_INT1_Pin || GPIO_Pin == IMU_INT2_Pin){
-		IMU.InterruptCallback(GPIO_Pin);
-	}
-//	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
-}
-
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
-{
-	if(htim->Instance == TIM4){
-		if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
-			MOTOR_CONTROLLERS[MOTOR_LEFT].SoftPWMCB_pulse();
-		else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
-			MOTOR_CONTROLLERS[MOTOR_RIGHT].SoftPWMCB_pulse();
-	}
-}
-float currentAngle = 0;
-void Robot::PeriodicCheckCall(void)
+// HAL_GPIO_EXTI_Callback() and HAL_TIM_PWM_PulseFinishedCallback(): RobotHardware.cpp.
+void MiniTomiV4::PeriodicCheckCall(void)
 {
 	static uint8_t call_count = 0;
 	static uint16_t flash_counter = flash_period_ms/2;
@@ -528,8 +434,6 @@ void Robot::PeriodicCheckCall(void)
 	static uint8_t diver = 0;
 	static uint8_t reset_counter = 0;
 
-	UNUSED(heap_min_size);
-	currentAngle = (float)IMU.GetAngularOrientationForAxis(2);
 	if(current_fc != flash_period_ms)
 	{
 		flash_counter = flash_period_ms/2;
@@ -604,8 +508,7 @@ void Robot::PeriodicCheckCall(void)
 
 	// New line detection wakes Robot::loop() without waiting for the next ToF sample.
 	static bool line_prev = false;
-	bool line_now = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin) ||
-			!HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
+	bool line_now = LineSensors.Read() != 0;
 	EventGroupHandle_t tof_events = ToF_Sensor::GetEventHandle();
 	if(line_now && !line_prev && (tof_events != NULL))
 	{
@@ -614,14 +517,19 @@ void Robot::PeriodicCheckCall(void)
 	line_prev = line_now;
 
 // PID calculations
-	this->power_correction = HeadingController.Update((float)IMU.GetAngularOrientationForAxis(2));
+	UpdateHeadingCorrection((float)IMU.GetAngularOrientationForAxis(2));
 // Heap check
 	
 }
 
-void Robot::PeriodCB(void)
+void MiniTomiV4::PeriodCB(void)
 {
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SoftPWMCB_period();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].SoftPWMCB_period();
 }
+Robot* CreateMiniTomiV4(void)
+{
+	return new MiniTomiV4();
+}
+
 #endif

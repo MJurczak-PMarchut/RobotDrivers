@@ -15,146 +15,56 @@
 #include <string.h>
 #ifdef ROBOT_MINI_NEURO_V2
 #include "MiniNeuroV2Helpers.hpp"
-
-// Which line sensor(s) fired on the most recent out-of-bounds event; latched here
-// because the pins may already read clear by the time the OOB handler logs them.
-volatile bool lineDetOnLeft = false;
-volatile bool lineDetOnRight = false;
+using namespace neuro_v2;   // State_t, StateName, lastDetOnLeft, ... (MiniNeuroV2Helpers.hpp)
 
 // Latest per-sensor "opponent within DETECTION_DISTANCE" flags; only isOpponentDetected()
 // reads/writes them, so they stay private to this TU.
 static bool sensor_detected_item[2] = {false, false};
 
-#ifdef DEBUG_SCREEN
-void _init_pg_draw_boundry(void)
+// Robot::isOutOfBounds() plus the network's line memory (no effect on the FSM).
+bool MiniNeuroV2::isOutOfBounds(void)
 {
-	display.drawRect(0, 9, 128, 10, SSD1327_WHITE);
-}
-
-void _init_pg_draw_percentage(int16_t percentage)
-{
-	static int16_t drawn_bar = 0;
-	int16_t width = (percentage * 1.24) - drawn_bar;
-	display.fillRect(drawn_bar + 2, 11, width, 6, SSD1327_WHITE);
-}
-
-void _init_log_print_message(const char* str)
-{
-	static int16_t CurY = 20;
-	display.setCursor(0, CurY);
-	display.println(str);
-	CurY = display.getCursorY();
-}
-
-void _init_display(void)
-{
-	if (!display.begin(OLED_I2C_ADDRESS))
+	const bool out = Robot::isOutOfBounds();
+	if(out)
 	{
-		logger.Log("--- Display begin() FAILED ---", LOGLEVEL_INFO);
+		Neuro2LineSeen(LineDetOnLeft(), LineDetOnRight());
 	}
-
-	DisplayThread.run();
-	display.clearDisplay();
-	display.setTextSize(1);
-	display.setTextColor(SSD1327_WHITE, SSD1327_BLACK);
-	display.setCursor(0, 0);
+	return out;
 }
 
-void _stat_draw_bounding_boxes()
-{
-	display.drawRect(0, 9, 128, 128-9, SSD1327_WHITE);
-	display.drawFastVLine(63, 9, (128-9),SSD1327_WHITE);
-	display.drawFastHLine(0, 63, 128,SSD1327_WHITE);
-}
-#endif
-bool isOutOfBounds(void)
-{
-	bool left = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin);
-	bool right = !HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
-	if(left || right)
-	{
-		lineDetOnLeft = left;
-		lineDetOnRight = right;
-		Neuro2LineSeen(left, right);   // network input memory only; no effect on the FSM
-	}
-	return (left || right);
-}
-
-void ManoeuvreEnterPhase(Manoeuvre_t *m, uint8_t phase, uint32_t duration_ms)
-{
-	m->active = true;
-	m->phase = phase;
-	m->deadline = xTaskGetTickCount() + pdMS_TO_TICKS(duration_ms);
-}
-
-void ManoeuvreEnd(Manoeuvre_t *m)
-{
-	m->active = false;
-	m->phase = MANOEUVRE_IDLE;
-}
-
-bool ManoeuvrePhaseDone(const Manoeuvre_t *m)
-{
-	// Signed difference: correct across tick-counter wrap.
-	return m->active && ((int32_t)(xTaskGetTickCount() - m->deadline) >= 0);
-}
-
-TickType_t ManoeuvreWaitTicks(const Manoeuvre_t *m, TickType_t max_ticks)
-{
-	if(!m->active)
-	{
-		return max_ticks;
-	}
-	int32_t left = (int32_t)(m->deadline - xTaskGetTickCount());
-	if(left <= 0)
-	{
-		return 0;
-	}
-	return ((TickType_t)left < max_ticks)? (TickType_t)left : max_ticks;
-}
-
-// Reads both front sensors and replaces readings whose signal is weaker than the
-// calibrated threshold with an out-of-detection-range value, so callers only act
-// on distances the calibration deems trustworthy. Stale sensors are treated the same.
-SensorDistances_t GetValidatedDistances(void)
+// Robot::GetValidatedDistances() with the limits from Neuro2Params (DETECTION_DISTANCE,
+// TOF_STALE_MS) instead of Robot's constants.
+SensorDistances_t MiniNeuroV2::GetValidatedDistances(void)
 {
 	SensorDistances_t distances;
-	// Signed age: an ISR may store a tick newer than `now` between the two reads (B16).
+	ToFReading_t* readings[] = {&distances.left, &distances.rear, &distances.right};
+	static_assert(std::size(readings) == std::size(Sensors));
 	uint32_t now = HAL_GetTick();
-	distances.stale_left = (int32_t)(now - Sensors[0].GetLastSampleTick()) > TOF_STALE_MS;
-	distances.stale_right = (int32_t)(now - Sensors[2].GetLastSampleTick()) > TOF_STALE_MS;
-	distances.raw_left = Sensors[0].GetDistance();
-	distances.raw_rear = Sensors[1].GetDistance();
-	distances.raw_right = Sensors[2].GetDistance();
-	VL53L1X_Result_t result_left = Sensors[0].GetResult();
-	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	distances.sig_left = result_left.SigPerSPAD;
-	distances.sig_right = result_right.SigPerSPAD;
-	distances.left = (!distances.stale_left && result_left.SigPerSPAD > maxVal_perSPAD[0])?
-			distances.raw_left: DETECTION_DISTANCE + 100;
-	distances.right = (!distances.stale_right && result_right.SigPerSPAD > maxVal_perSPAD[1])?
-			distances.raw_right: DETECTION_DISTANCE + 100;
-	// Rear: same gate, own threshold (maxVal_perSPAD[2]).
-	distances.stale_rear = (int32_t)(now - Sensors[1].GetLastSampleTick()) > TOF_STALE_MS;
-	distances.sig_rear = Sensors[1].GetResult().SigPerSPAD;
-	distances.rear = (!distances.stale_rear && distances.sig_rear > maxVal_perSPAD[2])?
-			distances.raw_rear: DETECTION_DISTANCE + 100;
+	// Same order as Sensors[]: 0 = left, 1 = rear, 2 = right
+	for(std::size_t sensor = 0; sensor < std::size(Sensors); sensor++){
+		ToFReading_t& r = *readings[sensor];
+		// Signed age: an ISR may store a tick newer than `now` between the two reads (B16).
+		r.stale = (int32_t)(now - Sensors[sensor].GetLastSampleTick()) > TOF_STALE_MS;
+		r.raw = Sensors[sensor].GetDistance();
+		r.sig = Sensors[sensor].GetResult().SigPerSPAD;
+		r.filtered = (!r.stale && r.sig > SigPerSPADThreshold[sensor])? r.raw: DETECTION_DISTANCE + 100;
+	}
 	return distances;
 }
 
-bool isOpponentDetected(void)
+bool MiniNeuroV2::isOpponentDetected(void)
 {
 	char sensor_message[128] = {0};
 	static bool was_previously_detected= false;
 	static bool was_stale[2] = {false, false};
 
 	SensorDistances_t distances = GetValidatedDistances();
-	if(distances.stale_left != was_stale[0] || distances.stale_right != was_stale[1])
+	if(distances.left.stale != was_stale[0] || distances.right.stale != was_stale[1])
 	{
-		sprintf(sensor_message, "ToF front stale: L=%u R=%u", distances.stale_left, distances.stale_right);
+		sprintf(sensor_message, "ToF front stale: L=%u R=%u", distances.left.stale, distances.right.stale);
 		logger.Log(sensor_message, LOGLEVEL_INFO);
-		was_stale[0] = distances.stale_left;
-		was_stale[1] = distances.stale_right;
+		was_stale[0] = distances.left.stale;
+		was_stale[1] = distances.right.stale;
 	}
 	// Rate-limited TRACE (TOF_TRACE_LOG_PERIOD_MS); INFO transitions below are not limited.
 	static uint32_t last_trace_tick = 0;
@@ -169,25 +79,25 @@ bool isOpponentDetected(void)
 		// 114 chars + NUL, so the 128-byte buffer cannot overrun.
 		sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\rf[0]=%u\n\rf[1]=%u\n\rs[0]=%u\n\rs[1]=%u\n\r"
 				"[2]=%u\n\rf[2]=%u\n\rs[2]=%u\n\r",
-				distances.raw_left, distances.raw_right,
-				distances.left, distances.right,
-				distances.sig_left, distances.sig_right,
-				distances.raw_rear, distances.rear, distances.sig_rear);
+				distances.left.raw, distances.right.raw,
+				distances.left.filtered, distances.right.filtered,
+				distances.left.sig, distances.right.sig,
+				distances.rear.raw, distances.rear.filtered, distances.rear.sig);
 		logger.Log(sensor_message,LOGLEVEL_TRACE);
 	}
 #ifdef DEBUG_SCREEN
-	sprintf(sensor_message, "L=%u  ", distances.left);
+	sprintf(sensor_message, "L=%u  ", distances.left.filtered);
 	StatsBox[0].printstat(sensor_message, "L");
 
 
-	sprintf(sensor_message, "P=%u  ", distances.right);
+	sprintf(sensor_message, "P=%u  ", distances.right.filtered);
 	StatsBox[0].printstat(sensor_message, "P");
 
-	sprintf(sensor_message, "T=%u  ", distances.raw_rear);
+	sprintf(sensor_message, "T=%u  ", distances.rear.raw);
 	StatsBox[0].printstat(sensor_message, "T");
 #endif
-	sensor_detected_item[0] = distances.left < DETECTION_DISTANCE;
-	sensor_detected_item[1] = distances.right < DETECTION_DISTANCE;
+	sensor_detected_item[0] = distances.left.filtered < DETECTION_DISTANCE;
+	sensor_detected_item[1] = distances.right.filtered < DETECTION_DISTANCE;
 	bool detected = sensor_detected_item[0] || sensor_detected_item[1];
 
 	if(was_previously_detected != detected){
@@ -204,13 +114,15 @@ bool isOpponentDetected(void)
 	return detected;
 }
 
-const char* StateName(State_t state)
+const char* neuro_v2::StateName(State_t state)
 {
 	static const char *names[] = {"CALIBRATE", "WAIT_FOR_START", "FIGHT", "OUT_OF_BOUNDS", "LOOK_FOR_OPPONENT_1", "LOOK_FOR_OPPONENT_2", "NEURAL"};
-	return (state <= NEURAL)? names[state] : "UNKNOWN";
+	// One name per state before NOP: a state added to State_t without a name does not compile.
+	static_assert(std::size(names) == static_cast<std::size_t>(NOP), "StateName: one name per state before NOP");
+	return (static_cast<std::size_t>(state) < std::size(names))? names[state] : "UNKNOWN";
 }
 
-State_t CheckStartCondition(Robot *obj, State_t eFSM_state)
+State_t MiniNeuroV2::CheckStartCondition(State_t eFSM_state)
 {
 	static bool start_condition_prev = false;
 	State_t retval = eFSM_state;
@@ -232,7 +144,7 @@ State_t CheckStartCondition(Robot *obj, State_t eFSM_state)
 				display.println("State: Disabled");
 			}
 #endif
-			obj->SetFlashPeriodMS(1000);
+			this->SetFlashPeriodMS(1000);
 			MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 			MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 			retval= WAIT_FOR_START;
@@ -259,13 +171,15 @@ State_t CheckStartCondition(Robot *obj, State_t eFSM_state)
 
 
 
+namespace neuro_v2 {
+
 // Relay (Astrom-Hagglund) auto-tune for the heading PID: drives the motors in a
 // bang-bang pattern around the current heading to force a sustained oscillation,
 // measures its period/amplitude, and derives Kp/Ki/Kd via the standard Ziegler-Nichols
 // relay formulas. Runs for at most maxDurationMs, so it always returns in finite time.
 // The robot WILL spin in place while this runs - only call it with the robot on a stand
 // or clear of obstacles, never during a match.
-void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
+void PID_CalibrateHeading(HeadingPID& pid, uint32_t maxDurationMs, float relayPower)
 {
 	const uint8_t targetHalfCycles = 10; // stop early once enough oscillations are captured
 	float targetAngle = (float)IMU.GetAngularOrientationForAxis(2);
@@ -351,34 +265,36 @@ void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
 	float tunedKp = 0.6f * Ku;
 	float tunedKi = 1.2f * Ku / Tu;   // Ti = Tu/2  ->  Ki = Kp/Ti = 2*Kp/Tu
 	float tunedKd = 0.075f * Ku * Tu; // Td = Tu/8  ->  Kd = Kp*Td = Kp*Tu/8
-	HeadingController.SetGains(tunedKp, tunedKi, tunedKd);
+	pid.SetGains(tunedKp, tunedKi, tunedKd);
 	char string[100] = {0};
 	sprintf(string, "\n\rP= %f\n\rI= %f\n\rD= %f\n\r", tunedKp, tunedKi, tunedKd);
 	logger.Log(string, LOGLEVEL_TRACE);
 }
 
-void FightAlgorithm(Robot *obj)
+} // namespace neuro_v2
+
+void MiniNeuroV2::FightAlgorithm(void)
 {
 	static bool forward_det;
 	SensorDistances_t distances = GetValidatedDistances();
-	uint16_t sensor_left = distances.left;
-	uint16_t sensor_right = distances.right;
+	uint16_t sensor_left = distances.left.filtered;
+	uint16_t sensor_right = distances.right.filtered;
 	// detected
-	obj->SetFlashPeriodMS(100);
+	this->SetFlashPeriodMS(100);
 	bool fwd_det_tmp = (abs(sensor_left - sensor_right) < Neuro2Params.forward_band_mm)? true:false;
 	// Latch the target heading at the moment the forward-attack decision flips, then hold
 	// it for the whole charge so the PID (run by PeriodicCheckCall) steers the robot
 	// straight at where it saw the opponent.
 	if(fwd_det_tmp != forward_det)
 	{
-		obj->SetTargetHeading((float)IMU.GetAngularOrientationForAxis(2));
+		this->SetTargetHeading((float)IMU.GetAngularOrientationForAxis(2));
 	}
 	forward_det = fwd_det_tmp;
 	const char *fight_move;
 	if (forward_det){
 		// Positive error (target > current yaw) needs a CCW turn: left slower, right faster
 		// (same convention the relay autotuner and LookForOpponent2 use).
-		float heading_correction = obj->GetHeadingCorrection(1-Neuro2Params.attack_speed);
+		float heading_correction = this->GetHeadingCorrection(1-Neuro2Params.attack_speed);
 		Neuro2SetMotors(Neuro2Params.attack_speed - heading_correction, Neuro2Params.attack_speed + heading_correction);
 		fight_move = "ATTACK FWD";
 	}
@@ -412,7 +328,9 @@ void FightAlgorithm(Robot *obj)
 #define SEARCH2_TURN_DEG  (Neuro2Params.search2_turn_deg)
 enum {SEARCH2_BACK = MANOEUVRE_IDLE + 1, SEARCH2_TURN};
 
-State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
+namespace neuro_v2 {
+
+State_t LookForOpponent2(Robot *obj, Manoeuvre *m, bool opponent_detected)
 {
 	obj->SetFlashPeriodMS(500);
 	switch(m->phase)
@@ -422,13 +340,13 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 			{
 				return FIGHT;
 			}
-			if(isOutOfBounds())
+			if(obj->isOutOfBounds())
 			{
 				char search_message[100];
 				sprintf(search_message, "Search2: edge hit, backing off, rotate %s", (lastDetOnLeft)? "LEFT" : "RIGHT");
 				logger.Log(search_message, LOGLEVEL_INFO);
 				Neuro2SetMotors(-Neuro2Params.search2_speed, -Neuro2Params.search2_speed);
-				ManoeuvreEnterPhase(m, SEARCH2_BACK, SEARCH2_BACK_MS);
+				m->EnterPhase(SEARCH2_BACK, SEARCH2_BACK_MS);
 			}
 			else
 			{
@@ -436,21 +354,21 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 			}
 			break;
 		case SEARCH2_BACK:
-			if(ManoeuvrePhaseDone(m))
+			if(m->PhaseDone())
 			{
 				m->start_heading = (float)IMU.GetAngularOrientationForAxis(2);
 				if(lastDetOnLeft)
 					Neuro2SetMotors(-Neuro2Params.search2_speed, Neuro2Params.search2_speed);
 				else
 					Neuro2SetMotors(Neuro2Params.search2_speed, -Neuro2Params.search2_speed);
-				ManoeuvreEnterPhase(m, SEARCH2_TURN, ROTATION_TIMEOUT);
+				m->EnterPhase(SEARCH2_TURN, ROTATION_TIMEOUT);
 			}
 			break;
 		case SEARCH2_TURN:
 		{
 			if(opponent_detected)
 			{
-				ManoeuvreEnd(m);
+				m->End();
 				if(lastDetOnLeft)
 					Neuro2SetMotors(Neuro2Params.search2_speed, -Neuro2Params.search2_speed);
 				else
@@ -462,22 +380,24 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 			if(turned >= SEARCH2_TURN_DEG)
 			{
 				Neuro2SetMotors(Neuro2Params.search2_speed, Neuro2Params.search2_speed);
-				ManoeuvreEnd(m);
+				m->End();
 			}
-			else if(ManoeuvrePhaseDone(m))
+			else if(m->PhaseDone())
 			{
-				ManoeuvreEnd(m);   // next step drives forward
+				m->End();   // next step drives forward
 			}
 		}
 		break;
 		default:
-			ManoeuvreEnd(m);
+			m->End();
 			break;
 	}
 	return LOOK_FOR_OPPONENT_2;
 }
 
-void Calibrate(void)
+} // namespace neuro_v2
+
+void MiniNeuroV2::Calibrate(void)
 {
 	TickType_t start_time = xTaskGetTickCount();
 	while((xTaskGetTickCount() - start_time) < NEURO_CALIBRATION_MS){
@@ -485,20 +405,20 @@ void Calibrate(void)
 		VL53L1X_Result_t result_left = Sensors[0].GetResult();
 		VL53L1X_Result_t result_right = Sensors[2].GetResult();
 		VL53L1X_Result_t result_rear = Sensors[1].GetResult();
-		maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
-		maxVal_perSPAD[1] = (maxVal_perSPAD[1] < result_right.SigPerSPAD)? result_right.SigPerSPAD: maxVal_perSPAD[1];
-		maxVal_perSPAD[2] = (maxVal_perSPAD[2] < result_rear.SigPerSPAD)? result_rear.SigPerSPAD: maxVal_perSPAD[2];
+		SigPerSPADThreshold[0] = (SigPerSPADThreshold[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: SigPerSPADThreshold[0];
+		SigPerSPADThreshold[2] = (SigPerSPADThreshold[2] < result_right.SigPerSPAD)? result_right.SigPerSPAD: SigPerSPADThreshold[2];
+		SigPerSPADThreshold[1] = (SigPerSPADThreshold[1] < result_rear.SigPerSPAD)? result_rear.SigPerSPAD: SigPerSPADThreshold[1];
 	}
 	// Threshold = gain * max seen, capped. Computed in 32 bits: V4 stores max*2 straight into
 	// the uint16_t, which wraps (e.g. 33000 -> 464) when something strong is close at boot.
-	for (int side = 0; side < 3; side++)
+	for (std::size_t sensor = 0; sensor < std::size(SigPerSPADThreshold); sensor++)
 	{
-		uint32_t threshold = (uint32_t)lround(maxVal_perSPAD[side] * Neuro2Params.sig_threshold_gain);
-		maxVal_perSPAD[side] = (uint16_t)((threshold < MAX_SIG_PER_SPAD) ? threshold : MAX_SIG_PER_SPAD);
+		uint32_t threshold = (uint32_t)lround(SigPerSPADThreshold[sensor] * Neuro2Params.sig_threshold_gain);
+		SigPerSPADThreshold[sensor] = (uint16_t)((threshold < MAX_SIG_PER_SPAD) ? threshold : MAX_SIG_PER_SPAD);
 	}
 
 	char calib_message[100];
-	sprintf(calib_message, "Calib SigPerSPAD thresholds L=%u R=%u B=%u", maxVal_perSPAD[0], maxVal_perSPAD[1], maxVal_perSPAD[2]);
+	sprintf(calib_message, "Calib SigPerSPAD thresholds L=%u R=%u B=%u", SigPerSPADThreshold[0], SigPerSPADThreshold[2], SigPerSPADThreshold[1]);
 	logger.Log(calib_message, LOGLEVEL_INFO);
 	logger.Log("--- CALIBRATION Completed ---", LOGLEVEL_INFO);
 #ifdef DEBUG_SCREEN
@@ -576,17 +496,16 @@ static float Clip1(float x)
 	return (x > 1.0f)? 1.0f : (x < -1.0f)? -1.0f : x;
 }
 
-void Neuro2UpdateMemory(void)
+void Neuro2UpdateMemory(const SensorDistances_t& d)
 {
-	SensorDistances_t d = GetValidatedDistances();
 	const float range[3] = {
-		GatedRange(d.raw_left, d.sig_left, maxVal_perSPAD[0], d.stale_left),
-		GatedRange(d.raw_right, d.sig_right, maxVal_perSPAD[1], d.stale_right),
-		GatedRange(d.raw_rear, d.sig_rear, maxVal_perSPAD[2], d.stale_rear)};
-	s_stale[0] = d.stale_left;
-	s_stale[1] = d.stale_right;
-	s_stale[2] = d.stale_rear;
-	const bool fwd = abs((int)d.left - (int)d.right) < (int)Neuro2Params.forward_band_mm;
+		GatedRange(d.left.raw, d.left.sig, SigPerSPADThreshold[0], d.left.stale),
+		GatedRange(d.right.raw, d.right.sig, SigPerSPADThreshold[2], d.right.stale),
+		GatedRange(d.rear.raw, d.rear.sig, SigPerSPADThreshold[1], d.rear.stale)};
+	s_stale[0] = d.left.stale;
+	s_stale[1] = d.right.stale;
+	s_stale[2] = d.rear.stale;
+	const bool fwd = abs((int)d.left.filtered - (int)d.right.filtered) < (int)Neuro2Params.forward_band_mm;
 	if (!s_fwd_known || fwd != s_fwd)
 	{
 		s_fwd_heading = (float)IMU.GetAngularOrientationForAxis(2);

@@ -1,7 +1,7 @@
 /*
  * MiniTomiV4Helpers.cpp
  *
- * Implementations of the display helpers, heading-PID relay auto-tuner, and movement
+ * Implementations of the heading-PID relay auto-tuner, sensing/FSM helpers and movement
  * sub-routines split out of miniTomiV4.cpp to keep the V4 strategy file readable.
  * See MiniTomiV4Helpers.hpp for the shared declarations. The whole unit is compiled
  * only for the ROBOT_MT_V4 build.
@@ -15,140 +15,25 @@
 #include <string.h>
 #ifdef ROBOT_MT_V4
 #include "MiniTomiV4Helpers.hpp"
-
-// Which line sensor(s) fired on the most recent out-of-bounds event; latched here
-// because the pins may already read clear by the time the OOB handler logs them.
-volatile bool lineDetOnLeft = false;
-volatile bool lineDetOnRight = false;
+using namespace mt_v4;   // State_t, StateName, lastDetOnLeft, ... (MiniTomiV4Helpers.hpp)
 
 // Latest per-sensor "opponent within DETECTION_DISTANCE" flags; only isOpponentDetected()
 // reads/writes them, so they stay private to this TU.
 static bool sensor_detected_item[2] = {false, false};
 
-#ifdef DEBUG_SCREEN
-void _init_pg_draw_boundry(void)
-{
-	display.drawRect(0, 9, 128, 10, SSD1327_WHITE);
-}
-
-void _init_pg_draw_percentage(int16_t percentage)
-{
-	static int16_t drawn_bar = 0;
-	int16_t width = (percentage * 1.24) - drawn_bar;
-	display.fillRect(drawn_bar + 2, 11, width, 6, SSD1327_WHITE);
-}
-
-void _init_log_print_message(const char* str)
-{
-	static int16_t CurY = 20;
-	display.setCursor(0, CurY);
-	display.println(str);
-	CurY = display.getCursorY();
-}
-
-void _init_display(void)
-{
-	if (!display.begin(OLED_I2C_ADDRESS))
-	{
-		logger.Log("--- Display begin() FAILED ---", LOGLEVEL_INFO);
-	}
-
-	DisplayThread.run();
-	display.clearDisplay();
-	display.setTextSize(1);
-	display.setTextColor(SSD1327_WHITE, SSD1327_BLACK);
-	display.setCursor(0, 0);
-}
-
-void _stat_draw_bounding_boxes()
-{
-	display.drawRect(0, 9, 128, 128-9, SSD1327_WHITE);
-	display.drawFastVLine(63, 9, (128-9),SSD1327_WHITE);
-	display.drawFastHLine(0, 63, 128,SSD1327_WHITE);
-}
-#endif
-bool isOutOfBounds(void)
-{
-	bool left = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin);
-	bool right = !HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
-	if(left || right)
-	{
-		lineDetOnLeft = left;
-		lineDetOnRight = right;
-	}
-	return (left || right);
-}
-
-void ManoeuvreEnterPhase(Manoeuvre_t *m, uint8_t phase, uint32_t duration_ms)
-{
-	m->active = true;
-	m->phase = phase;
-	m->deadline = xTaskGetTickCount() + pdMS_TO_TICKS(duration_ms);
-}
-
-void ManoeuvreEnd(Manoeuvre_t *m)
-{
-	m->active = false;
-	m->phase = MANOEUVRE_IDLE;
-}
-
-bool ManoeuvrePhaseDone(const Manoeuvre_t *m)
-{
-	// Signed difference: correct across tick-counter wrap.
-	return m->active && ((int32_t)(xTaskGetTickCount() - m->deadline) >= 0);
-}
-
-TickType_t ManoeuvreWaitTicks(const Manoeuvre_t *m, TickType_t max_ticks)
-{
-	if(!m->active)
-	{
-		return max_ticks;
-	}
-	int32_t left = (int32_t)(m->deadline - xTaskGetTickCount());
-	if(left <= 0)
-	{
-		return 0;
-	}
-	return ((TickType_t)left < max_ticks)? (TickType_t)left : max_ticks;
-}
-
-// Reads both front sensors and replaces readings whose signal is weaker than the
-// calibrated threshold with an out-of-detection-range value, so callers only act
-// on distances the calibration deems trustworthy. Stale sensors are treated the same.
-SensorDistances_t GetValidatedDistances(void)
-{
-	SensorDistances_t distances;
-	// Signed age: an ISR may store a tick newer than `now` between the two reads (B16).
-	uint32_t now = HAL_GetTick();
-	distances.stale_left = (int32_t)(now - Sensors[0].GetLastSampleTick()) > TOF_STALE_MS;
-	distances.stale_right = (int32_t)(now - Sensors[2].GetLastSampleTick()) > TOF_STALE_MS;
-	distances.raw_left = Sensors[0].GetDistance();
-	distances.raw_rear = Sensors[1].GetDistance();
-	distances.raw_right = Sensors[2].GetDistance();
-	VL53L1X_Result_t result_left = Sensors[0].GetResult();
-	VL53L1X_Result_t result_right = Sensors[2].GetResult();
-	distances.sig_left = result_left.SigPerSPAD;
-	distances.sig_right = result_right.SigPerSPAD;
-	distances.left = (!distances.stale_left && result_left.SigPerSPAD > maxVal_perSPAD[0])?
-			distances.raw_left: DETECTION_DISTANCE + 100;
-	distances.right = (!distances.stale_right && result_right.SigPerSPAD > maxVal_perSPAD[1])?
-			distances.raw_right: DETECTION_DISTANCE + 100;
-	return distances;
-}
-
-bool isOpponentDetected(void)
+bool MiniTomiV4::isOpponentDetected(void)
 {
 	char sensor_message[128] = {0};
 	static bool was_previously_detected= false;
 	static bool was_stale[2] = {false, false};
 
 	SensorDistances_t distances = GetValidatedDistances();
-	if(distances.stale_left != was_stale[0] || distances.stale_right != was_stale[1])
+	if(distances.left.stale != was_stale[0] || distances.right.stale != was_stale[1])
 	{
-		sprintf(sensor_message, "ToF front stale: L=%u R=%u", distances.stale_left, distances.stale_right);
+		sprintf(sensor_message, "ToF front stale: L=%u R=%u", distances.left.stale, distances.right.stale);
 		logger.Log(sensor_message, LOGLEVEL_INFO);
-		was_stale[0] = distances.stale_left;
-		was_stale[1] = distances.stale_right;
+		was_stale[0] = distances.left.stale;
+		was_stale[1] = distances.right.stale;
 	}
 	// Rate-limited TRACE (TOF_TRACE_LOG_PERIOD_MS); INFO transitions below are not limited.
 	static uint32_t last_trace_tick = 0;
@@ -162,24 +47,24 @@ bool isOpponentDetected(void)
 		// logs from before the f/s fields existed still parse the same way. Worst case
 		// (all six values 65535) is 76 chars + NUL, so the 128-byte buffer cannot overrun.
 		sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\rf[0]=%u\n\rf[1]=%u\n\rs[0]=%u\n\rs[1]=%u\n\r",
-				distances.raw_left, distances.raw_right,
-				distances.left, distances.right,
-				distances.sig_left, distances.sig_right);
+				distances.left.raw, distances.right.raw,
+				distances.left.filtered, distances.right.filtered,
+				distances.left.sig, distances.right.sig);
 		logger.Log(sensor_message,LOGLEVEL_TRACE);
 	}
 #ifdef DEBUG_SCREEN
-	sprintf(sensor_message, "L=%u  ", distances.left);
+	sprintf(sensor_message, "L=%u  ", distances.left.filtered);
 	StatsBox[0].printstat(sensor_message, "L");
 
 
-	sprintf(sensor_message, "P=%u  ", distances.right);
+	sprintf(sensor_message, "P=%u  ", distances.right.filtered);
 	StatsBox[0].printstat(sensor_message, "P");
 
-	sprintf(sensor_message, "T=%u  ", distances.raw_rear);
+	sprintf(sensor_message, "T=%u  ", distances.rear.raw);
 	StatsBox[0].printstat(sensor_message, "T");
 #endif
-	sensor_detected_item[0] = distances.left < DETECTION_DISTANCE;
-	sensor_detected_item[1] = distances.right < DETECTION_DISTANCE;
+	sensor_detected_item[0] = distances.left.filtered < DETECTION_DISTANCE;
+	sensor_detected_item[1] = distances.right.filtered < DETECTION_DISTANCE;
 	bool detected = sensor_detected_item[0] || sensor_detected_item[1];
 
 	if(was_previously_detected != detected){
@@ -196,13 +81,15 @@ bool isOpponentDetected(void)
 	return detected;
 }
 
-const char* StateName(State_t state)
+const char* mt_v4::StateName(State_t state)
 {
 	static const char *names[] = {"CALIBRATE", "WAIT_FOR_START", "FIGHT", "OUT_OF_BOUNDS", "LOOK_FOR_OPPONENT_1", "LOOK_FOR_OPPONENT_2"};
-	return (state <= LOOK_FOR_OPPONENT_2)? names[state] : "UNKNOWN";
+	// One name per state before NOP: a state added to State_t without a name does not compile.
+	static_assert(std::size(names) == static_cast<std::size_t>(NOP), "StateName: one name per state before NOP");
+	return (static_cast<std::size_t>(state) < std::size(names))? names[state] : "UNKNOWN";
 }
 
-State_t CheckStartCondition(Robot *obj, State_t eFSM_state)
+State_t MiniTomiV4::CheckStartCondition(State_t eFSM_state)
 {
 	static bool start_condition_prev = false;
 	State_t retval = eFSM_state;
@@ -224,7 +111,7 @@ State_t CheckStartCondition(Robot *obj, State_t eFSM_state)
 				display.println("State: Disabled");
 			}
 #endif
-			obj->SetFlashPeriodMS(1000);
+			this->SetFlashPeriodMS(1000);
 			MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 			MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 			retval= WAIT_FOR_START;
@@ -251,13 +138,15 @@ State_t CheckStartCondition(Robot *obj, State_t eFSM_state)
 
 
 
+namespace mt_v4 {
+
 // Relay (Astrom-Hagglund) auto-tune for the heading PID: drives the motors in a
 // bang-bang pattern around the current heading to force a sustained oscillation,
 // measures its period/amplitude, and derives Kp/Ki/Kd via the standard Ziegler-Nichols
 // relay formulas. Runs for at most maxDurationMs, so it always returns in finite time.
 // The robot WILL spin in place while this runs - only call it with the robot on a stand
 // or clear of obstacles, never during a match.
-void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
+void PID_CalibrateHeading(HeadingPID& pid, uint32_t maxDurationMs, float relayPower)
 {
 	const uint8_t targetHalfCycles = 10; // stop early once enough oscillations are captured
 	float targetAngle = (float)IMU.GetAngularOrientationForAxis(2);
@@ -343,34 +232,36 @@ void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
 	float tunedKp = 0.6f * Ku;
 	float tunedKi = 1.2f * Ku / Tu;   // Ti = Tu/2  ->  Ki = Kp/Ti = 2*Kp/Tu
 	float tunedKd = 0.075f * Ku * Tu; // Td = Tu/8  ->  Kd = Kp*Td = Kp*Tu/8
-	HeadingController.SetGains(tunedKp, tunedKi, tunedKd);
+	pid.SetGains(tunedKp, tunedKi, tunedKd);
 	char string[100] = {0};
 	sprintf(string, "\n\rP= %f\n\rI= %f\n\rD= %f\n\r", tunedKp, tunedKi, tunedKd);
 	logger.Log(string, LOGLEVEL_TRACE);
 }
 
-void FightAlgorithm(Robot *obj)
+} // namespace mt_v4
+
+void MiniTomiV4::FightAlgorithm(void)
 {
 	static bool forward_det;
 	SensorDistances_t distances = GetValidatedDistances();
-	uint16_t sensor_left = distances.left;
-	uint16_t sensor_right = distances.right;
+	uint16_t sensor_left = distances.left.filtered;
+	uint16_t sensor_right = distances.right.filtered;
 	// detected
-	obj->SetFlashPeriodMS(100);
+	this->SetFlashPeriodMS(100);
 	bool fwd_det_tmp = (abs(sensor_left - sensor_right) < 60)? true:false;
 	// Latch the target heading at the moment the forward-attack decision flips, then hold
 	// it for the whole charge so the PID (run by PeriodicCheckCall) steers the robot
 	// straight at where it saw the opponent.
 	if(fwd_det_tmp != forward_det)
 	{
-		obj->SetTargetHeading((float)IMU.GetAngularOrientationForAxis(2));
+		this->SetTargetHeading((float)IMU.GetAngularOrientationForAxis(2));
 	}
 	forward_det = fwd_det_tmp;
 	const char *fight_move;
 	if (forward_det){
 		// Positive error (target > current yaw) needs a CCW turn: left slower, right faster
 		// (same convention the relay autotuner and LookForOpponent2 use).
-		float heading_correction = obj->GetHeadingCorrection(1-FULL_SPEED);
+		float heading_correction = this->GetHeadingCorrection(1-FULL_SPEED);
 		MCInterface::SetMotorsPower(FULL_SPEED - heading_correction, FULL_SPEED + heading_correction);
 		fight_move = "ATTACK FWD";
 	}
@@ -404,7 +295,9 @@ void FightAlgorithm(Robot *obj)
 #define SEARCH2_TURN_DEG  60.0f
 enum {SEARCH2_BACK = MANOEUVRE_IDLE + 1, SEARCH2_TURN};
 
-State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
+namespace mt_v4 {
+
+State_t LookForOpponent2(Robot *obj, Manoeuvre *m, bool opponent_detected)
 {
 	obj->SetFlashPeriodMS(500);
 	switch(m->phase)
@@ -414,13 +307,13 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 			{
 				return FIGHT;
 			}
-			if(isOutOfBounds())
+			if(obj->isOutOfBounds())
 			{
 				char search_message[100];
 				sprintf(search_message, "Search2: edge hit, backing off, rotate %s", (lastDetOnLeft)? "LEFT" : "RIGHT");
 				logger.Log(search_message, LOGLEVEL_INFO);
 				MCInterface::SetMotorsPower(-MANOUVER_SPEED, -MANOUVER_SPEED);
-				ManoeuvreEnterPhase(m, SEARCH2_BACK, SEARCH2_BACK_MS);
+				m->EnterPhase(SEARCH2_BACK, SEARCH2_BACK_MS);
 			}
 			else
 			{
@@ -428,21 +321,21 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 			}
 			break;
 		case SEARCH2_BACK:
-			if(ManoeuvrePhaseDone(m))
+			if(m->PhaseDone())
 			{
 				m->start_heading = (float)IMU.GetAngularOrientationForAxis(2);
 				if(lastDetOnLeft)
 					MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
 				else
 					MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
-				ManoeuvreEnterPhase(m, SEARCH2_TURN, ROTATION_TIMEOUT);
+				m->EnterPhase(SEARCH2_TURN, ROTATION_TIMEOUT);
 			}
 			break;
 		case SEARCH2_TURN:
 		{
 			if(opponent_detected)
 			{
-				ManoeuvreEnd(m);
+				m->End();
 				if(lastDetOnLeft)
 					MCInterface::SetMotorsPower(MANOUVER_SPEED, -MANOUVER_SPEED);
 				else
@@ -454,50 +347,22 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre_t *m, bool opponent_detected)
 			if(turned >= SEARCH2_TURN_DEG)
 			{
 				MCInterface::SetMotorsPower(MANOUVER_SPEED, MANOUVER_SPEED);
-				ManoeuvreEnd(m);
+				m->End();
 			}
-			else if(ManoeuvrePhaseDone(m))
+			else if(m->PhaseDone())
 			{
-				ManoeuvreEnd(m);   // next step drives forward
+				m->End();   // next step drives forward
 			}
 		}
 		break;
 		default:
-			ManoeuvreEnd(m);
+			m->End();
 			break;
 	}
 	return LOOK_FOR_OPPONENT_2;
 }
 
-void Calibrate(void)
-{
-	TickType_t start_time = xTaskGetTickCount();
-	while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
-		xEventGroupWaitBits(ToF_Sensor::GetEventHandle(), TOF_EVENT_MASK, pdTRUE, pdTRUE, 30);
-		VL53L1X_Result_t result_left = Sensors[0].GetResult();
-		VL53L1X_Result_t result_right = Sensors[2].GetResult();
-		maxVal_perSPAD[0] = (maxVal_perSPAD[0] < result_left.SigPerSPAD)? result_left.SigPerSPAD: maxVal_perSPAD[0];
-		maxVal_perSPAD[1] = (maxVal_perSPAD[1] < result_right.SigPerSPAD)? result_right.SigPerSPAD: maxVal_perSPAD[1];
-	}
-	maxVal_perSPAD[0] = maxVal_perSPAD[0]*2;
-	maxVal_perSPAD[1] = maxVal_perSPAD[1]*2;
-	maxVal_perSPAD[0] = (maxVal_perSPAD[0] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[0]:MAX_SIG_PER_SPAD;
-	maxVal_perSPAD[1] = (maxVal_perSPAD[1] < MAX_SIG_PER_SPAD)? maxVal_perSPAD[1]:MAX_SIG_PER_SPAD;
+} // namespace mt_v4
 
-	char calib_message[100];
-	sprintf(calib_message, "Calib SigPerSPAD thresholds L=%u R=%u", maxVal_perSPAD[0], maxVal_perSPAD[1]);
-	logger.Log(calib_message, LOGLEVEL_INFO);
-	logger.Log("--- CALIBRATION Completed ---", LOGLEVEL_INFO);
-#ifdef DEBUG_SCREEN
-	display.clearDisplay();
-	_stat_draw_bounding_boxes();
-	StatsBox[0].draw_all();
-	StatsBox[1].draw_all();
-	StatsBox[2].draw_all();
-	StatsBox[3].draw_all();
-	StatsBox[3].draw_glyph();
-	StatsBox[1].print_wrapped("AAAAA!!! Napierdalać!!!");
-#endif
-}
 
 #endif

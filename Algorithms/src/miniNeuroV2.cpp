@@ -37,21 +37,12 @@
 #include "Adafruit_SSD1327.h"
 #include "osapi_mortal_thread.h"
 #include "semphr.h"
-// Shared helpers/objects split out of this file (display drawing, boundingBox,
-// PID_CalibrateHeading, FightAlgorithm, LookForOpponent2, Calibrate, and the
+// Shared helpers/objects split out of this file (PID_CalibrateHeading,
+// FightAlgorithm, LookForOpponent2, Calibrate, and the
 // file-scope objects those share). Also maps the tuning names used below
 // (DETECTION_DISTANCE, ROTATION_TIMEOUT, MAX_SIG_PER_SPAD...) onto Neuro2Params.
 #include "MiniNeuroV2Helpers.hpp"
-
-// Qwiic/STEMMA QT SSD1327 module - I2C only (no reset line broken out on the
-// Qwiic connector), address confirmed on this board's silkscreen/datasheet.
-#define OLED_WIDTH 128
-#define OLED_HEIGHT 128
-// The OLED dirty-tracking grid (GRAYOLED_WINDOW_COLS x GRAYOLED_WINDOW_ROWS) is configured via
-// build flags in CMakePresets.json (the MiniTomiV4 preset's CUBE_CMAKE_CXX_FLAGS), NOT here:
-// the SSD1327/GrayOLED driver is a separate translation unit and never sees #defines from this
-// file. Default (no flags) is 1x1 = one whole-screen window; this build uses 2x2 = 4 windows.
-
+using namespace neuro_v2;   // State_t, StateName, lastDetOnLeft, ... (MiniNeuroV2Helpers.hpp)
 
 #define INIT_TIMEOUT_MS  6000
 
@@ -74,90 +65,40 @@ enum {OOB_STOP = MANOEUVRE_IDLE + 1, OOB_BACK, OOB_TURN};
 // The tuning parameters themselves live in MiniNeuroV2Params.hpp; MiniNeuroV2Helpers.hpp
 // maps the V4 names onto them (shared with the helpers TU).
 
-#define HEADING_PID_KP 0.03f
-#define HEADING_PID_KI 0.04f
-#define HEADING_PID_KD 0.00065f
-
-#define HEADING_PID_OUTPUT_LIMIT 0.75f
-
-// Near a 180-deg error the shortest turn direction is ambiguous and yaw noise flips the
-// wrapped error between +-180 every sample. Within this band of the antipode the PID
-// sticks to its previous turn direction; outside it the plain shortest-way error rules,
-// so the worst case is turning (180 + this) deg instead of (180 - this).
-#define HEADING_ANTIPODE_HYST_DEG 10.0f
-
 #define LED2_ON HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET)
 #define LED2_OFF HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET)
 
-extern TIM_HandleTypeDef htim3;
-extern TIM_HandleTypeDef htim4;
-extern I2C_HandleTypeDef hi2c1;
-extern SPI_HandleTypeDef hspi2;
-extern CommManager MainCommManager;
-
-uint32_t means[4] = {0};
-uint16_t sens;
-//config
-L9960T MOTOR_CONTROLLERS[] = {
-		[MOTOR_LEFT] = L9960T(MOTOR_LEFT, &hspi2, &MainCommManager, LEFT_MOTOR_PWM_CHANNEL, LEFT_MOTOR_TIMER_PTR, LEFT_MOTOR_INVERTED_PWM, true, false),
-		[MOTOR_RIGHT] = L9960T(MOTOR_RIGHT, &hspi2, &MainCommManager, RIGHT_MOTOR_PWM_CHANNEL, RIGHT_MOTOR_TIMER_PTR, RIGHT_MOTOR_INVERTED_PWM, true, false)};
+// Hardware objects (MOTOR_CONTROLLERS, IMU, Sensors, logger, display, DisplayThread):
+// RobotHardware.{hpp,cpp}.
 
 
-LSM6DSO IMU = LSM6DSO(&MainCommManager, &hspi2);
+volatile bool neuro_v2::lastDetOnLeft = false;
 
-#ifdef DEBUG_SCREEN
-// No reset pin wired (Qwiic connector is power+I2C only) - matches Adafruit_SSD1327's
-// own default of no reset pin for I2C-only wiring.
-Adafruit_SSD1327 display = Adafruit_SSD1327(OLED_WIDTH, OLED_HEIGHT, &Wire);
-
-// display.display() is flushed off the Robot task by DisplayThread; see DisplayMortalThread
-// in MiniTomiV4Helpers.hpp for why the (100ms+) I2C flush is isolated onto its own task.
-// RequestUpdate() is the non-blocking entry point other code should call.
-DisplayMortalThread DisplayThread;
-#endif
-VL53L1X Sensors[] = {
-		VL53L1X(FRONT_LEFT, &MainCommManager, &hi2c1),
-		VL53L1X(BACK, &MainCommManager, &hi2c1),
-		VL53L1X(FRONT_RIGHT, &MainCommManager, &hi2c1)
-}; //, VL53L1X(FRONT, &MainCommManager, &hi2c1)};
-
-volatile bool lastDetOnLeft = false;
-DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
-
-// Display drawing helpers (_init_*/_stat_draw_bounding_boxes) and the boundingBox class
-// live in MiniNeuroV2Helpers.{hpp,cpp}.
+// Display drawing helpers (_init_*/_stat_draw_bounding_boxes), the boundingBox class and
+// StatsBox are shared by all strategies: RobotHardware.{hpp,cpp}, DEBUG_SCREEN only.
 
 /*
  * Algorithm
  */
-Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
-{
-}
-
-volatile uint16_t maxVal_perSPAD[3] = {2000, 2000, 2000};
-
-// Heading-hold PID; PID_CalibrateHeading() may overwrite the gains at runtime.
-HeadingPID HeadingController = HeadingPID(HEADING_PID_KP, HEADING_PID_KI, HEADING_PID_KD,
-		HEADING_PID_OUTPUT_LIMIT, HEADING_ANTIPODE_HYST_DEG);
-
-boundingBox StatsBox[4] = {boundingBox(0, "TOF"), boundingBox(1, "Gyro"),
-	boundingBox(2, "Strat"), boundingBox(3, "misc")};
-
 // OUT_OF_BOUNDS escape turn: towards the last detection (V4), or with oob_turn_mode = 1
 // away from the line sensor that fired when only one of them did.
-static bool OobTurnLeft(void)
+bool MiniNeuroV2::OobTurnLeft(void) const
 {
-	if(Neuro2Params.oob_turn_mode >= 0.5 && (lineDetOnLeft != lineDetOnRight))
+	if(Neuro2Params.oob_turn_mode >= 0.5 && (LineDetOnLeft() != LineDetOnRight()))
 	{
-		return lineDetOnRight;
+		return LineDetOnRight();
 	}
 	return lastDetOnLeft;
 }
 
-void Robot::begin(void)
+void MiniNeuroV2::begin(void)
 {
-	// Gains from the parameters (the constructor used the V4 constants above).
-	HeadingController.SetGains((float)Neuro2Params.pid_kp, (float)Neuro2Params.pid_ki, (float)Neuro2Params.pid_kd);
+	// SigPerSPAD thresholds until Calibrate() sets them (RobotHardware.hpp).
+	for (auto& threshold : SigPerSPADThreshold){
+		threshold = 2000;
+	}
+	// Gains from the parameters (Robot's constructor used its default constants, Algo.hpp).
+	heading_pid.SetGains((float)Neuro2Params.pid_kp, (float)Neuro2Params.pid_ki, (float)Neuro2Params.pid_kd);
 	was_running = true;
 	flash_period_ms = 100;
 	// HAL_StatusTypeDef imuret;
@@ -252,44 +193,30 @@ void Robot::begin(void)
 	this->setPriority(ROBOT_RUN_PRIORITY);
 }
 
-void prepare_sensor_data(char *pData, VL53L1X Sensors[])
-{
-}
 
 
-void Robot::SetTargetHeading(float targetAngleDeg){
-	set_angle = targetAngleDeg;
-	HeadingController.SetTarget(targetAngleDeg);
-}
+// neuro_v2::PID_CalibrateHeading() (heading-PID relay auto-tune) lives in MiniNeuroV2Helpers.cpp;
+// call it as neuro_v2::PID_CalibrateHeading(heading_pid, ...).
 
-// PID_CalibrateHeading() (heading-PID relay auto-tune) lives in MiniNeuroV2Helpers.cpp.
-
-// isOutOfBounds(), GetValidatedDistances(), isOpponentDetected(), StateName() and
-// CheckStartCondition() (plus the lineDetOnLeft/lineDetOnRight edge latches, the
+// GetValidatedDistances(), isOpponentDetected(), StateName() and
+// CheckStartCondition() (plus the
 // FightAlgorithm/LookForOpponent2/Calibrate sub-routines and the network side) live in
 // MiniNeuroV2Helpers.cpp.
 
-void Robot::SetFlashPeriodMS(uint16_t flashPeriod)
-{
-	this->flash_period_ms = flashPeriod;
-}
-
-UBaseType_t heap_min_size;
-
-void Robot::loop(void)
+void MiniNeuroV2::loop(void)
 {
 	static State_t eFSM_state = CALIBRATE;
 	static bool direction_ack = false;
 	static TickType_t last_detection_tick = 0;
 	static bool opponent_detected = false;
-	static Manoeuvre_t manoeuvre = {};
+	static Manoeuvre manoeuvre;
 	static State_t stepped_state = NOP;   // state handled by the previous switch pass
 	static bool run_again = false;
 
 	// Single wait point: any ToF sample, a new line detection, the manoeuvre phase
 	// deadline or the timeout. A state change in the previous pass skips the wait.
 	TickType_t wait_ticks = run_again ? 0 :
-			ManoeuvreWaitTicks(&manoeuvre, pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
+			manoeuvre.WaitTicks(pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
 	EventBits_t events = 0;
 	EventGroupHandle_t tof_events = ToF_Sensor::GetEventHandle();
 	if(tof_events != NULL)
@@ -314,11 +241,11 @@ void Robot::loop(void)
 		opponent_detected = isOpponentDetected();
 	}
 	// Network inputs: ToF history and detection memory, on every pass (both modes).
-	Neuro2UpdateMemory();
+	Neuro2UpdateMemory(GetValidatedDistances());
 	const bool use_net = Neuro2Params.policy_mode >= 0.5;
 
 	const State_t state_before_start_check = eFSM_state;
-	eFSM_state = CheckStartCondition(this, eFSM_state);
+	eFSM_state = CheckStartCondition(eFSM_state);
 	if(state_before_start_check == WAIT_FOR_START && eFSM_state == FIGHT)
 	{
 		Neuro2MatchStarted();
@@ -368,7 +295,7 @@ void Robot::loop(void)
 	stepped_state = eFSM_state;
 	if(state_entry)
 	{
-		ManoeuvreEnd(&manoeuvre);
+		manoeuvre.End();
 		LED2_OFF;
 	}
 	switch(eFSM_state)
@@ -418,7 +345,7 @@ void Robot::loop(void)
 			}
 			else
 			{
-				FightAlgorithm(this);
+				FightAlgorithm();
 			}
 			//Then check OOB condition
 			if(isOutOfBounds())
@@ -434,30 +361,30 @@ void Robot::loop(void)
 			{
 				LED2_ON;
 				Neuro2SetMotors(0, 0);
-				ManoeuvreEnterPhase(&manoeuvre, OOB_STOP, OOB_STOP_MS);
+				manoeuvre.EnterPhase(OOB_STOP, OOB_STOP_MS);
 				char oob_message[100];
 				sprintf(oob_message, " Out Of Bounds: line %s%s, escape turn %s",
-						(lineDetOnLeft)? "L" : "", (lineDetOnRight)? "R" : "",
+						(LineDetOnLeft())? "L" : "", (LineDetOnRight())? "R" : "",
 						(OobTurnLeft())? "LEFT" : "RIGHT");
 				logger.Log(oob_message, LOGLEVEL_INFO);
 			}
-			else if(ManoeuvrePhaseDone(&manoeuvre))
+			else if(manoeuvre.PhaseDone())
 			{
 				switch(manoeuvre.phase)
 				{
 					case OOB_STOP:
 						Neuro2SetMotors(-Neuro2Params.oob_back_speed, -Neuro2Params.oob_back_speed);
-						ManoeuvreEnterPhase(&manoeuvre, OOB_BACK, OOB_BACK_MS);
+						manoeuvre.EnterPhase(OOB_BACK, OOB_BACK_MS);
 						break;
 					case OOB_BACK:
 						if(OobTurnLeft())
 							Neuro2SetMotors(-Neuro2Params.oob_turn_speed, Neuro2Params.oob_turn_speed);
 						else
 							Neuro2SetMotors(Neuro2Params.oob_turn_speed, -Neuro2Params.oob_turn_speed);
-						ManoeuvreEnterPhase(&manoeuvre, OOB_TURN, OOB_TURN_MS);
+						manoeuvre.EnterPhase(OOB_TURN, OOB_TURN_MS);
 						break;
 					default:   // OOB_TURN done
-						ManoeuvreEnd(&manoeuvre);
+						manoeuvre.End();
 						if(opponent_detected)
 						{
 							eFSM_state = FIGHT;
@@ -504,7 +431,7 @@ void Robot::loop(void)
 		break;
 		case LOOK_FOR_OPPONENT_2:
 		{
-			eFSM_state = LookForOpponent2(this, &manoeuvre, opponent_detected);
+			eFSM_state = neuro_v2::LookForOpponent2(this, &manoeuvre, opponent_detected);
 		}
 		break;
 		case NEURAL:
@@ -542,44 +469,14 @@ void Robot::loop(void)
 	}
 }
 
-void Robot::end(void)
+void MiniNeuroV2::end(void)
 {
 //		Error_Handler();
 // Facilitate reset
 }
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-//	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_SET);
-	if(ToF_Sensor::CheckInitializationCplt()){
-		if (GPIO_Pin == TOF_INT4_Pin)
-		{
-			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
-		}
-		if(GPIO_Pin == TOF_INT3_Pin){
-			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
-		}
-		if(GPIO_Pin == TOF_INT5_Pin){
-			ToF_Sensor::EXTI_Callback_func(GPIO_Pin);
-		}
-	}
-	if(GPIO_Pin == IMU_INT1_Pin || GPIO_Pin == IMU_INT2_Pin){
-		IMU.InterruptCallback(GPIO_Pin);
-	}
-//	HAL_GPIO_WritePin(LED0_GPIO_Port, LED0_Pin, GPIO_PIN_RESET);
-}
-
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
-{
-	if(htim->Instance == TIM4){
-		if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
-			MOTOR_CONTROLLERS[MOTOR_LEFT].SoftPWMCB_pulse();
-		else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
-			MOTOR_CONTROLLERS[MOTOR_RIGHT].SoftPWMCB_pulse();
-	}
-}
-float currentAngle = 0;
-void Robot::PeriodicCheckCall(void)
+// HAL_GPIO_EXTI_Callback() and HAL_TIM_PWM_PulseFinishedCallback(): RobotHardware.cpp.
+void MiniNeuroV2::PeriodicCheckCall(void)
 {
 	static uint8_t call_count = 0;
 	static uint16_t flash_counter = flash_period_ms/2;
@@ -588,8 +485,6 @@ void Robot::PeriodicCheckCall(void)
 	static uint8_t diver = 0;
 	static uint8_t reset_counter = 0;
 
-	UNUSED(heap_min_size);
-	currentAngle = (float)IMU.GetAngularOrientationForAxis(2);
 	if(current_fc != flash_period_ms)
 	{
 		flash_counter = flash_period_ms/2;
@@ -664,8 +559,7 @@ void Robot::PeriodicCheckCall(void)
 
 	// New line detection wakes Robot::loop() without waiting for the next ToF sample.
 	static bool line_prev = false;
-	bool line_now = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin) ||
-			!HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
+	bool line_now = LineSensors.Read() != 0;
 	EventGroupHandle_t tof_events = ToF_Sensor::GetEventHandle();
 	if(line_now && !line_prev && (tof_events != NULL))
 	{
@@ -674,14 +568,19 @@ void Robot::PeriodicCheckCall(void)
 	line_prev = line_now;
 
 // PID calculations
-	this->power_correction = HeadingController.Update((float)IMU.GetAngularOrientationForAxis(2));
+	UpdateHeadingCorrection((float)IMU.GetAngularOrientationForAxis(2));
 // Heap check
 	
 }
 
-void Robot::PeriodCB(void)
+void MiniNeuroV2::PeriodCB(void)
 {
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SoftPWMCB_period();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].SoftPWMCB_period();
 }
+Robot* CreateMiniNeuroV2(void)
+{
+	return new MiniNeuroV2();
+}
+
 #endif

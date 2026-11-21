@@ -30,22 +30,9 @@
 
 #define MAX_SIG_PER_SPAD	8000
 
-#define HEADING_PID_KP 0.03f
-#define HEADING_PID_KI 0.04f
-#define HEADING_PID_KD 0.00065f
-
-#define HEADING_PID_OUTPUT_LIMIT 0.75f
-
-
 // Errors smaller than this are treated as zero, so sensor noise / motor response lag
 // doesn't make the robot hunt back and forth for a negligible heading difference.
 #define HEADING_PID_DEADBAND_DEG 15.0f
-
-// Near a 180-deg error the shortest turn direction is ambiguous and yaw noise flips the
-// wrapped error between +-180 every sample. Within this band of the antipode the PID
-// sticks to its previous turn direction; outside it the plain shortest-way error rules,
-// so the worst case is turning (180 + this) deg instead of (180 - this).
-#define HEADING_ANTIPODE_HYST_DEG 10.0f
 
 #define LED2_ON HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET)
 #define LED2_OFF HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET)
@@ -86,20 +73,32 @@ static DirtyLogger logger = DirtyLogger(&retSD, SDPath, &SDFatFS, &SDFile);
 
 
 
+// Match FSM states.
+typedef enum{CALIBRATE, WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS, LOOK_FOR_OPPONENT_1, LOOK_FOR_OPPONENT_2, NOP} State_t;
+
+// The strategy (Robot, Algo.hpp); CreateMiniTomiV3() below creates it.
+class MiniTomiV3 : public Robot
+{
+public:
+	void PeriodCB(void) override;
+	void PeriodicCheckCall(void) override;
+	bool isOutOfBounds(void) override;
+protected:
+	void Calibrate(void) override;
+	void begin(void) override;
+	void loop(void) override;
+	void end(void) override;
+private:
+	void FightAlgorithm(void);
+	State_t CheckStartCondition(State_t eFSM_state);
+};
+
 /*
  * Algorithm
  */
-Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
-{
-}
-
 volatile uint16_t maxVal_perSPAD[2] = {2000, 2000};
 
-// Heading-hold PID; PID_CalibrateHeading() may overwrite the gains at runtime.
-static HeadingPID HeadingController = HeadingPID(HEADING_PID_KP, HEADING_PID_KI, HEADING_PID_KD,
-		HEADING_PID_OUTPUT_LIMIT, HEADING_ANTIPODE_HYST_DEG);
-
-void Robot::begin(void)
+void MiniTomiV3::begin(void)
 {
 	was_running = true;
 	flash_period_ms = 100;
@@ -143,15 +142,7 @@ void Robot::begin(void)
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 }
 
-void prepare_sensor_data(char *pData, VL53L1X Sensors[])
-{
-}
 
-
-void Robot::SetTargetHeading(float targetAngleDeg){
-	set_angle = targetAngleDeg;
-	HeadingController.SetTarget(targetAngleDeg);
-}
 
 // Relay (Astrom-Hagglund) auto-tune for the heading PID: drives the motors in a
 // bang-bang pattern around the current heading to force a sustained oscillation,
@@ -159,7 +150,7 @@ void Robot::SetTargetHeading(float targetAngleDeg){
 // relay formulas. Runs for at most maxDurationMs, so it always returns in finite time.
 // The robot WILL spin in place while this runs - only call it with the robot on a stand
 // or clear of obstacles, never during a match.
-void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
+void PID_CalibrateHeading(HeadingPID& pid, uint32_t maxDurationMs, float relayPower)
 {
 	const uint8_t targetHalfCycles = 10; // stop early once enough oscillations are captured
 	float targetAngle = (float)IMU.GetAngularOrientationForAxis(2);
@@ -245,7 +236,7 @@ void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
 	float tunedKp = 0.6f * Ku;
 	float tunedKi = 1.2f * Ku / Tu;   // Ti = Tu/2  ->  Ki = Kp/Ti = 2*Kp/Tu
 	float tunedKd = 0.075f * Ku * Tu; // Td = Tu/8  ->  Kd = Kp*Td = Kp*Tu/8
-	HeadingController.SetGains(tunedKp, tunedKi, tunedKd);
+	pid.SetGains(tunedKp, tunedKi, tunedKd);
 	char string[100] = {0};
 	sprintf(string, "\n\rP= %f\n\rI= %f\n\rD= %f\n\r", tunedKp, tunedKi, tunedKd);
 	logger.Log(string, LOGLEVEL_TRACE);
@@ -256,7 +247,8 @@ void PID_CalibrateHeading(uint32_t maxDurationMs, float relayPower)
 volatile bool lineDetOnLeft = false;
 volatile bool lineDetOnRight = false;
 
-bool isOutOfBounds(void)
+// V3 reads its own line pins (no LineSensors without the shared hardware).
+bool MiniTomiV3::isOutOfBounds(void)
 {
 	bool left = !HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin);
 	bool right = !HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin);
@@ -280,14 +272,14 @@ typedef struct{
 	uint16_t raw_right;
 	uint16_t left;
 	uint16_t right;
-}SensorDistances_t;
+}FrontDistances_t;
 
 // Reads both front sensors and replaces readings whose signal is weaker than the
 // calibrated threshold with an out-of-detection-range value, so callers only act
 // on distances the calibration deems trustworthy.
-static SensorDistances_t GetValidatedDistances(void)
+static FrontDistances_t GetFrontDistances(void)
 {
-	SensorDistances_t distances;
+	FrontDistances_t distances;
 	distances.raw_left = Sensors[0].GetDistance();
 	distances.raw_right = Sensors[2].GetDistance();
 	VL53L1X_Result_t result_left = Sensors[0].GetResult();
@@ -305,7 +297,7 @@ bool isOpponentDetected(void)
 	static bool was_previously_detected= false;
 
 	WaitForNewData();
-	SensorDistances_t distances = GetValidatedDistances();
+	FrontDistances_t distances = GetFrontDistances();
 	sprintf(sensor_message, "ToF:\n\r[0]=%u\n\r[1]=%u\n\r", distances.raw_left, distances.raw_right);
 	logger.Log(sensor_message,LOGLEVEL_TRACE);
 
@@ -324,15 +316,13 @@ bool isOpponentDetected(void)
 	return detected;
 }
 
-typedef enum{CALIBRATE, WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS, LOOK_FOR_OPPONENT_1, LOOK_FOR_OPPONENT_2, NOP} State_t;
-
 static const char* StateName(State_t state)
 {
 	static const char *names[] = {"CALIBRATE", "WAIT_FOR_START", "FIGHT", "OUT_OF_BOUNDS", "LOOK_FOR_OPPONENT_1", "LOOK_FOR_OPPONENT_2"};
 	return (state <= LOOK_FOR_OPPONENT_2)? names[state] : "UNKNOWN";
 }
 
-State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
+State_t MiniTomiV3::CheckStartCondition(State_t eFSM_state)
 {
 	static bool start_condition_prev = false;
 	State_t retval = eFSM_state;
@@ -342,7 +332,7 @@ State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 		logger.Log((start_condition)? " Start Condition Set" : " Start Condition Reset ", LOGLEVEL_INFO);
 		if(!start_condition)//dummy
 		{
-			obj->SetFlashPeriodMS(1000);
+			this->SetFlashPeriodMS(1000);
 			MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 			MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 			retval= WAIT_FOR_START;
@@ -362,28 +352,28 @@ State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 
 }
 
-void FightAlgorithm(Robot *obj)
+void MiniTomiV3::FightAlgorithm(void)
 {
 	static bool forward_det;
-	SensorDistances_t distances = GetValidatedDistances();
+	FrontDistances_t distances = GetFrontDistances();
 	uint16_t sensor_left = distances.left;
 	uint16_t sensor_right = distances.right;
 	// detected 
-	obj->SetFlashPeriodMS(100);
+	this->SetFlashPeriodMS(100);
 	bool fwd_det_tmp = (abs(sensor_left - sensor_right) < 60)? true:false;
 	// Latch the target heading at the moment the forward-attack decision flips, then hold
 	// it for the whole charge so the PID (run by PeriodicCheckCall) steers the robot
 	// straight at where it saw the opponent.
 	if(fwd_det_tmp != forward_det)
 	{
-		obj->SetTargetHeading((float)IMU.GetAngularOrientationForAxis(2));
+		this->SetTargetHeading((float)IMU.GetAngularOrientationForAxis(2));
 	}
 	forward_det = fwd_det_tmp;
 	const char *fight_move;
 	if (forward_det){
 		// Positive error (target > current yaw) needs a CCW turn: left slower, right faster
 		// (same convention the relay autotuner and LookForOpponent2 use).
-		float heading_correction = obj->GetHeadingCorrection(1-FULL_SPEED);
+		float heading_correction = this->GetHeadingCorrection(1-FULL_SPEED);
 		MCInterface::SetMotorsPower(FULL_SPEED - heading_correction, FULL_SPEED + heading_correction);
 		fight_move = "ATTACK FWD";
 	}
@@ -413,18 +403,13 @@ void FightAlgorithm(Robot *obj)
 
 
 
-void Robot::SetFlashPeriodMS(uint16_t flashPeriod)
-{
-	this->flash_period_ms = flashPeriod;
-}
-
 State_t LookForOpponent2(Robot *obj)
 {
 	TickType_t start_tick;
 	double_t starting_orientation = NAN;
 	double_t angularOrientation = NAN;
 	obj->SetFlashPeriodMS(500);
-	if(isOutOfBounds())
+	if(obj->isOutOfBounds())
 	{
 		char search_message[100];
 		sprintf(search_message, "Search2: edge hit, backing off, rotate %s", (lastDetOnLeft)? "LEFT" : "RIGHT");
@@ -461,7 +446,7 @@ State_t LookForOpponent2(Robot *obj)
 }
 UBaseType_t heap_min_size;
 
-void Calibrate(void)
+void MiniTomiV3::Calibrate(void)
 {
 	TickType_t start_time = xTaskGetTickCount();
 	while((xTaskGetTickCount() - start_time) < ROTATION_TIMEOUT){
@@ -483,12 +468,12 @@ void Calibrate(void)
 }
 
 
-void Robot::loop(void)
+void MiniTomiV3::loop(void)
 {
 	// static float angle = 0;
 	static State_t eFSM_state = CALIBRATE;
 	static bool direction_ack = false;
-	eFSM_state = CheckStartCondition(this, eFSM_state);
+	eFSM_state = CheckStartCondition(eFSM_state);
 	static TickType_t last_detection_tick = 0;
 	// Collision handling: the IMU driver latches sudden accel/yaw-rate jumps (impacts)
 	// that our own motor-driven moves don't produce.
@@ -543,7 +528,7 @@ void Robot::loop(void)
 			if(isOpponentDetected())
 			{
 			//First fight
-				FightAlgorithm(this);
+				FightAlgorithm();
 			}
 			else
 			{
@@ -641,7 +626,7 @@ void Robot::loop(void)
 	taskYIELD();
 }
 
-void Robot::end(void)
+void MiniTomiV3::end(void)
 {
 //		Error_Handler();
 // Facilitate reset
@@ -678,7 +663,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 float currentAngle = 0;
-void Robot::PeriodicCheckCall(void)
+void MiniTomiV3::PeriodicCheckCall(void)
 {
 	static uint8_t call_count = 0;
 	static uint16_t flash_counter = flash_period_ms/2;
@@ -758,14 +743,19 @@ void Robot::PeriodicCheckCall(void)
 	flash_counter = (flash_counter == 0)? flash_period_ms/2: flash_counter-1;
 
 // PID calculations
-	this->power_correction = HeadingController.Update((float)IMU.GetAngularOrientationForAxis(2));
+	UpdateHeadingCorrection((float)IMU.GetAngularOrientationForAxis(2));
 // Heap check
 	
 }
 
-void Robot::PeriodCB(void)
+void MiniTomiV3::PeriodCB(void)
 {
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SoftPWMCB_period();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].SoftPWMCB_period();
 }
+Robot* CreateMiniTomiV3(void)
+{
+	return new MiniTomiV3();
+}
+
 #endif

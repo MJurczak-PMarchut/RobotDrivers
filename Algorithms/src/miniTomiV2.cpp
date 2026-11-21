@@ -59,12 +59,32 @@ static VL53L1X Sensors[] = {
 /*
  * Algorithm
  */
-Robot::Robot():MortalThread(tskIDLE_PRIORITY, 4096, "Main Algo task")
+
+// Match FSM states.
+typedef enum{WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS} State_t;
+
+// The strategy (Robot, Algo.hpp); CreateMiniTomiV2() below creates it.
+class MiniTomiV2 : public Robot
+{
+public:
+	void PeriodCB(void) override;
+	void PeriodicCheckCall(void) override;
+protected:
+	void Calibrate(void) override;
+	void begin(void) override;
+	void loop(void) override;
+	void end(void) override;
+private:
+	void FightAlgorithm(void);
+	State_t CheckStartCondition(State_t eFSM_state);
+};
+
+// V2 has no boot-time calibration (no CALIBRATE state); the override only satisfies Robot.
+void MiniTomiV2::Calibrate(void)
 {
 }
 
-
-void Robot::begin(void)
+void MiniTomiV2::begin(void)
 {
 	was_running = true;
 	flash_period_ms = 100;
@@ -104,17 +124,11 @@ void Robot::begin(void)
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 }
 
-void prepare_sensor_data(char *pData, VL53L1X Sensors[])
-{
-}
-
-typedef enum{WAIT_FOR_START, FIGHT, OUT_OF_BOUNDS} State_t;
-
-State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
+State_t MiniTomiV2::CheckStartCondition(State_t eFSM_state)
 {
 	if(!HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin))//dummy
 	{
-		obj->SetFlashPeriodMS(1000);
+		this->SetFlashPeriodMS(1000);
 		MOTOR_CONTROLLERS[MOTOR_LEFT].Disable();
 		MOTOR_CONTROLLERS[MOTOR_RIGHT].Disable();
 		return WAIT_FOR_START;
@@ -126,7 +140,7 @@ State_t  CheckStartCondition(Robot *obj, State_t eFSM_state)
 	}
 }
 
-void FightAlgorithm(Robot *obj)
+void MiniTomiV2::FightAlgorithm(void)
 {
 	EventBits_t u32_updated_Sensors;
 	bool forward_det;
@@ -146,7 +160,7 @@ void FightAlgorithm(Robot *obj)
 			sensor_right: DETECTION_DISTANCE + 100;
 	if((sensor_left < DETECTION_DISTANCE) || (sensor_right < DETECTION_DISTANCE)){
 		// detected
-		obj->SetFlashPeriodMS(100);
+		this->SetFlashPeriodMS(100);
 		if(sensor_left > sensor_right){
 			forward_det = ((sensor_left - sensor_right) < 60)? true:false;
 		}
@@ -169,7 +183,7 @@ void FightAlgorithm(Robot *obj)
 		}
 	}
 	else{
-		obj->SetFlashPeriodMS(1000);
+		this->SetFlashPeriodMS(1000);
 		if(lastDetOnLeft)
 		{
 			MCInterface::SetMotorsPower(-MANOUVER_SPEED, MANOUVER_SPEED);
@@ -182,15 +196,10 @@ void FightAlgorithm(Robot *obj)
 
 }
 
-void Robot::SetFlashPeriodMS(uint16_t flashPeriod)
-{
-	this->flash_period_ms = flashPeriod;
-}
-
-void Robot::loop(void)
+void MiniTomiV2::loop(void)
 {
 	static State_t eFSM_state = WAIT_FOR_START;
-	eFSM_state = CheckStartCondition(this, eFSM_state);
+	eFSM_state = CheckStartCondition(eFSM_state);
 	HAL_Delay(1000);
 	MOTOR_CONTROLLERS[MOTOR_LEFT].Enable();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].Enable();
@@ -205,7 +214,7 @@ void Robot::loop(void)
 		case FIGHT:
 		{
 			//First fight
-			FightAlgorithm(this);
+			FightAlgorithm();
 			//Then check OOB condition
 			if((HAL_GPIO_ReadPin(LDLeft_GPIO_Port, LDLeft_Pin) == GPIO_PIN_RESET) ||
 					(HAL_GPIO_ReadPin(LDRight_GPIO_Port, LDRight_Pin) == GPIO_PIN_RESET))
@@ -242,7 +251,7 @@ void Robot::loop(void)
 	taskYIELD();
 }
 
-void Robot::end(void)
+void MiniTomiV2::end(void)
 {
 //		Error_Handler();
 // Facilitate reset
@@ -281,7 +290,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
-void Robot::PeriodicCheckCall(void)
+void MiniTomiV2::PeriodicCheckCall(void)
 {
 	static uint8_t call_count = 0;
 	static uint16_t flash_counter = flash_period_ms/2;
@@ -356,9 +365,14 @@ void Robot::PeriodicCheckCall(void)
 	flash_counter = (flash_counter == 0)? flash_period_ms/2: flash_counter-1;
 }
 
-void Robot::PeriodCB(void)
+void MiniTomiV2::PeriodCB(void)
 {
 	MOTOR_CONTROLLERS[MOTOR_LEFT].SoftPWMCB_period();
 	MOTOR_CONTROLLERS[MOTOR_RIGHT].SoftPWMCB_period();
 }
+Robot* CreateMiniTomiV2(void)
+{
+	return new MiniTomiV2();
+}
+
 #endif
