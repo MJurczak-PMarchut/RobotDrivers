@@ -4,7 +4,7 @@
  * Forward pass of the miniNeuroV2 network (layout in MiniNeuroV2Net.hpp). About 300
  * multiply-adds and 18 tanhf per decision: a few microseconds on the Cortex-M7.
  */
-#ifdef ROBOT_MINI_NEURO_V2
+#if defined(ROBOT_MINI_NEURO_V2) || defined(ROBOT_ALGO_SELECT)   // ROBOT_ALGO_SELECT: all strategies in one image
 #include "MiniNeuroV2Net.hpp"
 #include <math.h>
 

@@ -225,7 +225,7 @@
 	#define MOTOR_POLE_PAIRS 7
 
 
-#elif defined(ROBOT_MT_V3) or defined(ROBOT_MT_V4) or defined(ROBOT_MT_V5) or defined(ROBOT_MINI_NEURO_V1) or defined(ROBOT_MINI_NEURO_V2)
+#elif defined(ROBOT_MT_V3) or defined(ROBOT_MT_V4) or defined(ROBOT_MT_V5) or defined(ROBOT_MINI_NEURO_V1) or defined(ROBOT_MINI_NEURO_V2) or defined(ROBOT_ALGO_SELECT)
 	#define MOTOR_INVERTED_SIDE
 	#define RIGHT_MOTOR_INVERT_DIRECTION
 //	#define LEFT_MOTOR_INVERT_DIRECTION

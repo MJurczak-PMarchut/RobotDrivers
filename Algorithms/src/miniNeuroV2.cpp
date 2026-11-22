@@ -26,7 +26,7 @@
 #include <cmath>
 #include <stdio.h>
 #include <string.h>
-#ifdef ROBOT_MINI_NEURO_V2
+#if defined(ROBOT_MINI_NEURO_V2) || defined(ROBOT_ALGO_SELECT)   // ROBOT_ALGO_SELECT: all strategies in one image
 #include "Algo.hpp"
 #include "HeadingPID.hpp"
 #include "vl53l1x.hpp"

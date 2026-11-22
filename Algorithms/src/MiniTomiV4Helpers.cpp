@@ -13,7 +13,7 @@
 #include <cmath>
 #include <stdio.h>
 #include <string.h>
-#ifdef ROBOT_MT_V4
+#if defined(ROBOT_MT_V4) || defined(ROBOT_ALGO_SELECT)   // ROBOT_ALGO_SELECT: all strategies in one image
 #include "MiniTomiV4Helpers.hpp"
 using namespace mt_v4;   // State_t, StateName, lastDetOnLeft, ... (MiniTomiV4Helpers.hpp)
 

@@ -5,7 +5,7 @@
  * bound what the optimiser in SumoSimulation may try. The V1 part keeps miniNeuroV1's ranges
  * (see MiniNeuroV1Params.cpp for why some lower limits are there).
  */
-#ifdef ROBOT_MINI_NEURO_V2
+#if defined(ROBOT_MINI_NEURO_V2) || defined(ROBOT_ALGO_SELECT)   // ROBOT_ALGO_SELECT: all strategies in one image
 #include "MiniNeuroV2Params.hpp"
 #include <math.h>
 #include <stdio.h>

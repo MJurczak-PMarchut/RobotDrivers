@@ -7,7 +7,8 @@
  */
 #include "stm32h7xx_hal.h"
 #include "Algo.hpp"
-#if defined(ROBOT_MT_V4) || defined(ROBOT_MT_V5) || defined(ROBOT_MINI_NEURO_V1) || defined(ROBOT_MINI_NEURO_V2)
+#if defined(ROBOT_MT_V4) || defined(ROBOT_MT_V5) || defined(ROBOT_MINI_NEURO_V1) || defined(ROBOT_MINI_NEURO_V2) || \
+	defined(ROBOT_ALGO_SELECT)
 #define ROBOT_HAS_SHARED_HARDWARE
 #include <algorithm>
 #include <cstdio>

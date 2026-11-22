@@ -20,7 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <iterator>
-#ifdef ROBOT_MT_V5
+#if defined(ROBOT_MT_V5) || defined(ROBOT_ALGO_SELECT)   // ROBOT_ALGO_SELECT: all strategies in one image
 #include "MiniTomiV5Helpers.hpp"
 using namespace mt_v5;   // State_t, StateName, lastDetOnLeft, ... (MiniTomiV5Helpers.hpp)
 

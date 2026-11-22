@@ -11,7 +11,7 @@
 #include <cmath>
 #include <stdio.h>
 #include <string.h>
-#ifdef ROBOT_MT_V4
+#if defined(ROBOT_MT_V4) || defined(ROBOT_ALGO_SELECT)   // ROBOT_ALGO_SELECT: all strategies in one image
 #include "Algo.hpp"
 #include "HeadingPID.hpp"
 #include "vl53l1x.hpp"
@@ -260,6 +260,7 @@ void MiniTomiV4::loop(void)
 				box.draw_all();
 			}
 			StatsBox[3].draw_glyph();
+			StatsBox[2].draw_glyph(kGlyphMiniTomiV4);   // which strategy runs (StrategyGlyphs.hpp)
 			StatsBox[1].print_wrapped("AAAAA!!! Napierdalać!!!");
 			#endif
 			eFSM_state = WAIT_FOR_START;

@@ -5,7 +5,8 @@
  * RobotHardware.hpp. Compiled only for the robots that use them.
  */
 #include "stm32h7xx_hal.h"
-#if defined(ROBOT_MT_V4) || defined(ROBOT_MT_V5) || defined(ROBOT_MINI_NEURO_V1) || defined(ROBOT_MINI_NEURO_V2)
+#if defined(ROBOT_MT_V4) || defined(ROBOT_MT_V5) || defined(ROBOT_MINI_NEURO_V1) || defined(ROBOT_MINI_NEURO_V2) || \
+	defined(ROBOT_ALGO_SELECT)
 #include "RobotHardware.hpp"
 
 extern SPI_HandleTypeDef hspi2;

@@ -13,7 +13,7 @@
 #include <cmath>
 #include <stdio.h>
 #include <string.h>
-#ifdef ROBOT_MINI_NEURO_V2
+#if defined(ROBOT_MINI_NEURO_V2) || defined(ROBOT_ALGO_SELECT)   // ROBOT_ALGO_SELECT: all strategies in one image
 #include "MiniNeuroV2Helpers.hpp"
 using namespace neuro_v2;   // State_t, StateName, lastDetOnLeft, ... (MiniNeuroV2Helpers.hpp)
 
@@ -429,6 +429,7 @@ void MiniNeuroV2::Calibrate(void)
 	StatsBox[2].draw_all();
 	StatsBox[3].draw_all();
 	StatsBox[3].draw_glyph();
+	StatsBox[2].draw_glyph(kGlyphMiniNeuroV2);   // which strategy runs (StrategyGlyphs.hpp)
 	StatsBox[1].print_wrapped("AAAAA!!! Napierdalać!!!");
 #endif
 }

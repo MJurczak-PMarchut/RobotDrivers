@@ -158,7 +158,9 @@ private:
 
 extern DisplayMortalThread DisplayThread;
 
-// 61x49 glyph drawn by boundingBox::draw_glyph().
+// Glyphs drawn by boundingBox::draw_glyph(): one per strategy (StrategyGlyphs.hpp) and this one,
+// shown in the bottom-left ("misc") box.
+#include "StrategyGlyphs.hpp"
 inline const unsigned char epd_bitmap_Untitled[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -186,6 +188,7 @@ inline const unsigned char epd_bitmap_Untitled[] = {
 	0x00, 0x00, 0x01, 0xc1, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0xc0, 0x00, 0x00, 0x00, 
 	0x00, 0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x00
 };
+static_assert(sizeof(epd_bitmap_Untitled) == kGlyphBytes);
 
 // One quadrant of the statistics screen drawn after calibration: a title bar and up to four
 // named stats (attach_stat() / printstat()).
@@ -222,9 +225,10 @@ class boundingBox{
 		void draw_all(void){
 			_display_title();
 		}
-		void draw_glyph()
+		// Draws a kGlyphWidth x kGlyphHeight bitmap (StrategyGlyphs.hpp format) below the title bar.
+		void draw_glyph(const unsigned char* glyph = epd_bitmap_Untitled)
 		{
-			display.drawBitmap(_x + 1, _y + 10, epd_bitmap_Untitled, 61, 49, SSD1327_WHITE);
+			display.drawBitmap(_x + 1, _y + 10, glyph, kGlyphWidth, kGlyphHeight, SSD1327_WHITE);
 		}
 		// Print `str` inside this box only: word-wrap at the box's right edge (returning to the
 		// box's left, not the screen's) and clip at the box bottom, so text never bleeds into a
