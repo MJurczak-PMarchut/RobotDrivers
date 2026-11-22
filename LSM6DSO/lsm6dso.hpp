@@ -16,6 +16,15 @@
 #error "This lib cannot function without RTOS!"
 #endif
 
+// One single-tap event of the embedded tap engine (TAP_SRC).
+struct LSM6DSOTapEvent
+{
+	bool x = false;          // axes on which the tap was detected
+	bool y = false;
+	bool z = false;
+	bool negative = false;   // sign of the acceleration of the tap
+};
+
 class LSM6DSO{
 public:
 	LSM6DSO(CommManager *CommunicationManager, SPI_HandleTypeDef *hspi);
@@ -41,6 +50,19 @@ public:
 #endif
 	bool IsCollisionDetected(void);
 	void ClearCollisionDetected(void);
+	// Embedded single-tap detection, latched until ReadTap(); no interrupt pin is routed.
+	// Thresholds 0..31 in steps of full scale / 32 (250 mg at +-8 g); 0 turns the axis off.
+	// shock / quiet 0..3 (INT_DUR2) at 1667 Hz ODR: shock 0 = 2.4 ms, n = n * 4.8 ms (max
+	// time above threshold); quiet 0 = 1.2 ms, n = n * 2.4 ms (time after a tap with no new one).
+	// hp_filter: the tap engine sees the high-pass filter (cut-off set by Init(), ODR/100 =
+	// 16.7 Hz), i.e. the acceleration of the tap itself; false: the slope filter (half the
+	// difference of consecutive samples, small at 1667 Hz for a tap spread over a few ms).
+	// Blocking SPI: call only after Init() and from the task that ran Init().
+	HAL_StatusTypeDef EnableTapDetection(uint8_t ths_x, uint8_t ths_y, uint8_t ths_z,
+			uint8_t shock, uint8_t quiet, bool hp_filter);
+	// Reads TAP_SRC, which also clears the latch. True when it holds a tap (`event` filled).
+	// Blocking SPI, same task rule as EnableTapDetection().
+	bool ReadTap(LSM6DSOTapEvent& event);
 protected:
 	void GetGyData(void);
 	void GetXlData(void);

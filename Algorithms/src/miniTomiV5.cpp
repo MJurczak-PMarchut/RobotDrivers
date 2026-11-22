@@ -278,6 +278,13 @@ void MiniTomiV5::loop(void)
 		break;
 		case WAIT_FOR_START:
 		{
+			#if V5_TAP_PROBE
+			if(state_entry)
+			{
+				TapProbeStart();
+			}
+			TapProbeStep();
+			#endif
 			last_detection_tick = xTaskGetTickCount();
 			MCInterface::SetMotorsPower(0, 0);
 			if(!direction_ack)

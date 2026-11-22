@@ -38,7 +38,8 @@ static uint8_t pRxBuf[257] = {0};
  * request, a stale token is drained before each push, and a timeout removes the head
  * message only if it is ours (it may be an L9960T message on the shared hspi2).
  * Bit 15 keeps these contexts apart from the async IMU reads (RX_CONTEXT) and L9960T.
- * Only LSM6DSO::Init() uses these, from a single task, so no mutex is needed.
+ * Only LSM6DSO::Init(), EnableTapDetection() and ReadTap() use these, all from the task
+ * that ran Init(), so no mutex is needed.
  */
 #define BLOCKING_CTX_FLAG  0x8000u
 static uint16_t _seq = 0;
@@ -371,6 +372,61 @@ void LSM6DSO::CalibratePosition(void)
 	this->_positionEstimator.CalibratePosition();
 }
 #endif
+
+HAL_StatusTypeDef LSM6DSO::EnableTapDetection(uint8_t ths_x, uint8_t ths_y, uint8_t ths_z,
+		uint8_t shock, uint8_t quiet, bool hp_filter)
+{
+	if(IsInitCompleted() != HAL_OK)
+	{
+		return HAL_ERROR;
+	}
+	int32_t ret = 0;
+	ret |= lsm6dso_tap_threshold_x_set(&dev_ctx, ths_x & 0x1Fu);
+	ret |= lsm6dso_tap_threshold_y_set(&dev_ctx, ths_y & 0x1Fu);
+	ret |= lsm6dso_tap_threshold_z_set(&dev_ctx, ths_z & 0x1Fu);
+	ret |= lsm6dso_tap_detection_on_x_set(&dev_ctx, (ths_x != 0u)? 1u : 0u);
+	ret |= lsm6dso_tap_detection_on_y_set(&dev_ctx, (ths_y != 0u)? 1u : 0u);
+	ret |= lsm6dso_tap_detection_on_z_set(&dev_ctx, (ths_z != 0u)? 1u : 0u);
+	ret |= lsm6dso_tap_shock_set(&dev_ctx, shock & 0x03u);
+	ret |= lsm6dso_tap_quiet_set(&dev_ctx, quiet & 0x03u);
+	ret |= lsm6dso_tap_mode_set(&dev_ctx, LSM6DSO_ONLY_SINGLE);
+	// TAP_CFG0.SLOPE_FDS only routes the tap / wake-up input; the output data path is unchanged.
+	ret |= lsm6dso_xl_hp_path_internal_set(&dev_ctx,
+			hp_filter ? LSM6DSO_USE_HPF : LSM6DSO_USE_SLOPE);
+	// LIR + INT_CLR_ON_READ: TAP_SRC holds a tap until it is read, and reading it clears it.
+	ret |= lsm6dso_int_notification_set(&dev_ctx, LSM6DSO_BASE_LATCHED_EMB_PULSED);
+	// INTERRUPTS_ENABLE runs the tap engine; normally set by routing an event to a pin.
+	lsm6dso_tap_cfg2_t tap_cfg2;
+	ret |= lsm6dso_read_reg(&dev_ctx, LSM6DSO_TAP_CFG2, (uint8_t*)&tap_cfg2, 1);
+	tap_cfg2.interrupts_enable = PROPERTY_ENABLE;
+	ret |= lsm6dso_write_reg(&dev_ctx, LSM6DSO_TAP_CFG2, (uint8_t*)&tap_cfg2, 1);
+	// Drop a tap latched while configuring.
+	LSM6DSOTapEvent unused;
+	(void)ReadTap(unused);
+	return (ret == 0)? HAL_OK : HAL_ERROR;
+}
+
+bool LSM6DSO::ReadTap(LSM6DSOTapEvent& event)
+{
+	if(IsInitCompleted() != HAL_OK)
+	{
+		return false;
+	}
+	lsm6dso_tap_src_t tap_src;
+	if(lsm6dso_read_reg(&dev_ctx, LSM6DSO_TAP_SRC, (uint8_t*)&tap_src, 1) != 0)
+	{
+		return false;
+	}
+	if(!tap_src.single_tap)
+	{
+		return false;
+	}
+	event.x = tap_src.x_tap;
+	event.y = tap_src.y_tap;
+	event.z = tap_src.z_tap;
+	event.negative = tap_src.tap_sign;
+	return true;
+}
 
 bool LSM6DSO::IsCollisionDetected(void)
 {

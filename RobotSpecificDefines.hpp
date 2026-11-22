@@ -242,6 +242,8 @@
 	#define DETECTION_THRESHOLD 800
 	#define LEFT_MOTOR_INVERTED_PWM  true
 
+	#define  DEBUG_SCREEN
+
 	#define RIGHT_MOTOR_INVERTED_PWM true
 
 #elif defined(ROBOT_STD_V1)

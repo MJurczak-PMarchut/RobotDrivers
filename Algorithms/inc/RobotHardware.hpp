@@ -225,6 +225,18 @@ class boundingBox{
 		void draw_all(void){
 			_display_title();
 		}
+		// Area below the title bar (glyph or text): top-left corner and size in pixels.
+		int16_t content_x(void) const { return _x + 1; }
+		int16_t content_y(void) const { return _y + 10; }
+		// Left boxes (x 1..62) stop before the x=63 divider, right ones (x 64..126) before the
+		// x=127 border: clear_content() must not erase either line.
+		int16_t content_width(void) const { return 61; }
+		int16_t content_height(void) const { return _yBottom - (_y + 10); }
+		// Blanks the content area, so it can be drawn again.
+		void clear_content(void)
+		{
+			display.fillRect(content_x(), content_y(), content_width(), content_height(), SSD1327_BLACK);
+		}
 		// Draws a kGlyphWidth x kGlyphHeight bitmap (StrategyGlyphs.hpp format) below the title bar.
 		void draw_glyph(const unsigned char* glyph = epd_bitmap_Untitled)
 		{
