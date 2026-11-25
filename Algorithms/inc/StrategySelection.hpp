@@ -34,6 +34,14 @@ enum class Strategy : uint8_t
 // Runs when no store holds a valid strategy.
 inline constexpr Strategy kDefaultStrategy = Strategy::MiniTomiV4;
 
+// Order of the strategies when choosing one by taps (StrategyTapSelector: next / previous).
+inline constexpr Strategy kStrategyOrder[] = {
+	Strategy::MiniTomiV4,
+	Strategy::MiniTomiV5,
+	Strategy::MiniNeuroV1,
+	Strategy::MiniNeuroV2,
+};
+
 enum class StrategyStorage : uint8_t
 {
 	Flash,
@@ -48,6 +56,11 @@ bool SetStrategy(Strategy strategy, StrategyStorage storage);
 // available; `strategy` is then left unchanged. SdCard needs the RTOS scheduler running (the
 // SD driver waits for its DMA on an RTOS queue); before that it returns false.
 bool GetStrategy(Strategy& strategy, StrategyStorage storage);
+
+// The strategy this firmware runs, as chosen at boot (DebugEntryCPP.cpp, ROBOT_ALGO_SELECT).
+// kDefaultStrategy until SetRunningStrategy() is called.
+void SetRunningStrategy(Strategy strategy);
+Strategy GetRunningStrategy(void);
 
 // Short name, as in strategy.txt and in logs: "V4", "V5", "NEURO1", "NEURO2" ("?" if unknown).
 const char* StrategyName(Strategy strategy);

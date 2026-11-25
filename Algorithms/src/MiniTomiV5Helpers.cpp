@@ -88,6 +88,48 @@ bool MiniTomiV5::isOpponentDetected(void)
 	return detected;
 }
 
+void mt_v5::LogToFSamples(void)
+{
+#if LOG_TOF_SAMPLES
+	// A new sample = a new GetLastSampleTick() (set by the data-ready path, one per period).
+	static uint32_t logged_tick[std::size(Sensors)] = {};
+	static uint32_t logged_dropped = 0;
+	char message[112];
+	for(std::size_t i = 0; i < std::size(Sensors); i++)
+	{
+		// Consistent snapshot: the data-ready path may store the next sample meanwhile.
+		taskENTER_CRITICAL();
+		const uint32_t sample_tick = Sensors[i].GetLastSampleTick();
+		const VL53L1X_Result_t r = Sensors[i].GetResult();
+		taskEXIT_CRITICAL();
+		if(sample_tick == logged_tick[i])
+		{
+			continue;
+		}
+		logged_tick[i] = sample_tick;
+		// i = Sensors[] index (0 front left, 1 rear, 2 front right); age = ms between the
+		// sample reaching the driver and this record (the record's own timestamp); d range
+		// [mm], s SigPerSPAD, st range status, n NumSPADs, a ambient, yaw [0.1 deg] and
+		// gz yaw rate [deg/s] from the IMU at the time of the record.
+		// Worst case 103 chars + NUL.
+		snprintf(message, sizeof(message), "ToFs:%u age=%ld d=%u s=%u st=%u n=%u a=%u yaw=%ld gz=%ld",
+				(unsigned)i, (long)(int32_t)(HAL_GetTick() - sample_tick),
+				(unsigned)r.Distance, (unsigned)r.SigPerSPAD, (unsigned)r.Status,
+				(unsigned)r.NumSPADs, (unsigned)r.Ambient,
+				lround(IMU.GetAngularOrientationForAxis(2) * 10.0),
+				lround(IMU.GetAngularRateForAxis(2)));
+		logger.Log(message, LOGLEVEL_TRACE);
+	}
+	const uint32_t dropped = logger.GetDroppedRecords();
+	if(dropped != logged_dropped)
+	{
+		logged_dropped = dropped;
+		snprintf(message, sizeof(message), "Log dropped: %lu", (unsigned long)dropped);
+		logger.Log(message, LOGLEVEL_INFO);
+	}
+#endif
+}
+
 const char* mt_v5::StateName(State_t state)
 {
 	static const char *names[] = {"CALIBRATE", "WAIT_FOR_START", "FIGHT", "OUT_OF_BOUNDS", "LOOK_FOR_OPPONENT_1", "LOOK_FOR_OPPONENT_2"};
@@ -106,7 +148,7 @@ State_t MiniTomiV5::CheckStartCondition(State_t eFSM_state)
 	if(eFSM_state ==  CALIBRATE){
 		return eFSM_state;
 	}
-	bool start_condition =  false;//HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin);
+	bool start_condition =  HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin);
 	if(start_condition != start_condition_prev)
 	{
 		logger.Log((start_condition)? " Start Condition Set" : " Start Condition Reset ", LOGLEVEL_INFO);
@@ -372,144 +414,5 @@ State_t LookForOpponent2(Robot *obj, Manoeuvre *m, bool opponent_detected)
 } // namespace mt_v5
 
 
-#if V5_TAP_PROBE
-namespace {
-uint32_t tap_count = 0;
-uint32_t series_count = 0;
-uint32_t dup_count = 0;
-TickType_t last_tap_tick = 0;
-
-#ifdef DEBUG_SCREEN
-void TapProbeShow(const char* text)
-{
-	StatsBox[1].clear_content();
-	StatsBox[1].print_wrapped(text);
-	DisplayThread.RequestUpdate();
-}
-
-/*
- * Tap dots in the bottom-left box (StatsBox[3], in place of its glyph): one dot per tap, the
- * dots of one series next to each other, a wider gap before each new series; rows wrap, a
- * full box starts over. Cleared TAP_PROBE_DOTS_RESET_MS after the last tap.
- */
-constexpr int16_t kDotRadius = 2;
-constexpr int16_t kDotSize = 2 * kDotRadius + 1;
-constexpr int16_t kDotStep = kDotSize + 2;        // dots of one series
-constexpr int16_t kSeriesExtraGap = 2 * kDotSize; // added before a new series
-constexpr int16_t kDotRowStep = kDotSize + 4;
-int16_t dot_x = 0;   // offset of the next dot in the content area
-int16_t dot_y = 0;
-bool dots_shown = false;
-
-void DotsClear(void)
-{
-	StatsBox[3].clear_content();
-	dot_x = 0;
-	dot_y = 0;
-	dots_shown = false;
-	DisplayThread.RequestUpdate();
-}
-
-void DotsAdd(bool new_series)
-{
-	if(dots_shown && new_series)
-	{
-		dot_x += kSeriesExtraGap;
-	}
-	if(dot_x + kDotSize > StatsBox[3].content_width())
-	{
-		dot_x = 0;
-		dot_y += kDotRowStep;
-	}
-	if(dot_y + kDotSize > StatsBox[3].content_height())
-	{
-		DotsClear();
-	}
-	display.fillCircle(StatsBox[3].content_x() + dot_x + kDotRadius,
-			StatsBox[3].content_y() + dot_y + kDotRadius, kDotRadius, SSD1327_WHITE);
-	dot_x += kDotStep;
-	dots_shown = true;
-	DisplayThread.RequestUpdate();
-}
-#endif
-}
-
-void mt_v5::TapProbeStart(void)
-{
-	static bool enabled = false;
-	char message[100];
-	if(!enabled)
-	{
-		const HAL_StatusTypeDef status = IMU.EnableTapDetection(TAP_PROBE_THS_X, TAP_PROBE_THS_Y,
-				TAP_PROBE_THS_Z, TAP_PROBE_SHOCK, TAP_PROBE_QUIET, TAP_PROBE_HP_FILTER != 0);
-		enabled = (status == HAL_OK);
-		snprintf(message, sizeof(message),
-				"TAP probe: ths x%u y%u z%u shock %u quiet %u %s deadtime %ums: %s",
-				TAP_PROBE_THS_X, TAP_PROBE_THS_Y, TAP_PROBE_THS_Z, TAP_PROBE_SHOCK, TAP_PROBE_QUIET,
-				(TAP_PROBE_HP_FILTER != 0)? "HPF" : "slope", TAP_PROBE_DEADTIME_MS,
-				enabled ? "on" : "FAILED");
-		logger.Log(message, LOGLEVEL_INFO);
-	}
-	// Taps while fighting are not counted: drop one latched since the last WAIT_FOR_START.
-	LSM6DSOTapEvent unused;
-	(void)IMU.ReadTap(unused);
-#ifdef DEBUG_SCREEN
-	snprintf(message, sizeof(message), "TAP probe %s\nx%u y%u z%u\ns%u q%u %s",
-			enabled ? "on" : "FAIL", TAP_PROBE_THS_X, TAP_PROBE_THS_Y, TAP_PROBE_THS_Z,
-			TAP_PROBE_SHOCK, TAP_PROBE_QUIET, (TAP_PROBE_HP_FILTER != 0)? "HPF" : "slp");
-	TapProbeShow(message);
-	DotsClear();
-#endif
-}
-
-void mt_v5::TapProbeStep(void)
-{
-	const TickType_t now = xTaskGetTickCount();
-	LSM6DSOTapEvent tap;
-	if(!IMU.ReadTap(tap))
-	{
-#ifdef DEBUG_SCREEN
-		if(dots_shown && ((now - last_tap_tick) >= pdMS_TO_TICKS(TAP_PROBE_DOTS_RESET_MS)))
-		{
-			DotsClear();
-		}
-#endif
-		return;
-	}
-	const unsigned long dt_ms = (tap_count == 0)? 0ul :
-			static_cast<unsigned long>((now - last_tap_tick) * portTICK_PERIOD_MS);
-	char message[100];
-	if((tap_count != 0) && (dt_ms < TAP_PROBE_DEADTIME_MS))
-	{
-		dup_count++;
-		snprintf(message, sizeof(message), "TAP dup #%lu dt=%lums (after TAP #%lu)",
-				static_cast<unsigned long>(dup_count), dt_ms, static_cast<unsigned long>(tap_count));
-		logger.Log(message, LOGLEVEL_INFO);
-		return;
-	}
-	const bool new_series = (tap_count == 0) || (dt_ms >= TAP_PROBE_SERIES_GAP_MS);
-	last_tap_tick = now;
-	tap_count++;
-	if(new_series)
-	{
-		series_count++;
-	}
-	char axes[4] = {0};
-	std::size_t n = 0;
-	if(tap.x) axes[n++] = 'X';
-	if(tap.y) axes[n++] = 'Y';
-	if(tap.z) axes[n++] = 'Z';
-	snprintf(message, sizeof(message), "TAP #%lu %s%c dt=%lums series %lu",
-			static_cast<unsigned long>(tap_count), axes, tap.negative ? '-' : '+', dt_ms,
-			static_cast<unsigned long>(series_count));
-	logger.Log(message, LOGLEVEL_INFO);
-#ifdef DEBUG_SCREEN
-	snprintf(message, sizeof(message), "TAP #%lu\n%s%c\ndt %lums",
-			static_cast<unsigned long>(tap_count), axes, tap.negative ? '-' : '+', dt_ms);
-	TapProbeShow(message);
-	DotsAdd(new_series);
-#endif
-}
-#endif /* V5_TAP_PROBE */
 
 #endif

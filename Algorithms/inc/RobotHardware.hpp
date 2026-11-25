@@ -29,6 +29,11 @@
 extern I2C_HandleTypeDef hi2c1;
 extern CommManager MainCommManager;
 
+// How long begin() keeps the external LDO (EXT_LDO_EN: ToF sensors, OLED) off before turning
+// it on, so that after a reset (e.g. the restart after choosing a strategy by taps) the
+// peripherals really lose power and start from scratch. Was 100 ms.
+inline constexpr uint32_t kExtLdoOffMs = 200;
+
 extern L9960T MOTOR_CONTROLLERS[];   // indexed by MOTOR_LEFT / MOTOR_RIGHT
 extern LSM6DSO IMU;
 extern DirtyLogger logger;

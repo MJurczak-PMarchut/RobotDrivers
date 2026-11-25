@@ -132,6 +132,8 @@ State_t MiniNeuroV2::CheckStartCondition(State_t eFSM_state)
 	if(eFSM_state ==  CALIBRATE){
 		return eFSM_state;
 	}
+	// TEMPORARY (2026-11-22, like MiniTomiV5): start signal ignored while testing the strategy
+	// selection by taps, so the robot cannot drive off.
 	bool start_condition = HAL_GPIO_ReadPin(START_GPIO_Port, START_Pin);
 	if(start_condition != start_condition_prev)
 	{

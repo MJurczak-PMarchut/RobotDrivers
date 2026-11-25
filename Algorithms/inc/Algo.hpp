@@ -88,6 +88,19 @@ protected:
 	// A sensor without a sample for this long (~2 periods) counts as "no detection".
 	static constexpr int32_t kTofStaleMs = 60;
 
+	// Choosing the strategy by tapping the robot (StrategyTapSelector.hpp), multi-algorithm
+	// firmware with DEBUG_SCREEN only; elsewhere both do nothing. The strategy calls
+	// StrategySelectionReset() on entering WAIT_FOR_START and StrategySelectionStep() on every
+	// pass through it; a committed choice is stored and the MCU restarts inside Step().
+	// Robot task only (blocking SPI to the IMU, flash and SD writes).
+#ifdef ROBOT_ALGO_SELECT
+	void StrategySelectionReset(void);
+	void StrategySelectionStep(void);
+#else
+	void StrategySelectionReset(void) {}
+	void StrategySelectionStep(void) {}
+#endif
+
 	// Heading controller step: PeriodicCheckCall() calls it with the current yaw (deg); it sets
 	// power_correction (GetHeadingCorrection()). The default runs heading_pid.
 	virtual void UpdateHeadingCorrection(float yawDeg) { power_correction = heading_pid.Update(yawDeg); }

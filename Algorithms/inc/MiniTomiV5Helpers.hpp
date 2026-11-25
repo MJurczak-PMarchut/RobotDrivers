@@ -49,28 +49,12 @@
 // isOpponentDetected() TRACE records (ToF + orientation) at most this often: it now runs
 // on every front sample (~2 per period), and the 8 KB log ring must survive SD stalls.
 #define TOF_TRACE_LOG_PERIOD_MS  20
-
-// multiAlgorithmV1, tap selection, step 0 (MultiAlgorithmV1WorkState.md): the IMU's embedded
-// single-tap detector runs from WAIT_FOR_START on, and every tap seen in WAIT_FOR_START is
-// logged ("TAP #n Z- dt=... series k") and, with DEBUG_SCREEN, shown in StatsBox[1] and as
-// dots in StatsBox[3] (bottom left, in place of its glyph). For tuning the
-// detector on the robot; 0 turns the probe off. Thresholds 0..31 in steps of 250 mg (+-8 g),
-// 0 = axis off; shock / quiet 0..3, see LSM6DSO::EnableTapDetection().
-#define V5_TAP_PROBE      1
-#define TAP_PROBE_THS_X   2
-#define TAP_PROBE_THS_Y   2
-#define TAP_PROBE_THS_Z   2
-#define TAP_PROBE_SHOCK   3
-#define TAP_PROBE_QUIET   3
-// 1: the tap engine sees the high-pass filtered acceleration, 0: the slope filter (default).
-#define TAP_PROBE_HP_FILTER  1
-// A tap reported sooner than this after the last counted one is the same knock ringing on
-// (robot rocking on its wheels): logged as "TAP dup", not counted.
-#define TAP_PROBE_DEADTIME_MS  120
-// Taps closer than this belong to one series (log "series n", dots next to each other).
-#define TAP_PROBE_SERIES_GAP_MS  400
-// The tap dots (bottom-left box, DEBUG_SCREEN) are cleared this long after the last tap.
-#define TAP_PROBE_DOTS_RESET_MS  4000
+// One "ToFs:" TRACE record per new ToF sample (all sensors, ~150 records/s, ~13 KB/s on top
+// of the ~5 KB/s of the other TRACE records), to fit the simulator's ToF model to fights.
+// Build with -DLOG_TOF_SAMPLES=0 to turn it off.
+#ifndef LOG_TOF_SAMPLES
+#define LOG_TOF_SAMPLES 1
+#endif
 
 // Errors smaller than this are treated as zero, so sensor noise / motor response lag
 // doesn't make the robot hunt back and forth for a negligible heading difference.
@@ -111,13 +95,9 @@ const char* StateName(State_t state);
 void PID_CalibrateHeading(HeadingPID& pid, uint32_t maxDurationMs, float relayPower);
 // Search manoeuvre of LOOK_FOR_OPPONENT_2; returns the next state.
 State_t LookForOpponent2(Robot *obj, Manoeuvre *m, bool opponent_detected);
-#if V5_TAP_PROBE
-// Tap selection step 0 (V5_TAP_PROBE). TapProbeStart(): on each entry to WAIT_FOR_START (turns
-// the detector on the first time). TapProbeStep(): every WAIT_FOR_START pass; reads TAP_SRC
-// (blocking SPI, about a millisecond). Both from the robot task, which ran IMU.Init().
-void TapProbeStart(void);
-void TapProbeStep(void);
-#endif
+// LOG_TOF_SAMPLES records: every ToF sample that arrived since the previous call, plus the
+// logger's dropped-record count when it changes. Called on every Robot::loop() pass.
+void LogToFSamples(void);
 }
 
 #endif /* ALGORITHMS_INC_MINITOMIV5HELPERS_HPP_ */

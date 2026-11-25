@@ -90,7 +90,7 @@ void MiniTomiV5::begin(void)
 	HAL_GPIO_WritePin(NCS2_GPIO_Port, NCS2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(IMU_CS_GPIO_Port, IMU_CS_Pin, GPIO_PIN_SET);
 
-	HAL_Delay(100);
+	HAL_Delay(kExtLdoOffMs);
 	HAL_GPIO_WritePin(EXT_LDO_EN_GPIO_Port, EXT_LDO_EN_Pin, GPIO_PIN_SET);
 	HAL_Delay(250);
 #ifdef DEBUG_SCREEN
@@ -205,6 +205,7 @@ void MiniTomiV5::loop(void)
 	{
 		vTaskDelay(pdMS_TO_TICKS(LOOP_WAKE_TIMEOUT_MS));
 	}
+	LogToFSamples();
 	// Re-evaluate the opponent on every front-sensor sample: detection needs only one side,
 	// and the other side's reading is at most one period (~20 ms) old. Waiting for both
 	// added up to ~20 ms to LOOK -> FIGHT. TOF_EVAL_TIMEOUT_MS covers dead sensors.
@@ -278,13 +279,12 @@ void MiniTomiV5::loop(void)
 		break;
 		case WAIT_FOR_START:
 		{
-			#if V5_TAP_PROBE
+			// Choosing the strategy by taps (multi-algorithm firmware with DEBUG_SCREEN only).
 			if(state_entry)
 			{
-				TapProbeStart();
+				StrategySelectionReset();
 			}
-			TapProbeStep();
-			#endif
+			StrategySelectionStep();
 			last_detection_tick = xTaskGetTickCount();
 			MCInterface::SetMotorsPower(0, 0);
 			if(!direction_ack)

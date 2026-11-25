@@ -456,6 +456,8 @@ public:
 	}
 };
 
+Strategy running_strategy = kDefaultStrategy;
+
 FlashStrategyStore flash_store;
 SdStrategyStore sd_store;
 
@@ -482,6 +484,16 @@ bool SetStrategy(Strategy strategy, StrategyStorage storage)
 bool GetStrategy(Strategy& strategy, StrategyStorage storage)
 {
 	return StoreFor(storage).Load(strategy);
+}
+
+void SetRunningStrategy(Strategy strategy)
+{
+	running_strategy = strategy;
+}
+
+Strategy GetRunningStrategy(void)
+{
+	return running_strategy;
 }
 
 const char* StrategyName(Strategy strategy)
